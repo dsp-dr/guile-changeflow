@@ -5,6 +5,12 @@
 
 * Guile ChangeFlow
 
+[[https://img.shields.io/badge/Status-Prototype-orange]]
+[[https://img.shields.io/badge/Guile-3.0+-blue]]
+[[https://img.shields.io/badge/License-MIT-green]]
+[[https://img.shields.io/badge/ITIL-4-purple]]
+[[https://img.shields.io/badge/MCP-Compatible-yellow]]
+
 An ITIL 4-compliant change management system implemented as a remote MCP (Model Context Protocol) server in GNU Guile 3.
 
 ** Project Vision

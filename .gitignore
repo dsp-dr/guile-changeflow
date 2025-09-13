@@ -160,3 +160,14 @@ venv/
 ENV/
 env/
 .venv
+
+# Project management
+/.forge/
+PROJECT-STATUS.org
+AGENT-STATUS.org
+agenda.txt
+todo-stats.txt
+
+# Agent status files
+STATUS.org
+STATUS-FINAL.org
