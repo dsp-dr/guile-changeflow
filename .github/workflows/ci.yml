@@ -33,7 +33,7 @@ jobs:
         which pkg-config && pkg-config --version
         which autoconf && autoconf --version | head -1
         which automake && automake --version | head -1
-        which libtool && libtool --version | head -1
+        which libtool && libtool --version | head -1 || echo "libtool not available (optional)"
 
     - name: Check Guile Libraries
       run: |
@@ -46,9 +46,9 @@ jobs:
     - name: Check Additional Dependencies
       run: |
         echo "=== Checking additional tools ==="
-        which sqlite3 && sqlite3 --version
+        which sqlite3 && sqlite3 --version || echo "sqlite3 not available (will be needed later)"
         which curl && curl --version | head -1
-        which jq && jq --version
+        which jq && jq --version || echo "jq not available (optional)"
         which git && git --version
 
     - name: Check Container Build Dependencies
