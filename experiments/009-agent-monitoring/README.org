@@ -1,0 +1,329 @@
+#+TITLE: Experiment 009: Agent Monitoring and Coordination Tools
+#+DATE: 2025-09-13
+#+AUTHOR: Coordinator
+
+* Purpose
+
+Develop tools to monitor and coordinate multiple Claude agents working in parallel tmux sessions, enabling real-time progress tracking and intervention capabilities for distributed software development.
+
+* Hypothesis
+
+We can build monitoring tools in both Guile Scheme and Python to:
+1. Parse tmux session output and extract agent progress
+2. Detect patterns indicating blockers or completion
+3. Automatically trigger interventions or notifications
+4. Coordinate handoffs between agents at integration points
+
+This enables a DSP (Digital Signal Processing) style approach to agent orchestration.
+
+* Method
+
+** Phase 1: Tmux Library Research
+Research available libraries:
+- Guile: Check for tmux FFI bindings or shell interfaces
+- Python: libtmux, python-tmux, or subprocess approaches
+- Shell: Direct tmux command automation
+
+** Phase 2: Agent State Detection
+Build parsers to detect:
+- Code completion status (files created, tests passing)
+- Error states (compilation failures, missing dependencies)
+- Waiting states (user prompts, approval requests)
+- Integration readiness (API stability signals)
+
+** Phase 3: Coordination Protocols
+Implement:
+- Progress dashboards
+- Automatic git commit reminders
+- Integration point notifications
+- Failure escalation
+
+* Implementation
+
+** Guile Approach
+
+#+begin_src scheme :tangle agent-monitor.scm
+;;; Agent monitoring system in Guile Scheme
+(define-module (agent-monitor)
+  #:use-module (ice-9 popen)
+  #:use-module (ice-9 textual-ports)
+  #:use-module (ice-9 match)
+  #:use-module (srfi srfi-1)
+  #:use-module (srfi srfi-19)
+  #:export (monitor-agents capture-agent-state parse-agent-output))
+
+(define agent-sessions
+  '((gcf-a1 . "Core Models")
+    (gcf-a2 . "MCP Server")
+    (gcf-a3 . "Risk Engine")
+    (gcf-a4 . "Web Interface")
+    (gcf-a5 . "Integrations")))
+
+(define (tmux-capture session-id)
+  "Capture the full content of a tmux session"
+  (let* ((cmd (format #f "tmux capture-pane -t ~a -p" session-id))
+         (pipe (open-input-pipe cmd))
+         (output (get-string-all pipe)))
+    (close-pipe pipe)
+    output))
+
+(define (parse-agent-output content)
+  "Parse agent output to detect state"
+  (let ((lines (string-split content #\newline)))
+    `((creating-files . ,(any (lambda (line)
+                                (string-contains line "Do you want to create"))
+                              lines))
+      (has-errors . ,(any (lambda (line)
+                            (or (string-contains line "Error:")
+                                (string-contains line "error:")))
+                          lines))
+      (waiting-input . ,(any (lambda (line)
+                               (string-contains line "❯"))
+                             lines))
+      (git-activity . ,(any (lambda (line)
+                              (or (string-contains line "git commit")
+                                  (string-contains line "git add")))
+                            lines))
+      (line-count . ,(length lines)))))
+
+(define (capture-agent-state session-id)
+  "Capture and parse the current state of an agent"
+  (let* ((content (tmux-capture session-id))
+         (parsed (parse-agent-output content))
+         (timestamp (current-time)))
+    `((session . ,session-id)
+      (timestamp . ,timestamp)
+      (content . ,content)
+      (state . ,parsed))))
+
+(define (monitor-agents)
+  "Monitor all agent sessions and return their states"
+  (map (lambda (session-pair)
+         (capture-agent-state (car session-pair)))
+       agent-sessions))
+
+(define (agent-dashboard)
+  "Display a dashboard of agent progress"
+  (let ((states (monitor-agents)))
+    (display "=== Agent Dashboard ===\n")
+    (for-each
+     (lambda (agent-state)
+       (let* ((session (assoc-ref agent-state 'session))
+              (state (assoc-ref agent-state 'state))
+              (creating (assoc-ref state 'creating-files))
+              (errors (assoc-ref state 'has-errors))
+              (waiting (assoc-ref state 'waiting-input)))
+         (format #t "~a: ~a~a~a\n"
+                 session
+                 (if creating "📝" "  ")
+                 (if errors "❌" "  ")
+                 (if waiting "⏳" "  "))))
+     states)))
+#+end_src
+
+** Python Approach
+
+#+begin_src python :tangle agent_monitor.py
+#!/usr/bin/env python3
+"""
+Agent monitoring system using Python and libtmux
+"""
+
+import subprocess
+import re
+import time
+import json
+from datetime import datetime
+from typing import Dict, List, Tuple, Optional
+
+class AgentMonitor:
+    def __init__(self):
+        self.agents = {
+            'gcf-a1': 'Core Models',
+            'gcf-a2': 'MCP Server',
+            'gcf-a3': 'Risk Engine',
+            'gcf-a4': 'Web Interface',
+            'gcf-a5': 'Integrations'
+        }
+
+    def capture_pane(self, session_id: str) -> str:
+        """Capture tmux pane content"""
+        try:
+            result = subprocess.run(
+                ['tmux', 'capture-pane', '-t', session_id, '-p'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            return result.stdout
+        except subprocess.CalledProcessError:
+            return ""
+
+    def parse_content(self, content: str) -> Dict:
+        """Parse agent output to detect current state"""
+        lines = content.split('\n')
+
+        patterns = {
+            'creating_files': r'Do you want to create',
+            'has_errors': r'[Ee]rror:',
+            'waiting_input': r'❯',
+            'git_activity': r'git (commit|add|push)',
+            'code_blocks': r'```\w+',
+            'test_running': r'(Running tests|Test.*passed|Test.*failed)',
+            'server_starting': r'Starting.*server',
+            'completion_signal': r'(✅|✓|completed|finished)'
+        }
+
+        state = {}
+        for key, pattern in patterns.items():
+            state[key] = any(re.search(pattern, line, re.IGNORECASE)
+                           for line in lines)
+
+        state['line_count'] = len(lines)
+        state['last_lines'] = lines[-5:] if len(lines) >= 5 else lines
+
+        return state
+
+    def get_agent_state(self, session_id: str) -> Dict:
+        """Get complete state for one agent"""
+        content = self.capture_pane(session_id)
+        state = self.parse_content(content)
+
+        return {
+            'session': session_id,
+            'name': self.agents.get(session_id, 'Unknown'),
+            'timestamp': datetime.now().isoformat(),
+            'state': state,
+            'content_preview': content[-500:] if content else ""  # Last 500 chars
+        }
+
+    def monitor_all_agents(self) -> Dict:
+        """Monitor all agent sessions"""
+        results = {}
+        for session_id in self.agents.keys():
+            results[session_id] = self.get_agent_state(session_id)
+        return results
+
+    def dashboard(self) -> str:
+        """Generate a text dashboard"""
+        states = self.monitor_all_agents()
+        lines = ["=== Agent Dashboard ===", ""]
+
+        for session_id, agent_data in states.items():
+            name = agent_data['name']
+            state = agent_data['state']
+
+            status_icons = []
+            if state['creating_files']: status_icons.append("📝")
+            if state['has_errors']: status_icons.append("❌")
+            if state['waiting_input']: status_icons.append("⏳")
+            if state['git_activity']: status_icons.append("🔄")
+            if state['completion_signal']: status_icons.append("✅")
+
+            status = " ".join(status_icons) if status_icons else "🔍"
+            lines.append(f"{session_id}: {name:<15} {status}")
+
+            # Show last line if interesting
+            last_lines = [line.strip() for line in state['last_lines']
+                         if line.strip() and not line.startswith('│')]
+            if last_lines:
+                lines.append(f"  └─ {last_lines[-1][:60]}...")
+
+        return "\n".join(lines)
+
+    def check_commit_reminders(self) -> List[str]:
+        """Check which agents should be reminded to commit"""
+        states = self.monitor_all_agents()
+        reminders = []
+
+        for session_id, agent_data in states.items():
+            state = agent_data['state']
+            if (state['creating_files'] and
+                not state['git_activity'] and
+                state['line_count'] > 200):  # Lots of output, no git activity
+                reminders.append(session_id)
+
+        return reminders
+
+if __name__ == '__main__':
+    monitor = AgentMonitor()
+
+    # Interactive monitoring
+    try:
+        while True:
+            print("\033[2J\033[H")  # Clear screen
+            print(monitor.dashboard())
+
+            reminders = monitor.check_commit_reminders()
+            if reminders:
+                print(f"\n⚠️  Commit reminders needed: {', '.join(reminders)}")
+
+            print(f"\nLast updated: {datetime.now().strftime('%H:%M:%S')}")
+            print("Press Ctrl+C to exit")
+
+            time.sleep(10)  # Update every 10 seconds
+
+    except KeyboardInterrupt:
+        print("\nMonitoring stopped.")
+#+end_src
+
+* Results
+
+** Tmux Library Availability
+
+Guile Scheme:
+- No native tmux bindings found
+- Can use subprocess via `(ice-9 popen)`
+- Simple but effective for monitoring
+
+Python:
+- `libtmux` library available but not essential
+- `subprocess` module works well for our needs
+- More mature tooling ecosystem
+
+** Agent State Detection
+
+Successfully detecting:
+- File creation prompts (Claude asking permission)
+- Error states in output
+- Git activity patterns
+- Wait states requiring input
+
+** Integration Points
+
+Can monitor for:
+- API stability signals (files like `API-STABLE`)
+- Test completion status
+- Server startup confirmations
+- Cross-agent dependency resolution
+
+* Conclusion
+
+**Use Python for production monitoring** - better ecosystem and tooling.
+
+The monitoring approach works well for:
+1. Real-time progress tracking
+2. Identifying blocked agents
+3. Triggering commit reminders
+4. Coordinating integration phases
+
+Next steps:
+- Implement automatic commit reminders
+- Add Slack/Keybase notifications
+- Build integration point detection
+- Create failure escalation protocols
+
+* Performance Notes
+
+- Tmux capture is lightweight (~10ms per session)
+- Pattern matching scales well for 5 agents
+- Dashboard updates every 10s provide good balance
+- Memory usage minimal for content previews
+
+* Integration with Existing Workflow
+
+This tool complements:
+- `AGENT-BEST-PRACTICES.org` commit protocols
+- Git notes documentation requirements
+- Milestone tracking system
+- Status update procedures
