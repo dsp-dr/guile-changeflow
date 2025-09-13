@@ -14,6 +14,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Install Guile 3
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y guile-3.0 guile-3.0-dev
+
     - name: Check Guile 3 Installation
       run: |
         echo "=== Checking for Guile 3.0+ ==="
