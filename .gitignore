@@ -1,0 +1,162 @@
+# Guile specific
+*.go
+,*.go
+*.core
+*.dump
+*#
+.#*
+
+# Python specific
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.pytype/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+
+# Emacs specific
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+.org-id-locations
+*_archive
+*_flymake.*
+/eshell/history
+/eshell/lastdir
+/elpa/
+*.rel
+/auto/
+.cask/
+dist/
+flycheck_*.el
+/server/
+.projectile
+.dir-locals.el
+/network-security.data
+
+# Core dumps (FreeBSD/Unix)
+*.core
+core
+core.*
+vgcore.*
+*.stackdump
+
+# Build artifacts
+/build/
+/dist/
+/target/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+Thumbs.db
+
+# Documentation build
+/doc/*.info
+/doc/*.html
+/doc/*.pdf
+/doc/auto/
+
+# Test and coverage
+/coverage/
+*.gcov
+*.gcda
+*.gcno
+.coverage
+coverage.xml
+*.cover
+
+# Dependencies and packages
+/lib/vendor/
+/node_modules/
+/vendor/
+
+# Configuration
+/config.local.scm
+/config.local
+.env
+.envrc
+.direnv/
+
+# Logs and temporary files
+*.log
+*.pid
+*.seed
+*.pid.lock
+/tmp/
+*.tmp
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Archive files
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.zip
+*.rar
+*.7z
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Cache directories
+.cache/
+.sass-cache/
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
