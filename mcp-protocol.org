@@ -113,28 +113,28 @@ graph TB
 #+begin_src mermaid :file mcp-request-structure.png
 graph TB
     subgraph "JSON-RPC Request"
-        A[jsonrpc: "2.0"]
-        B[method: "tools/invoke"]
+        A[jsonrpc: 2.0]
+        B[method: tools/invoke]
         C[id: unique-id]
         D[params]
     end
-    
+
     subgraph "Params Object"
         E[tool_name]
         F[tool_params]
         G[context]
     end
-    
+
     subgraph "Tool Params"
         H[title]
         I[description]
         J[affected_systems]
         K[change_type]
     end
-    
+
     D --> E & F & G
     F --> H & I & J & K
-    
+
     style A fill:#ff9,stroke:#333,stroke-width:2px
     style D fill:#9ff,stroke:#333,stroke-width:2px
 #+end_src
