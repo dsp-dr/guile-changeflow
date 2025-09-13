@@ -1,0 +1,67 @@
+name: Docker Build Test
+
+on:
+  push:
+    branches: [ main, 'agent-*' ]
+    paths:
+      - 'Dockerfile'
+      - '.github/workflows/docker-build.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile'
+  workflow_dispatch:
+
+jobs:
+  docker-ready-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check for Dockerfile
+      run: |
+        echo "=== Checking for Dockerfile ==="
+        if [ -f Dockerfile ]; then
+          echo "✅ Dockerfile found"
+          echo "--- Dockerfile contents ---"
+          cat Dockerfile
+        else
+          echo "📝 No Dockerfile yet - agents will create when ready"
+          echo "Expected Dockerfile requirements:"
+          echo "  - Base: Ubuntu 22.04 or Debian"
+          echo "  - Guile: 3.0+"
+          echo "  - Build tools: gcc, make, autotools"
+          echo "  - Libraries: guile-json, sqlite3"
+        fi
+
+    - name: Container Build Guidelines
+      run: |
+        echo "=== Container Build Guidelines for Agents ==="
+        echo ""
+        echo "When creating Dockerfile, include:"
+        echo "1. Guile 3.0+ installation"
+        echo "2. Required Guile libraries (guile-json, etc.)"
+        echo "3. SQLite for data persistence"
+        echo "4. Health check endpoint support"
+        echo "5. Non-root user for security"
+        echo "6. Multi-stage build for size optimization"
+        echo ""
+        echo "Target platforms:"
+        echo "- Cloudflare Workers (JavaScript)"
+        echo "- Google Cloud Run (Container)"
+        echo "- Local development (Docker)"
+
+    - name: Test Docker Build (if Dockerfile exists)
+      if: success()
+      run: |
+        if [ -f Dockerfile ]; then
+          echo "=== Testing Docker build ==="
+          docker build -t guile-changeflow:test .
+          echo "✅ Docker build successful"
+
+          echo "=== Image details ==="
+          docker images guile-changeflow:test
+        else
+          echo "⏳ Waiting for agents to create Dockerfile"
+        fi

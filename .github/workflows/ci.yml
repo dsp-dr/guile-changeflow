@@ -1,0 +1,71 @@
+name: CI - Dependency Check
+
+on:
+  push:
+    branches: [ main, 'agent-*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  dependency-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check Guile 3 Installation
+      run: |
+        echo "=== Checking for Guile 3.0+ ==="
+        guile --version
+        guile -c "(display (version))(newline)"
+
+    - name: Check Core Build Tools
+      run: |
+        echo "=== Checking build tools ==="
+        which make && make --version | head -1
+        which gcc && gcc --version | head -1
+        which pkg-config && pkg-config --version
+        which autoconf && autoconf --version | head -1
+        which automake && automake --version | head -1
+        which libtool && libtool --version | head -1
+
+    - name: Check Guile Libraries
+      run: |
+        echo "=== Checking Guile module availability ==="
+        guile -c "(use-modules (ice-9 match)) (display 'ice-9 match: OK\n')"
+        guile -c "(use-modules (ice-9 threads)) (display 'ice-9 threads: OK\n')"
+        guile -c "(use-modules (srfi srfi-1)) (display 'srfi-1: OK\n')"
+        guile -c "(use-modules (srfi srfi-9)) (display 'srfi-9 records: OK\n')"
+
+    - name: Check Additional Dependencies
+      run: |
+        echo "=== Checking additional tools ==="
+        which sqlite3 && sqlite3 --version
+        which curl && curl --version | head -1
+        which jq && jq --version
+        which git && git --version
+
+    - name: Check Container Build Dependencies
+      run: |
+        echo "=== Checking container/deployment tools ==="
+        which docker && docker --version || echo "Docker not available (OK for dev)"
+        which node && node --version || echo "Node not available (OK for Guile-only)"
+        which npm && npm --version || echo "NPM not available (OK for Guile-only)"
+
+    - name: Environment Summary
+      run: |
+        echo "=== Environment Summary ==="
+        echo "OS: $(uname -a)"
+        echo "Guile: $(guile --version | head -1)"
+        echo "Directory: $(pwd)"
+        echo "Branch: ${{ github.ref_name }}"
+        echo ""
+        echo "✅ Core dependencies verified - ready for agent development!"
+
+  # Placeholder for future agent-added jobs
+  # Agents can add:
+  # - test job (once test framework chosen)
+  # - lint job (once code style decided)
+  # - build job (once build system implemented)
+  # - deploy job (once deployment strategy finalized)
