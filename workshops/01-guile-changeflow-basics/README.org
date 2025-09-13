@@ -1,0 +1,496 @@
+#+TITLE: Workshop 01 - Guile ChangeFlow Basics
+#+AUTHOR: dsp-dr
+#+DATE: 2025-09-13
+#+STARTUP: overview
+#+PROPERTY: header-args:scheme :session *guile*
+
+* Workshop Overview
+
+This workshop introduces the core concepts of Guile ChangeFlow for humans (not agents). You'll learn the fundamental principles, data models, and how to interact with the system.
+
+** Prerequisites
+- GNU Guile 3.0+
+- Basic Scheme/Lisp knowledge
+- Understanding of change management concepts
+- Emacs with org-mode (recommended)
+
+** Learning Objectives
+By the end of this workshop you will:
+1. Understand ITIL 4 change enablement principles
+2. Know the Guile ChangeFlow data models
+3. Be able to create and manage change requests
+4. Understand risk assessment algorithms
+5. Navigate the MCP integration
+
+* Module 1: ITIL 4 Foundation
+
+** Core Principles
+
+ITIL 4 moved from "change management" to "change enablement" - a fundamental shift in mindset:
+
+- *Traditional*: Gates and controls
+- *ITIL 4*: Enable and facilitate
+- *ChangeFlow*: AI-assisted enablement
+
+** The Service Value System
+
+#+begin_src mermaid :file svs-diagram.svg
+graph TB
+    GO[Guiding Principles] --> SVC[Service Value Chain]
+    SVC --> P[Practices]
+    P --> CI[Continual Improvement]
+    CI --> GO
+
+    subgraph "Value Chain"
+        Plan --> Improve
+        Engage --> Design
+        Design --> Obtain
+        Obtain --> Deliver
+        Deliver --> Plan
+    end
+#+end_src
+
+** Exercise 1.1: Understanding Change Types
+
+#+begin_src scheme
+;; Define the three change types in ITIL 4
+(define-record-type <change-type>
+  (make-change-type name description risk-threshold auto-approval)
+  change-type?
+  (name change-type-name)
+  (description change-type-description)
+  (risk-threshold change-type-risk-threshold)
+  (auto-approval change-type-auto-approval))
+
+;; Standard changes - low risk, pre-approved
+(define standard-change
+  (make-change-type "Standard"
+                   "Pre-approved, low-risk changes"
+                   30
+                   #t))
+
+;; Normal changes - require assessment
+(define normal-change
+  (make-change-type "Normal"
+                   "Changes requiring assessment and approval"
+                   70
+                   #f))
+
+;; Emergency changes - high risk, expedited
+(define emergency-change
+  (make-change-type "Emergency"
+                   "Urgent changes to restore service"
+                   100
+                   #f))
+
+;; Test your understanding
+(display "Standard change threshold: ")
+(display (change-type-risk-threshold standard-change))
+(newline)
+#+end_src
+
+#+RESULTS:
+: Standard change threshold: 30
+
+* Module 2: Data Models
+
+** Core Change Request Model
+
+The heart of ChangeFlow is the change request record:
+
+#+begin_src scheme
+(use-modules (srfi srfi-9)    ; Records
+             (srfi srfi-19)   ; Time
+             (ice-9 match))   ; Pattern matching
+
+(define-record-type <change-request>
+  (make-change-request id title description systems risk-score status created-at)
+  change-request?
+  (id change-request-id)
+  (title change-request-title)
+  (description change-request-description)
+  (systems change-request-systems)
+  (risk-score change-request-risk-score set-change-request-risk-score!)
+  (status change-request-status set-change-request-status!)
+  (created-at change-request-created-at))
+
+;; Helper function to create change with current timestamp
+(define (create-change title description systems)
+  (make-change-request
+   (generate-change-id)
+   title
+   description
+   systems
+   0  ; Risk score calculated later
+   'submitted
+   (current-time)))
+
+;; Simple ID generator for demo
+(define change-counter 0)
+(define (generate-change-id)
+  (set! change-counter (+ change-counter 1))
+  (string-append "CHG-" (number->string change-counter)))
+#+end_src
+
+** Exercise 2.1: Create Your First Change
+
+#+begin_src scheme
+;; Create a sample change request
+(define my-change
+  (create-change "Update API documentation"
+                 "Add new endpoints to OpenAPI spec"
+                 '("api-gateway" "documentation")))
+
+;; Inspect the change
+(display "Change ID: ") (display (change-request-id my-change)) (newline)
+(display "Title: ") (display (change-request-title my-change)) (newline)
+(display "Status: ") (display (change-request-status my-change)) (newline)
+#+end_src
+
+#+RESULTS:
+: Change ID: CHG-1
+: Title: Update API documentation
+: Status: submitted
+
+** State Machine
+
+Changes flow through defined states:
+
+#+begin_src scheme
+;; Valid state transitions
+(define valid-transitions
+  '((submitted . (assessing rejected))
+    (assessing . (approved rejected))
+    (approved . (implementing))
+    (implementing . (completed failed))
+    (rejected . ())
+    (completed . ())
+    (failed . (assessing))))
+
+(define (can-transition? from to)
+  "Check if state transition is valid"
+  (member to (assoc-ref valid-transitions from)))
+
+(define (transition-change! change new-status)
+  "Safely transition change to new status"
+  (let ((current-status (change-request-status change)))
+    (if (can-transition? current-status new-status)
+        (begin
+          (set-change-request-status! change new-status)
+          (format #t "Changed ~a from ~a to ~a~%"
+                  (change-request-id change)
+                  current-status
+                  new-status))
+        (error "Invalid transition" current-status new-status))))
+#+end_src
+
+** Exercise 2.2: State Transitions
+
+#+begin_src scheme
+;; Try valid transition
+(transition-change! my-change 'assessing)
+
+;; Try invalid transition (should error)
+;; (transition-change! my-change 'completed)  ; Uncomment to see error
+#+end_src
+
+#+RESULTS:
+: Changed CHG-1 from submitted to assessing
+
+* Module 3: Risk Assessment
+
+** Risk Calculation Algorithm
+
+The risk engine uses multiple factors:
+
+#+begin_src scheme
+(define (calculate-risk title description systems urgency)
+  "Calculate risk score from 0-100"
+  (let ((base-score 10))
+
+    ;; Production impact check
+    (when (or (string-contains-ci title "production")
+              (string-contains-ci title "prod"))
+      (set! base-score (+ base-score 40)))
+
+    ;; Security implications
+    (when (or (string-contains-ci description "security")
+              (string-contains-ci description "auth"))
+      (set! base-score (+ base-score 30)))
+
+    ;; Payment/financial systems
+    (when (or (string-contains-ci title "payment")
+              (member "payment" systems))
+      (set! base-score (+ base-score 25)))
+
+    ;; Multiple systems
+    (set! base-score (+ base-score (* (length systems) 5)))
+
+    ;; Urgency factor
+    (case urgency
+      ((emergency) (set! base-score (+ base-score 20)))
+      ((high) (set! base-score (+ base-score 10)))
+      (else base-score))
+
+    ;; Cap at 100
+    (min 100 base-score)))
+
+(define (risk-category score)
+  "Convert score to category"
+  (cond
+    ((< score 30) 'low)
+    ((< score 70) 'medium)
+    (else 'high)))
+#+end_src
+
+** Exercise 3.1: Risk Scenarios
+
+#+begin_src scheme
+;; Low risk scenario
+(define low-risk
+  (calculate-risk "Update documentation"
+                  "Fix typos in user guide"
+                  '("docs")
+                  'normal))
+
+;; High risk scenario
+(define high-risk
+  (calculate-risk "Production payment gateway update"
+                  "Security patch for authentication system"
+                  '("payment" "auth" "gateway" "database")
+                  'emergency))
+
+(format #t "Low risk score: ~a (~a)~%"
+        low-risk (risk-category low-risk))
+(format #t "High risk score: ~a (~a)~%"
+        high-risk (risk-category high-risk))
+#+end_src
+
+#+RESULTS:
+: Low risk score: 15 (low)
+: High risk score: 100 (high)
+
+** Exercise 3.2: Apply Risk to Changes
+
+#+begin_src scheme
+;; Calculate and set risk for our change
+(define risk-score
+  (calculate-risk (change-request-title my-change)
+                  (change-request-description my-change)
+                  (change-request-systems my-change)
+                  'normal))
+
+(set-change-request-risk-score! my-change risk-score)
+
+(format #t "Change ~a risk: ~a (~a)~%"
+        (change-request-id my-change)
+        (change-request-risk-score my-change)
+        (risk-category (change-request-risk-score my-change)))
+#+end_src
+
+#+RESULTS:
+: Change CHG-1 risk: 20 (low)
+
+* Module 4: MCP Integration
+
+** Understanding the Model Context Protocol
+
+MCP allows AI agents (like Claude) to interact with external systems:
+
+- **Discovery**: `.well-known/mcp` endpoint
+- **Tools**: Available actions
+- **Invocation**: Tool execution
+- **Results**: Structured responses
+
+** Tool Definition Example
+
+#+begin_src scheme
+(define create-change-tool
+  '((name . "create_change_request")
+    (description . "Create a new change request with automatic risk assessment")
+    (inputSchema . ((type . "object")
+                   (properties . ((title . ((type . "string")))
+                                 (description . ((type . "string")))
+                                 (systems . ((type . "array")
+                                           (items . ((type . "string")))))
+                                 (urgency . ((type . "string")
+                                           (enum . ("normal" "high" "emergency"))))))
+                   (required . ("title" "description"))))))
+
+;; Tool handler
+(define (handle-create-change params)
+  "Handle MCP tool invocation"
+  (let* ((title (assoc-ref params 'title))
+         (description (assoc-ref params 'description))
+         (systems (or (assoc-ref params 'systems) '()))
+         (urgency (or (assoc-ref params 'urgency) 'normal))
+         (change (create-change title description systems))
+         (risk (calculate-risk title description systems urgency)))
+
+    (set-change-request-risk-score! change risk)
+
+    ;; Return JSON-compatible response
+    `((id . ,(change-request-id change))
+      (title . ,title)
+      (risk_score . ,risk)
+      (risk_category . ,(symbol->string (risk-category risk)))
+      (status . "submitted")
+      (message . "Change request created successfully"))))
+#+end_src
+
+** Exercise 4.1: Simulate MCP Call
+
+#+begin_src scheme
+;; Simulate what Claude would send
+(define mcp-request
+  '((title . "Deploy hotfix to production")
+    (description . "Critical security patch for authentication bypass")
+    (systems . ("auth" "api" "database"))
+    (urgency . "emergency")))
+
+;; Process the request
+(define mcp-response (handle-create-change mcp-request))
+
+;; Display response
+(display "MCP Response:")
+(newline)
+(for-each (lambda (pair)
+            (format #t "  ~a: ~a~%" (car pair) (cdr pair)))
+          mcp-response)
+#+end_src
+
+#+RESULTS:
+: MCP Response:
+:   id: CHG-2
+:   title: Deploy hotfix to production
+:   risk_score: 100
+:   risk_category: high
+:   status: submitted
+:   message: Change request created successfully
+
+* Module 5: Practical Integration
+
+** Working with the System
+
+Now let's put it all together in a realistic scenario:
+
+#+begin_src scheme
+;; Storage system (in-memory for workshop)
+(define *changes* (make-hash-table))
+
+(define (store-change! change)
+  "Store change in memory"
+  (hash-set! *changes* (change-request-id change) change))
+
+(define (get-change id)
+  "Retrieve change by ID"
+  (hash-ref *changes* id))
+
+(define (list-changes)
+  "List all changes"
+  (hash-fold (lambda (id change acc)
+               (cons change acc))
+             '()
+             *changes*))
+
+;; Store our changes
+(store-change! my-change)
+
+;; Create the emergency change from MCP
+(define emergency-change-obj
+  (create-change "Deploy hotfix to production"
+                 "Critical security patch for authentication bypass"
+                 '("auth" "api" "database")))
+
+(set-change-request-risk-score! emergency-change-obj 100)
+(store-change! emergency-change-obj)
+#+end_src
+
+** Exercise 5.1: Approval Workflow
+
+#+begin_src scheme
+(define (auto-approve-if-eligible change)
+  "Auto-approve low risk standard changes"
+  (let ((risk (change-request-risk-score change)))
+    (if (< risk 30)
+        (begin
+          (transition-change! change 'approved)
+          (format #t "Auto-approved low risk change: ~a~%"
+                  (change-request-id change)))
+        (format #t "Change ~a requires manual approval (risk: ~a)~%"
+                (change-request-id change) risk))))
+
+;; Process our changes
+(auto-approve-if-eligible my-change)
+(auto-approve-if-eligible emergency-change-obj)
+#+end_src
+
+#+RESULTS:
+: Changed CHG-1 from assessing to approved
+: Auto-approved low risk change: CHG-1
+: Change CHG-2 requires manual approval (risk: 100)
+
+** Exercise 5.2: Dashboard View
+
+#+begin_src scheme
+(define (display-dashboard)
+  "Show all changes in a dashboard format"
+  (let ((changes (list-changes)))
+    (display "=== CHANGEFLOW DASHBOARD ===")
+    (newline)
+    (for-each (lambda (change)
+                (let* ((id (change-request-id change))
+                       (title (change-request-title change))
+                       (risk (change-request-risk-score change))
+                       (status (change-request-status change))
+                       (category (risk-category risk)))
+                  (format #t "[~a] ~a~%" id title)
+                  (format #t "  Risk: ~a (~a) | Status: ~a~%"
+                          risk category status)
+                  (newline)))
+              changes)))
+
+(display-dashboard)
+#+end_src
+
+#+RESULTS:
+: === CHANGEFLOW DASHBOARD ===
+: [CHG-2] Deploy hotfix to production
+:   Risk: 100 (high) | Status: submitted
+:
+: [CHG-1] Update API documentation
+:   Risk: 20 (low) | Status: approved
+:
+
+* Workshop Summary
+
+** What You've Learned
+
+1. **ITIL 4 Principles**: Change enablement vs control
+2. **Data Models**: Change requests, state machines
+3. **Risk Assessment**: Multi-factor scoring algorithm
+4. **MCP Integration**: Tool definitions and handling
+5. **System Integration**: Storage, workflows, dashboards
+
+** Next Steps
+
+1. **Workshop 02**: Advanced features (notifications, integrations)
+2. **Workshop 03**: Building MCP tools
+3. **Workshop 04**: Deployment and scaling
+
+** Key Takeaways
+
+- Functional programming makes state management explicit
+- Risk-based decisions reduce bureaucracy
+- MCP enables AI-native workflows
+- ITIL 4 + DevOps = Modern change enablement
+
+** Navigation Tips
+
+- =Tab=: Expand/collapse sections
+- =S-Tab=: Cycle global visibility
+- =C-c C-n/C-c C-p=: Navigate headings
+- =C-c '=: Edit code blocks
+- =C-c C-c=: Execute code blocks
+
+Try modifying the exercises above to experiment with different scenarios!

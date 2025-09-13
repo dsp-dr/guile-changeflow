@@ -1,0 +1,408 @@
+#+TITLE: MCP Connector Setup for Claude.ai
+#+AUTHOR: dsp-dr
+#+DATE: 2025-09-13
+#+STARTUP: overview
+
+* Overview
+
+This guide walks through connecting Guile ChangeFlow as an MCP (Model Context Protocol) server to Claude.ai, enabling AI-native change management workflows.
+
+** What You'll Achieve
+- Claude can create and manage change requests
+- Automated risk assessment and approval routing
+- Natural language interaction with ITIL 4 workflows
+- Real-time notifications and status updates
+
+** Prerequisites
+- Guile ChangeFlow server running (local or cloud)
+- Claude.ai Pro subscription (MCP access required)
+- Basic understanding of OAuth 2.0 flows
+
+** Production Deployment Options
+For production deployment, see [[file:../experiments/007-oauth-providers/README.org][OAuth Provider Analysis]] which covers:
+- Google Cloud Platform + Identity Platform
+- Cloudflare Access integration
+- GitHub organizational OAuth policies
+- Corporate SSO integration patterns
+
+* Guile ChangeFlow Server Setup
+
+** Start the MCP Server
+
+#+begin_src bash
+# Clone and build the project
+cd ~/ghq/github.com/dsp-dr/guile-changeflow
+gmake build
+
+# Start the MCP server (development mode)
+gmake start-mcp-server
+
+# Verify server is running
+curl -s http://localhost:8081/.well-known/mcp | jq .
+#+end_src
+
+Expected response:
+#+begin_src json
+{
+  "version": "1.0.0",
+  "server": {
+    "name": "guile-changeflow",
+    "version": "0.1.0"
+  },
+  "capabilities": {
+    "tools": true,
+    "notifications": true,
+    "logging": true
+  },
+  "tools": [
+    {
+      "name": "create_change_request",
+      "description": "Create a new change request with automatic risk assessment"
+    },
+    {
+      "name": "assess_change_risk",
+      "description": "Analyze risk factors for a proposed change"
+    },
+    {
+      "name": "check_freeze_periods",
+      "description": "Verify if deployments are allowed in the current timeframe"
+    }
+  ]
+}
+#+end_src
+
+** Configure Authentication
+
+#+begin_src bash
+# Generate OAuth credentials for Claude
+cd config/
+cp oauth-template.json oauth.json
+
+# Edit oauth.json with your settings
+vim oauth.json
+#+end_src
+
+Sample oauth.json:
+#+begin_src json
+{
+  "client_id": "changeflow-claude-connector",
+  "client_secret": "your-generated-secret-here",
+  "redirect_uri": "http://localhost:8081/oauth/callback",
+  "scope": "changes:create changes:read approvals:manage",
+  "pkce_enabled": true
+}
+#+end_src
+
+** Initialize Database
+
+#+begin_src bash
+# Create the SQLite database
+gmake init-db
+
+# Load sample data for testing
+gmake load-sample-data
+
+# Verify setup
+sqlite3 data/changeflow.db "SELECT COUNT(*) FROM changes;"
+#+end_src
+
+* Claude.ai Configuration
+
+** Access MCP Settings
+
+1. Open Claude.ai in your browser
+2. Click your profile → "Settings"
+3. Navigate to "Feature Preview"
+4. Enable "Model Context Protocol" (requires Pro subscription)
+
+** Add ChangeFlow Server
+
+1. In MCP settings, click "Add Server"
+2. Fill in server details:
+
+| Field | Value |
+|-------|-------|
+| Server Name | Guile ChangeFlow |
+| Server URL | http://localhost:8081/mcp |
+| Authentication | OAuth 2.0 |
+| Client ID | changeflow-claude-connector |
+| Scopes | changes:create changes:read approvals:manage |
+
+3. Click "Connect Server"
+
+** OAuth Flow
+
+1. Claude will redirect you to: `http://localhost:8081/oauth/authorize`
+2. You'll see the ChangeFlow authorization page
+3. Grant permissions for the requested scopes
+4. You'll be redirected back to Claude with success confirmation
+
+** Verify Connection
+
+In Claude.ai chat, test the connection:
+
+#+begin_example
+User: "Can you check what tools are available from ChangeFlow?"
+
+Claude: I can see the following ChangeFlow tools are available:
+- create_change_request: Create new change requests with risk assessment
+- assess_change_risk: Analyze risk factors for proposed changes
+- check_freeze_periods: Verify deployment windows
+- request_approval: Submit changes for approval
+- get_change_status: Check status of existing changes
+
+The connection to your Guile ChangeFlow server is working properly!
+#+end_example
+
+* Testing the Integration
+
+** Simple Change Request Test
+
+#+begin_example
+User: "Create a change request to update our API documentation with new rate limiting information"
+
+Claude: I'll create a change request for updating the API documentation.
+
+[Uses create_change_request tool]
+
+Change request CHG-001 created successfully:
+• Title: Update API documentation - rate limiting
+• Type: Standard (auto-approved due to low risk)
+• Risk Score: 12/100 (Very Low)
+• Status: Approved
+• Systems: documentation, api-gateway
+• Implementation: Immediate approval granted
+
+This documentation change has been automatically approved since it has minimal risk and doesn't affect production systems.
+#+end_example
+
+** Complex Production Deployment
+
+#+begin_example
+User: "I need to deploy a security patch to our payment processing system. It fixes CVE-2025-1234 and affects the checkout API."
+
+Claude: I'll create a change request for the security patch deployment to your payment system.
+
+[Uses create_change_request and assess_change_risk tools]
+
+Change request CHG-002 created:
+• Title: Security patch deployment - CVE-2025-1234
+• Type: Normal (requires approval)
+• Risk Score: 78/100 (High)
+• Affected Systems: payment-api, checkout-service, user-auth
+• Required Approvals: Security Lead + Payment Team Lead + Tech Lead
+
+Risk factors identified:
+- Production system impact (+40 points)
+- Security-related changes (+30 points)
+- Payment system involvement (+25 points)
+- Multiple system dependencies (+15 points)
+
+I've automatically:
+1. Notified the required approvers via Slack
+2. Checked deployment calendar (no conflicts found)
+3. Suggested deployment window: Tuesday 2-4 PM
+4. Created automated rollback procedures
+
+Current status: Pending approval (0 of 3 required approvals)
+Estimated approval time: 2-4 hours based on team availability
+#+end_example
+
+** Emergency Change Scenario
+
+#+begin_example
+User: "URGENT: Our login system is down. We have a hotfix ready that bypasses the caching layer. Need immediate deployment."
+
+Claude: I understand this is an emergency affecting user authentication. I'll create an expedited change request.
+
+[Uses create_change_request with emergency flag]
+
+EMERGENCY Change CHG-003 created:
+• Title: Hotfix - Login system authentication bypass
+• Type: Emergency (expedited approval)
+• Risk Score: 95/100 (Critical)
+• Incident Impact: User authentication failure
+• Time Sensitivity: Immediate deployment required
+
+Emergency protocols activated:
+✓ Security team auto-notified
+✓ Incident commander assigned
+✓ Deployment window: Next 30 minutes
+✓ Monitoring alerts configured
+✓ Auto-rollback enabled (error threshold: 5%)
+
+Status: APPROVED for immediate deployment
+Approval granted by: Emergency Change Authority
+Deployment authorization: GRANTED
+
+The hotfix is cleared for immediate deployment. Monitoring will trigger automatic rollback if error rates exceed 5%.
+#+end_example
+
+* Troubleshooting
+
+** Common Issues
+
+*** "Server not responding"
+#+begin_src bash
+# Check if server is running
+ps aux | grep changeflow
+
+# Check logs
+tail -50 logs/mcp-server.log
+
+# Restart if needed
+gmake restart-mcp-server
+#+end_src
+
+*** "OAuth authentication failed"
+1. Verify oauth.json configuration
+2. Check client_id matches Claude settings
+3. Ensure redirect_uri is correct
+4. Regenerate client_secret if needed
+
+*** "Tools not appearing in Claude"
+1. Disconnect and reconnect server in Claude.ai
+2. Check MCP endpoint response: `curl http://localhost:8081/.well-known/mcp`
+3. Verify Claude Pro subscription is active
+4. Clear browser cache and retry
+
+*** "Permission denied errors"
+1. Check OAuth scope permissions
+2. Verify user has necessary ChangeFlow roles
+3. Review audit logs for authorization failures
+
+** Debug Mode
+
+Enable verbose logging:
+#+begin_src bash
+# Start server with debug logging
+CHANGEFLOW_LOG_LEVEL=debug gmake start-mcp-server
+
+# Monitor all requests
+tail -f logs/mcp-debug.log
+#+end_src
+
+** Network Issues
+
+If localhost isn't accessible:
+#+begin_src bash
+# Use ngrok for external access
+ngrok http 8081
+
+# Update Claude.ai settings with ngrok URL
+# Example: https://abc123.ngrok.io/mcp
+#+end_src
+
+* Security Considerations
+
+** Production Deployment
+
+For production use, reference the comprehensive [[file:../../experiments/007-oauth-providers/README.org][OAuth Provider Analysis]]:
+
+1. **Google Cloud Platform**: Identity Platform with corporate SSO
+2. **GitHub Integration**: Organizational OAuth policies and team-based permissions
+3. **Container Deployment**: Cloud Run with Guile 3.0 container
+4. **Security Hardening**: HTTPS, audit logging, rate limiting
+5. **Monitoring**: Health checks and performance metrics
+
+The analysis covers formal evaluation of GCP vs Cloudflare, corporate authentication patterns, and container-based deployment strategies suitable for enterprise environments.
+
+** Access Control
+
+#+begin_src bash
+# Create role-based access
+curl -X POST http://localhost:8081/api/roles \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "claude-connector",
+    "permissions": [
+      "changes:create",
+      "changes:read",
+      "risk:assess"
+    ]
+  }'
+#+end_src
+
+** Audit Trail
+
+All Claude interactions are logged:
+#+begin_src sql
+-- View Claude-initiated changes
+SELECT * FROM audit_log
+WHERE source = 'mcp-claude'
+ORDER BY timestamp DESC;
+#+end_src
+
+* Advanced Configuration
+
+** Custom Risk Rules
+
+Create organization-specific risk assessment:
+#+begin_src scheme
+;; config/risk-rules.scm
+(define custom-risk-factors
+  '((weekend-deployment . 15)    ; Extra risk for weekend changes
+    (database-migration . 20)    ; Database changes need review
+    (external-api-change . 10))) ; Third-party dependencies
+
+(define (calculate-custom-risk change)
+  (+ (base-risk-score change)
+     (apply + (map (lambda (factor)
+                     (if (has-factor? change (car factor))
+                         (cdr factor)
+                         0))
+                   custom-risk-factors))))
+#+end_src
+
+** Integration Webhooks
+
+Configure notifications to external systems:
+#+begin_src json
+{
+  "webhooks": {
+    "slack": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+    "github": "https://api.github.com/repos/org/repo/statuses",
+    "pagerduty": "https://events.pagerduty.com/v2/enqueue"
+  }
+}
+#+end_src
+
+** Custom Tool Definitions
+
+Add organization-specific tools:
+#+begin_src scheme
+;; tools/custom-tools.scm
+(define deployment-status-tool
+  '((name . "check_deployment_status")
+    (description . "Check status of current deployments")
+    (inputSchema . ((type . "object")
+                   (properties . ((environment . ((type . "string")))))))))
+
+(define (handle-deployment-status params)
+  ;; Implementation here
+  ...)
+#+end_src
+
+* Next Steps
+
+** For Development
+1. Implement additional MCP tools
+2. Add web dashboard for approvals
+3. Create mobile notifications
+4. Build analytics and reporting
+
+** For Production
+1. Set up production OAuth server
+2. Configure enterprise integrations
+3. Implement disaster recovery
+4. Create user training materials
+
+** Resources
+- [[file:../../README.org][Project Documentation]]
+- [[file:../../workshops/01-guile-changeflow-basics/README.org][Technical Workshop]]
+- [[file:../../mcp-protocol.org][MCP Protocol Implementation]]
+- [[https://anthropic.com/mcp][Official MCP Documentation]]
+
+---
+
+*With this setup, Claude becomes your intelligent change management assistant, providing natural language access to enterprise-grade ITIL 4 workflows.*

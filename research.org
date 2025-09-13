@@ -89,25 +89,98 @@ This research document provides background that should have informed our Guile C
 
 ** Evolution of Change Management
 
+*** Origins: UK Government & Peter Brooks (1986-1989)
+
+ITIL was created by the UK Central Computer and Telecommunications Agency (CCTA), later absorbed into the Office of Government Commerce (OGC). The primary architect was *Peter Brooks*, who served as the project leader for what would become ITIL v1.
+
+*Historical Context:*
+- Margaret Thatcher's government was modernizing public services
+- IT costs were spiraling out of control across government departments
+- No standardized approach to IT service delivery
+- Private sector was outperforming government IT significantly
+
+*Original Motivation:*
+Brooks and his team at CCTA were tasked with answering: "How can we make government IT services as efficient and cost-effective as the best private sector practices?"
+
+*Core Philosophy (1980s):*
+- Borrowed heavily from manufacturing quality control (ISO 9000)
+- Process-driven approach (influenced by Total Quality Management)
+- Documentation as the foundation of consistency
+- Centralized control to prevent "cowboy" implementations
+
+*Key Founding Principles:*
+1. *Service Focus*: IT as a service provider, not just technology
+2. *Process Orientation*: Repeatable, documented procedures
+3. *Best Practice*: Learn from others rather than reinventing
+4. *Vendor Neutrality*: Framework independent of technology choices
+
 *** 1980s: ITIL v1
-- Born from UK government's need for IT service management
+- Born from UK government's need for IT service management under Peter Brooks
 - Focus on centralized control and documentation
 - Change Advisory Board (CAB) as gatekeepers
+- Heavy influence from manufacturing quality control (TQM, ISO 9000)
+- 40+ books covering every aspect of IT operations
 
-*** 1990s-2000s: ITIL v2 & v3
-- Service lifecycle approach
-- Process maturity models
-- Heavy documentation requirements
+*** 1990s-2000s: ITIL v2 & v3 Evolution
+
+*ITIL v2 (2000-2007):*
+- Led by OGC under Tony Gamblen and Jenny Dugmore
+- Consolidated 40+ books into 7 core volumes
+- Introduction of Service Support and Service Delivery
+- Focus on process maturity models (CMMI influence)
+- Heavy emphasis on documentation and control
+
+*Key v2 Innovations:*
+- Incident Management as separate from Problem Management
+- Configuration Management Database (CMDB) concept
+- Service Level Management formalization
+- Financial Management for IT Services
+
+*ITIL v3 (2007-2011):*
+- Major paradigm shift under Sharon Taylor (Chief Architect)
+- Service Lifecycle model: Strategy → Design → Transition → Operation → CSI
+- Move from processes to lifecycle thinking
+- Integration with business strategy
+- 5 core books instead of 7
+
+*v3 Change Management Philosophy:*
+- Risk and impact assessment introduction
+- Authorization levels (CAB, ECAB, Local)
+- Change types: Standard, Normal, Emergency
+- Post-implementation review requirements
 
 *** 2010s: DevOps Revolution
 - "Move fast and break things" culture
 - Continuous delivery emergence
 - Conflict with traditional ITSM
 
-*** 2019: ITIL 4
-- Shift from "management" to "enablement"
-- Value streams and customer experience
-- Integration with Agile and DevOps
+*** 2019: ITIL 4 - The "Enablement" Revolution
+
+*Leadership & Vision:*
+- Led by AXELOS (joint venture between UK government and Capita)
+- Chief Architect: Lou Hunnebeck
+- Influenced by Patrick Bolger (DevOps integration)
+- Response to DevOps criticism and cloud transformation
+
+*Fundamental Philosophy Shift:*
+- From "Change Management" → "Change Enablement"
+- From "Control" → "Facilitate"
+- From "Gates" → "Guidelines"
+- From "Prevention" → "Acceleration"
+
+*Service Value System (SVS):*
+1. *Guiding Principles*: Focus on value, start where you are, progress iteratively
+2. *Governance*: Directing and controlling rather than blocking
+3. *Service Value Chain*: Plan, Improve, Engage, Design, Obtain, Deliver
+4. *Practices*: 34 practices (not processes) across 3 categories
+5. *Continual Improvement*: Built into every activity
+
+*Change Enablement in ITIL 4:*
+- Risk-based decision making (automated where possible)
+- Integration with CI/CD pipelines
+- Embrace of "fail fast, learn quickly"
+- Pre-authorized change patterns
+- Post-implementation optimization focus
 
 *** 2020s: AI/ML Integration
 - Predictive risk analysis

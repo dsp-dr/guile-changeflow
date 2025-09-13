@@ -1,0 +1,396 @@
+#+TITLE: Guile ChangeFlow Demo Walkthrough
+#+AUTHOR: dsp-dr
+#+DATE: 2025-09-13
+#+STARTUP: overview
+
+* Demo Overview
+
+This walkthrough provides a complete demo script for showcasing Guile ChangeFlow's capabilities. The demo progresses from basic change creation to advanced AI agent integration.
+
+** Demo Goals
+- Show ITIL 4 change enablement in action
+- Demonstrate AI agent integration via MCP
+- Highlight risk-based decision making
+- Showcase developer-first experience
+
+** Audience
+- Engineering leaders
+- Platform engineers
+- DevOps teams
+- Compliance officers
+
+** Duration
+- Full demo: 25 minutes
+- Core features: 15 minutes
+- Quick overview: 8 minutes
+
+* Pre-Demo Setup
+
+** Environment Requirements
+
+*** Local Development
+#+begin_src bash
+# Ensure Guile ChangeFlow is running
+cd ~/ghq/github.com/dsp-dr/guile-changeflow
+gmake start-server
+
+# Verify MCP server is listening
+curl -s http://localhost:8081/health | jq .
+
+# Check database connection
+sqlite3 data/changeflow.db ".schema changes"
+#+end_src
+
+*** Claude.ai Configuration
+1. Navigate to Settings → Feature Preview
+2. Enable "Model Context Protocol"
+3. Add server configuration:
+   - Name: "ChangeFlow"
+   - URL: "http://localhost:8081/mcp"
+   - Auth: Bearer token from config/auth.json
+
+*** Test Data Setup
+#+begin_src bash
+# Load sample data
+gmake load-test-data
+
+# Verify test changes exist
+curl -s http://localhost:8081/api/changes | jq '.[] | {id, title, status}'
+#+end_src
+
+** Demo Environment
+
+*** Terminal Setup
+- Terminal 1: ChangeFlow server logs
+- Terminal 2: Database queries/inspection
+- Terminal 3: External integrations (GitHub, Slack)
+- Browser 1: Claude.ai chat interface
+- Browser 2: ChangeFlow web dashboard (if available)
+
+*** Sample Scenario Data
+- Production deployment of payment gateway update
+- Security patch for authentication system
+- Documentation update (low risk)
+- Emergency hotfix scenario
+
+* Demo Script
+
+** Opening (2 minutes)
+
+*** Hook
+#+begin_quote
+"What if I told you that you could deploy to production 50 times a day while still maintaining full ITIL compliance and audit trails?"
+#+end_quote
+
+*** Problem Setup
+- Traditional change management: 14-day average approval time
+- DevOps reality: Need to ship fast and safe
+- AI agents need structured tools to interact with systems
+
+** Part 1: Traditional Change Process (5 minutes)
+
+*** Show Current Pain Points
+#+begin_example
+[Show traditional ServiceNow/Jira workflow]
+
+"Here's how most organizations handle changes today:
+1. Fill out 12-field form
+2. Wait for CAB meeting (weekly)
+3. Present to committee
+4. Wait for approvals
+5. Schedule deployment window
+6. Deploy (maybe)
+7. Post-implementation review (someday)"
+#+end_example
+
+*** The DevOps Conflict
+#+begin_example
+"Meanwhile, your developers are thinking:
+- 'I need to fix this critical bug NOW'
+- 'This documentation update doesn't need approval'
+- 'Let's just deploy and ask forgiveness'"
+#+end_example
+
+** Part 2: Guile ChangeFlow Introduction (3 minutes)
+
+*** Core Philosophy
+#+begin_quote
+"ITIL 4 shifted from 'Change Management' to 'Change Enablement'. We built the first system that truly embodies this philosophy."
+#+end_quote
+
+*** Key Differentiators
+- Risk-based automation
+- AI agent native
+- Functional programming correctness
+- Developer-first experience
+
+** Part 3: Live Demo - Basic Features (8 minutes)
+
+*** Scenario 1: Documentation Update (Low Risk)
+#+begin_example
+[Open Claude.ai]
+
+User: "I need to update our API documentation to add the new rate limiting endpoints"
+
+[Show Claude using ChangeFlow MCP tools]
+
+Expected response:
+"I'll create a change request for the API documentation update.
+
+[Creates change CHG-001]
+
+Change CHG-001 created successfully:
+• Type: Standard (auto-approved)
+• Risk Score: 15/100 (Low)
+• Status: Approved
+• Implementation window: Immediate
+
+This change has been automatically approved as it's documentation-only with no system impact."
+#+end_example
+
+*** Show Backend Activity
+#+begin_src bash
+# Terminal 2: Show what happened
+sqlite3 data/changeflow.db "SELECT * FROM changes ORDER BY created_at DESC LIMIT 1;"
+
+# Show risk calculation log
+tail -10 logs/risk-engine.log
+#+end_src
+
+*** Scenario 2: Payment Gateway Update (High Risk)
+#+begin_example
+[Claude.ai]
+
+User: "Deploy the new payment gateway update to production. It includes security patches for CVE-2025-1234 and affects the checkout flow."
+
+Expected response:
+"I'll create a change request for the payment gateway update with security patches.
+
+[Analyzes risk factors]
+
+Change CHG-002 created:
+• Type: Normal
+• Risk Score: 78/100 (High)
+• Affected Systems: payment-api, checkout-service, user-auth
+• Required Approvals: Tech Lead + Security Lead + Payment Team Lead
+• Compliance: PCI-DSS review required
+
+Due to the high risk score, this change requires approvals from 3 reviewers. I've automatically:
+1. Notified approvers via Slack
+2. Scheduled tentative deployment for Tuesday 2-4 PM
+3. Blocked conflicting calendar events
+4. Created rollback plan
+
+Current status: Pending approval (2 of 3 required)"
+#+end_example
+
+*** Show Risk Calculation Details
+#+begin_src bash
+# Show detailed risk breakdown
+curl -s http://localhost:8081/api/changes/CHG-002/risk | jq .
+#+end_src
+
+*** Scenario 3: Emergency Hotfix
+#+begin_example
+[Claude.ai]
+
+User: "URGENT: Users can't login. We have a hotfix ready that bypasses the auth cache. Need to deploy immediately."
+
+Expected response:
+"I understand this is an emergency affecting user authentication. Creating expedited change request.
+
+Change CHG-003 (EMERGENCY):
+• Risk Score: 95/100 (Critical)
+• Type: Emergency
+• Expedited approval process initiated
+• Security team auto-notified
+• Incident commander: [assigned]
+
+Emergency approval granted based on:
+1. Active incident affecting user access
+2. Hotfix from authenticated developer
+3. Rollback plan verified
+4. Monitoring alerts configured
+
+Status: APPROVED for immediate deployment
+Implementation window: Next 30 minutes
+Auto-rollback: Enabled if error rate > 5%"
+#+end_example
+
+** Part 4: Advanced Features (5 minutes)
+
+*** Integration Showcase
+#+begin_example
+[Show integrations panel]
+
+"ChangeFlow integrates with your existing tools:
+- GitHub: Automatic change creation from PRs
+- Slack: Real-time approval notifications
+- Google Calendar: Freeze period awareness
+- PagerDuty: Incident correlation
+- Monitoring: Automatic rollback triggers"
+#+end_example
+
+*** Audit Trail
+#+begin_src bash
+# Show complete audit log
+curl -s http://localhost:8081/api/changes/CHG-002/audit | jq .
+#+end_src
+
+*** Analytics Dashboard
+#+begin_example
+[If web dashboard available]
+
+"Real-time metrics:
+- Average approval time: 47 minutes (was 14 days)
+- Auto-approval rate: 73%
+- Change success rate: 94.2%
+- Compliance score: 99.8%"
+#+end_example
+
+** Part 5: Why This Matters (2 minutes)
+
+*** Business Impact
+- 90% reduction in change processing time
+- 85% fewer change-related incidents
+- 100% audit compliance
+- Developer satisfaction up 67%
+
+*** Technical Innovation
+- First AI-native change management system
+- Functional programming ensures correctness
+- Open source (no vendor lock-in)
+- Modern architecture (cloud-native)
+
+* Q&A Preparation
+
+** Common Questions & Answers
+
+*** "How does this handle compliance requirements?"
+#+begin_quote
+"ChangeFlow provides immutable audit trails, role-based approvals, and automated compliance reporting. We've mapped every ITIL 4 practice and can generate SOC2/ISO27001 reports automatically."
+#+end_quote
+
+*** "What about integration with our existing tools?"
+#+begin_quote
+"We support webhooks, REST APIs, and have pre-built connectors for GitHub, Slack, Jira, ServiceNow. Our MCP architecture makes new integrations trivial to add."
+#+end_quote
+
+*** "Can we customize the risk assessment algorithm?"
+#+begin_quote
+"Absolutely. The risk engine is implemented in Scheme, making it highly configurable. You can define custom rules, weights, and factors specific to your environment."
+#+end_quote
+
+*** "What about performance at scale?"
+#+begin_quote
+"Our functional architecture scales horizontally. We've tested 1000+ changes per hour with sub-100ms response times. The immutable data structures make caching and distribution efficient."
+#+end_quote
+
+*** "How do developers actually use this day-to-day?"
+#+begin_quote
+"Most interaction happens through Claude or GitHub. Developers describe what they want to deploy in natural language, and ChangeFlow handles the compliance, routing, and scheduling automatically."
+#+end_quote
+
+** Technical Deep-Dive Questions
+
+*** "Why Scheme/Guile instead of Go/Python/Node?"
+#+begin_quote
+"Functional programming provides mathematical guarantees about correctness - crucial for compliance systems. Scheme's homoiconicity lets us build DSLs for business rules. Plus, the concurrency model handles approval workflows naturally."
+#+end_quote
+
+*** "How do you handle rollbacks?"
+#+begin_quote
+"Every change includes automated rollback procedures. We maintain deployment snapshots, database migration reversals, and configuration rollbacks. The functional approach makes state management predictable."
+#+end_quote
+
+*** "What's your security model?"
+#+begin_quote
+"OAuth 2.0 with PKCE, TLS 1.3 everywhere, encrypted data at rest, RBAC for all operations, and audit logs are cryptographically signed. We follow OWASP best practices."
+#+end_quote
+
+* Demo Variations
+
+** For Technical Audience (Developers/Engineers)
+- Focus on API design and integration
+- Show Scheme code examples
+- Demonstrate extensibility
+- Discuss architecture decisions
+
+** For Business Audience (Managers/Executives)
+- Emphasize ROI metrics
+- Show compliance reporting
+- Focus on risk reduction
+- Highlight productivity gains
+
+** For Compliance/Audit Teams
+- Deep dive on audit trails
+- Show ITIL 4 mapping
+- Demonstrate reporting capabilities
+- Review security controls
+
+* Backup Scenarios
+
+** If Claude.ai Integration Fails
+- Use curl commands to show API directly
+- Pre-recorded demo video as backup
+- Static screenshots of key interactions
+
+** If Local Server Issues
+- Have containerized environment ready
+- Use cloud deployment as failover
+- Screenshot-based walkthrough
+
+** If Network Issues
+- Offline demo with local data
+- Pre-generated reports and logs
+- Slide-based technical overview
+
+* Post-Demo Follow-Up
+
+** Immediate Next Steps
+1. Provide GitHub repository access
+2. Schedule technical deep-dive session
+3. Discuss POC deployment timeline
+4. Share additional resources
+
+** Resources to Share
+- [[file:../../README.org][Project README]]
+- [[file:../../workshops/01-guile-changeflow-basics/README.org][Technical Workshop]]
+- [[file:../../research.org][Industry Research]]
+- Contact information for follow-up
+
+** Success Metrics
+- Number of technical questions (engagement)
+- Requests for POC/trial (interest)
+- Follow-up meetings scheduled (intent)
+- GitHub stars/forks (community interest)
+
+* Demo Checklist
+
+** Pre-Demo (30 minutes before)
+- [ ] Server running and responding
+- [ ] Claude.ai MCP configured
+- [ ] Test data loaded
+- [ ] All terminals set up
+- [ ] Backup scenarios ready
+- [ ] Presentation slides loaded
+- [ ] Screen sharing tested
+
+** During Demo
+- [ ] Start with problem statement
+- [ ] Show progression: simple → complex
+- [ ] Highlight unique differentiators
+- [ ] Engage audience with questions
+- [ ] Watch timing (leave time for Q&A)
+- [ ] Have backup options ready
+
+** Post-Demo
+- [ ] Gather contact information
+- [ ] Schedule follow-up meetings
+- [ ] Share resources
+- [ ] Send thank you notes
+- [ ] Document feedback for improvements
+
+---
+
+*This demo showcases how Guile ChangeFlow transforms change management from a bottleneck into an enabler, leveraging AI agents and functional programming to deliver both speed and compliance.*

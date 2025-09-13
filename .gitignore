@@ -120,6 +120,7 @@ coverage.xml
 *.pid.lock
 /tmp/
 *.tmp
+/.tmp/
 
 # Database files
 *.db

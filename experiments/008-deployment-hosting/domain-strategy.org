@@ -1,0 +1,229 @@
+#+TITLE: Domain Registration Strategy for ChangeFlow Demo
+#+AUTHOR: dsp-dr
+#+DATE: 2025-09-13
+#+STARTUP: overview
+
+* Domain Registration Decision
+
+** Recommendation: YES, register a domain
+
+For a professional demo and POC deployment, having a custom domain provides significant advantages over using Cloudflare Workers subdomain (*.workers.dev).
+
+* Domain Name Suggestions
+
+** Professional Options
+- =changeflow.dev= (if available)
+- =changeflow.ai= (AI-focused branding)
+- =changeflow.io= (developer-friendly)
+- =guile-changeflow.com= (descriptive)
+
+** Demo-Specific Options
+- =demo-changeflow.dev=
+- =poc-changeflow.io=
+- =changeflow-demo.ai=
+
+** Check Availability
+#+begin_src bash
+# Use Cloudflare domain search or whois
+whois changeflow.dev
+whois changeflow.ai
+whois changeflow.io
+#+end_src
+
+* Benefits of Custom Domain
+
+** Professional Presentation
+- Clean URLs for demo: =https://api.changeflow.dev/mcp=
+- Email integration: =demo@changeflow.dev=
+- Professional SSL certificates
+- Brand credibility for Monday presentation
+
+** Technical Advantages
+- Full DNS control
+- Subdomain flexibility:
+  - =api.changeflow.dev= - MCP server
+  - =docs.changeflow.dev= - Documentation
+  - =demo.changeflow.dev= - Web interface
+- Email forwarding capabilities
+- Analytics and tracking
+
+** Cost Considerations
+| TLD | Annual Cost | Benefits |
+|-----|-------------|----------|
+| .dev | $12-15 | Developer-focused, HTTPS required |
+| .io | $35-50 | Popular with startups |
+| .ai | $60-100 | AI/ML branding |
+| .com | $10-15 | Universal recognition |
+
+* Cloudflare Domain Registration Process
+
+** Steps Through Cloudflare Dashboard
+
+1. **Navigate to Domain Registration**
+   - Go to Cloudflare Dashboard
+   - Click "Domain Registration" in sidebar
+   - Click "Register Domain"
+
+2. **Search and Select**
+   - Search for desired domain
+   - Compare pricing and availability
+   - Select preferred TLD
+
+3. **Configuration Options**
+   - **Auto-renewal**: Recommended (ON)
+   - **Domain Privacy**: Recommended (ON)
+   - **Email forwarding**: Optional (useful for demo@domain)
+
+4. **DNS Setup**
+   - Automatically uses Cloudflare DNS
+   - No additional nameserver configuration needed
+   - Immediate integration with Workers
+
+** Post-Registration Setup
+#+begin_src bash
+# Domain will be automatically configured in Cloudflare
+# DNS records can be managed immediately:
+# - A record: api.changeflow.dev → Cloudflare Worker
+# - CNAME: demo.changeflow.dev → Worker
+# - MX records: Email forwarding (optional)
+#+end_src
+
+* DNS Configuration for Demo
+
+** Recommended DNS Records
+#+begin_example
+# A Records (handled by Cloudflare Workers)
+api.changeflow.dev    → Cloudflare Worker (proxied)
+www.changeflow.dev    → Cloudflare Worker (proxied)
+
+# CNAME Records
+demo.changeflow.dev   → api.changeflow.dev
+docs.changeflow.dev   → github pages or worker
+
+# MX Records (for email forwarding)
+changeflow.dev        → Cloudflare Email Routing
+#+end_example
+
+** Worker Route Configuration
+In Cloudflare Workers dashboard:
+#+begin_example
+Route: api.changeflow.dev/*
+Worker: changeflow-mcp
+
+Route: demo.changeflow.dev/*
+Worker: changeflow-demo-ui
+#+end_example
+
+* Alternative: Free Subdomain Options
+
+** If Budget is a Concern
+- Use Cloudflare Workers subdomain: =changeflow-demo.your-subdomain.workers.dev=
+- GitHub Pages with custom subdomain
+- Netlify free subdomain
+- Free subdomain services
+
+** Limitations of Free Options
+- Less professional appearance
+- Limited branding control
+- Potential conflicts with other deployments
+- No email integration
+
+* Implementation Timeline
+
+** Immediate (Today)
+- [ ] Register domain through Cloudflare
+- [ ] Configure basic DNS records
+- [ ] Set up email forwarding (demo@domain)
+
+** Before Monday Demo
+- [ ] Deploy Workers to custom domain
+- [ ] Test SSL certificate functionality
+- [ ] Verify all endpoints working
+- [ ] Update presentation materials with new URLs
+
+* Email Configuration (Optional)
+
+** Cloudflare Email Routing
+Set up professional email addresses:
+- =demo@changeflow.dev= → your-email@gmail.com
+- =contact@changeflow.dev= → your-email@gmail.com
+- =support@changeflow.dev= → your-email@gmail.com
+
+** Configuration Steps
+1. Enable Email Routing in Cloudflare
+2. Add destination email addresses
+3. Create routing rules
+4. Verify DNS records automatically added
+
+* Security Considerations
+
+** Domain Security
+- Enable Cloudflare Security features
+- Set up DNSSEC (automatic with Cloudflare)
+- Configure SSL/TLS encryption (Full Strict)
+- Enable HTTP Strict Transport Security
+
+** Worker Security with Custom Domain
+#+begin_src javascript
+// Updated security headers for custom domain
+function addSecurityHeaders(response, domain) {
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  response.headers.set('Content-Security-Policy', `default-src 'self' *.${domain}; script-src 'self' 'unsafe-inline'`);
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  return response;
+}
+#+end_src
+
+* Cost-Benefit Analysis
+
+** Domain Registration Cost
+- One-time setup: $12-50 (depending on TLD)
+- Annual renewal: Same amount
+- Email routing: Free with Cloudflare
+
+** Value for Demo
+- Professional credibility: High
+- Technical flexibility: High
+- Brand recognition: Medium
+- Marketing materials: Improved
+
+** ROI for Monday Demo
+- Investor impression: Significantly improved
+- Technical demo quality: Enhanced
+- Follow-up communications: Professional
+- Future scaling: Foundation established
+
+* Recommendation Summary
+
+**RECOMMENDED ACTION**: Register =changeflow.dev= or =changeflow.io= through Cloudflare
+
+**Rationale**:
+1. Professional presentation for Monday demo
+2. Low cost ($12-35 annual)
+3. Immediate integration with existing Cloudflare setup
+4. Foundation for future scaling
+5. Email capabilities for follow-up
+
+**Alternative**: If budget constraints exist, proceed with Workers subdomain but plan domain registration for production deployment.
+
+* Quick Setup Commands
+
+** After Domain Registration
+#+begin_src bash
+# Update Worker with custom domain
+wrangler publish --compatibility-date=2023-12-01
+
+# Verify deployment
+curl -s https://api.changeflow.dev/health | jq .
+
+# Test MCP endpoint
+curl -s https://api.changeflow.dev/mcp/initialize -H "Content-Type: application/json" -d '{"version":"1.0","capabilities":{}}'
+#+end_src
+
+** Update Demo Materials
+- Replace all references to *.workers.dev with custom domain
+- Update presentation slides with professional URLs
+- Test all demo scenarios with new domain
+
+For Monday's demo, having =https://api.changeflow.dev= looks significantly more professional than =https://changeflow-mcp.your-subdomain.workers.dev=.

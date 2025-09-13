@@ -1,0 +1,467 @@
+#+TITLE: Experiment 007: OAuth Provider Integration Analysis
+#+AUTHOR: dsp-dr
+#+DATE: 2025-09-13
+#+STARTUP: overview
+
+* Objective
+
+Evaluate OAuth provider options for ChangeFlow MCP server deployment, with focus on production-ready authentication flows and corporate integration patterns.
+
+* Scope
+
+** In Scope
+- OAuth 2.0 + PKCE implementation patterns
+- Corporate SSO integration (abstract analysis)
+- Cloud provider authentication services
+- GitHub organizational OAuth policies
+- Container deployment authentication flows
+
+** Out of Scope
+- Specific organizational configurations
+- Personal/corporate identifying information
+- Live OAuth credential generation
+- Production deployment specifics
+
+* Provider Analysis
+
+** Primary Considerations
+
+*** Google Cloud Platform Identity Platform
+*Advantages:*
+- Comprehensive identity management
+- Corporate SAML/OIDC integration
+- Multi-tenant support
+- Extensive audit logging
+- Identity-Aware Proxy (IAP) integration
+
+*Implementation Pattern:*
+#+begin_src typescript
+// Abstract GCP Identity Platform integration
+interface GCPAuthConfig {
+  projectId: string;
+  clientId: string;
+  corporateProviders: SSOProvider[];
+  restrictedDomains?: string[];
+  groupMappings: Record<string, string[]>;
+}
+
+class GCPMCPAuth {
+  constructor(config: GCPAuthConfig) {
+    this.identityPlatform = new IdentityPlatform(config);
+    this.validateCorporateGroups = this.setupGroupValidation(config.groupMappings);
+  }
+
+  async authenticateUser(token: string): Promise<AuthResult> {
+    const decodedToken = await this.identityPlatform.verifyIdToken(token);
+
+    // Corporate group validation
+    const hasRequiredGroups = await this.validateCorporateGroups(decodedToken);
+    if (!hasRequiredGroups) {
+      throw new UnauthorizedError('Insufficient corporate permissions');
+    }
+
+    return {
+      userId: decodedToken.uid,
+      email: decodedToken.email,
+      corporateGroups: decodedToken.custom_claims?.groups || [],
+      permissions: this.mapGroupsToPermissions(decodedToken.custom_claims?.groups)
+    };
+  }
+}
+#+end_src
+
+*Cost Analysis:*
+- First 50K MAU: Free
+- Additional users: $0.0055 per MAU
+- Corporate SSO providers: No additional charge
+
+*** Cloudflare Access
+*Advantages:*
+- Global edge authentication
+- Zero Trust Network Access (ZTNA)
+- Integration with corporate identity providers
+- Built-in DDoS protection
+- Cost-effective for global deployment
+
+*Implementation Pattern:*
+#+begin_src typescript
+// Cloudflare Access integration
+interface CloudflareAccessConfig {
+  teamDomain: string;
+  applicationUrl: string;
+  policies: AccessPolicy[];
+  sessionDuration: number;
+}
+
+class CloudflareAuth {
+  async validateAccessToken(request: Request): Promise<UserInfo> {
+    const cfAccessToken = request.headers.get('CF-Access-Jwt-Assertion');
+    if (!cfAccessToken) {
+      throw new UnauthorizedError('Missing Cloudflare Access token');
+    }
+
+    // Verify JWT from Cloudflare Access
+    const payload = await this.verifyCloudflareJWT(cfAccessToken);
+
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      groups: payload.custom?.groups || [],
+      identityProvider: payload.identity_nonce
+    };
+  }
+
+  private async verifyCloudflareJWT(token: string): Promise<JWTPayload> {
+    // Fetch Cloudflare public keys and verify signature
+    const publicKeys = await this.fetchCloudflarePublicKeys();
+    return jwt.verify(token, publicKeys, {
+      issuer: `https://${this.config.teamDomain}.cloudflareaccess.com`,
+      audience: this.config.applicationUrl
+    });
+  }
+}
+#+end_src
+
+*Cost Analysis:*
+- Up to 50 users: $3/month
+- Additional users: $3 per user/month
+- Enterprise features: Custom pricing
+
+*** GitHub OAuth with Organizational Policies
+*Advantages:*
+- Native Git workflow integration
+- Organization-level access control
+- Team-based permission mapping
+- Webhook integration capabilities
+- Developer-familiar authentication flow
+
+*Organizational Requirements:*
+#+begin_src typescript
+// GitHub OAuth with organizational constraints
+interface GitHubOAuthConfig {
+  clientId: string;
+  clientSecret: string;
+  organizationName: string;
+  requiredTeams: string[];
+  webhookSecret: string;
+}
+
+class GitHubOrgAuth {
+  async authenticateUser(code: string): Promise<AuthResult> {
+    // Standard OAuth flow
+    const accessToken = await this.exchangeCodeForToken(code);
+    const userInfo = await this.fetchUserInfo(accessToken);
+
+    // Verify organization membership
+    const isMember = await this.verifyOrgMembership(
+      userInfo.login,
+      this.config.organizationName,
+      accessToken
+    );
+
+    if (!isMember) {
+      throw new UnauthorizedError('User not member of required organization');
+    }
+
+    // Check team membership for permissions
+    const userTeams = await this.fetchUserTeams(userInfo.login, accessToken);
+    const permissions = this.mapTeamsToPermissions(userTeams);
+
+    return {
+      userId: userInfo.id.toString(),
+      username: userInfo.login,
+      email: userInfo.email,
+      organizationRole: await this.getOrganizationRole(userInfo.login),
+      permissions
+    };
+  }
+
+  private mapTeamsToPermissions(teams: GitHubTeam[]): Permission[] {
+    const permissionMap = {
+      'change-managers': ['changes:create', 'changes:approve', 'changes:read'],
+      'developers': ['changes:create', 'changes:read'],
+      'security-team': ['changes:approve', 'changes:audit'],
+      'operations': ['changes:implement', 'changes:read']
+    };
+
+    return teams.flatMap(team => permissionMap[team.slug] || []);
+  }
+}
+#+end_src
+
+*GitHub Organization OAuth Application Policy:*
+For organizational control, the GitHub organization settings at `/organizations/*/settings/oauth_application_policy` should be configured to:
+
+1. **Application Approval**: Require approval for third-party OAuth applications
+2. **Data Access Restrictions**: Limit access to organization member information
+3. **Webhook Permissions**: Control repository and organization webhook access
+4. **Team Visibility**: Configure which teams are visible to OAuth applications
+
+*Required OAuth Scopes:*
+- `read:org`: Verify organization membership
+- `read:user`: Access user profile information
+- `user:email`: Access user email addresses (if not public)
+
+** Alternative Providers Considered
+
+*** Auth0/Okta Enterprise
+*Advantages:*
+- Comprehensive identity platform
+- Extensive corporate integrations
+- Advanced security features
+- Detailed audit capabilities
+
+*Limitations:*
+- Higher cost structure
+- Complex configuration
+- Vendor lock-in concerns
+
+*** AWS Cognito
+*Advantages:*
+- Deep AWS integration
+- Scalable user management
+- Identity federation support
+
+*Limitations:*
+- AWS ecosystem dependency
+- Complex multi-region setup
+- Limited corporate SSO features
+
+*** Microsoft Entra ID (Azure AD)
+*Advantages:*
+- Native Microsoft ecosystem integration
+- Advanced conditional access
+- Comprehensive compliance features
+
+*Limitations:*
+- Microsoft ecosystem focus
+- Complex licensing model
+- Limited non-Microsoft integrations
+
+* Deployment Architecture
+
+** Container-Based Deployment
+
+*** Google Cloud Run Configuration
+#+begin_src dockerfile
+# Dockerfile for Guile ChangeFlow MCP Server
+FROM ubuntu:22.04
+
+# Install Guile 3.0 and dependencies
+RUN apt-get update && apt-get install -y \
+    guile-3.0 \
+    guile-3.0-dev \
+    libgc-dev \
+    pkg-config \
+    autoconf \
+    automake \
+    libtool \
+    sqlite3 \
+    libsqlite3-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Guile libraries
+RUN guile -c "(use-modules (ice-9 ftw))"
+
+WORKDIR /app
+COPY . .
+
+# Build ChangeFlow
+RUN make build
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+
+EXPOSE 8080 8081
+
+CMD ["./bin/changeflow", "--listen", "0.0.0.0:8080", "--mcp-port", "8081"]
+#+end_src
+
+*** Cloud Run Service Configuration
+#+begin_src yaml
+# cloud-run-config.yaml
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: changeflow-mcp
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "100"
+        run.googleapis.com/memory: "512Mi"
+        run.googleapis.com/cpu: "1000m"
+    spec:
+      containerConcurrency: 80
+      containers:
+      - image: gcr.io/PROJECT_ID/changeflow-mcp:latest
+        ports:
+        - name: http1
+          containerPort: 8080
+        - name: mcp
+          containerPort: 8081
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: OAUTH_PROVIDER
+          value: "gcp"
+        resources:
+          limits:
+            cpu: "1000m"
+            memory: "512Mi"
+#+end_src
+
+** CI/CD Pipeline
+#+begin_src yaml
+# .github/workflows/deploy.yml
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Google Cloud CLI
+      uses: google-github-actions/setup-gcloud@v0
+      with:
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+    - name: Configure Docker for GCR
+      run: gcloud auth configure-docker
+
+    - name: Build and push container
+      run: |
+        docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/changeflow-mcp:${{ github.sha }} .
+        docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/changeflow-mcp:${{ github.sha }}
+
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy changeflow-mcp \
+          --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/changeflow-mcp:${{ github.sha }} \
+          --region us-central1 \
+          --platform managed \
+          --allow-unauthenticated \
+          --set-env-vars "OAUTH_CLIENT_ID=${{ secrets.OAUTH_CLIENT_ID }}"
+#+end_src
+
+* Security Considerations
+
+** OAuth Flow Security
+
+*** PKCE Implementation
+#+begin_src scheme
+;; PKCE (Proof Key for Code Exchange) implementation in Guile
+(define (generate-code-verifier)
+  "Generate cryptographically random code verifier"
+  (base64url-encode (random-bytes 32)))
+
+(define (generate-code-challenge verifier)
+  "Generate SHA256 code challenge from verifier"
+  (base64url-encode (sha256 (string->utf8 verifier))))
+
+(define (oauth-authorization-url client-id redirect-uri scopes)
+  "Generate OAuth authorization URL with PKCE"
+  (let* ((state (generate-random-state))
+         (code-verifier (generate-code-verifier))
+         (code-challenge (generate-code-challenge code-verifier)))
+
+    (store-oauth-session! state code-verifier)
+
+    (string-append
+      "https://accounts.google.com/oauth2/v2/auth?"
+      "client_id=" (uri-encode client-id)
+      "&redirect_uri=" (uri-encode redirect-uri)
+      "&scope=" (uri-encode (string-join scopes " "))
+      "&response_type=code"
+      "&state=" state
+      "&code_challenge=" code-challenge
+      "&code_challenge_method=S256")))
+#+end_src
+
+*** Token Validation
+#+begin_src scheme
+;; JWT validation with corporate claims
+(define (validate-mcp-token token)
+  "Validate JWT token for MCP access"
+  (let ((decoded (jwt-decode token *oauth-public-key*)))
+    (and (jwt-valid? decoded)
+         (member "changes:create" (assoc-ref decoded "permissions"))
+         (not (token-revoked? (assoc-ref decoded "jti")))
+         (corporate-groups-valid? (assoc-ref decoded "groups")))))
+
+(define (corporate-groups-valid? groups)
+  "Validate user has required corporate group membership"
+  (any (lambda (group)
+         (member group *required-corporate-groups*))
+       groups))
+#+end_src
+
+** Audit Requirements
+
+*** Comprehensive Logging
+#+begin_src scheme
+;; Audit logging for all MCP operations
+(define (log-mcp-operation user-id operation details)
+  "Log MCP operation for audit trail"
+  (let ((audit-entry `((timestamp . ,(current-time))
+                      (user-id . ,user-id)
+                      (operation . ,operation)
+                      (details . ,details)
+                      (request-id . ,(generate-request-id))
+                      (source-ip . ,(current-request-ip))
+                      (user-agent . ,(current-request-user-agent)))))
+
+    (write-audit-log! audit-entry)
+    (notify-siem! audit-entry)))
+#+end_src
+
+* Implementation Timeline
+
+** Phase 1: Basic OAuth Integration (Week 1)
+- [ ] Google Cloud Identity Platform setup
+- [ ] Basic JWT validation
+- [ ] Container deployment configuration
+- [ ] Health check endpoints
+
+** Phase 2: Corporate Integration (Week 2)
+- [ ] SAML/OIDC provider configuration
+- [ ] Group membership validation
+- [ ] Permission mapping system
+- [ ] Audit logging implementation
+
+** Phase 3: Production Hardening (Week 3)
+- [ ] Token revocation system
+- [ ] Rate limiting implementation
+- [ ] Security headers configuration
+- [ ] Monitoring and alerting
+
+** Phase 4: Advanced Features (Week 4)
+- [ ] Multi-provider support
+- [ ] Session management
+- [ ] Advanced audit reporting
+- [ ] Performance optimization
+
+* Conclusion
+
+The analysis demonstrates that a hybrid approach utilizing Google Cloud Platform for identity management combined with GitHub organizational policies provides optimal balance of security, cost-effectiveness, and developer experience for the ChangeFlow MCP server deployment.
+
+Key recommendations:
+1. Implement GCP Identity Platform for primary authentication
+2. Configure GitHub OAuth for developer workflow integration
+3. Design container-based deployment for scalability
+4. Implement comprehensive audit logging for compliance
+5. Utilize PKCE for enhanced OAuth security
+
+This architecture provides enterprise-grade authentication while maintaining the flexibility required for modern DevOps workflows.

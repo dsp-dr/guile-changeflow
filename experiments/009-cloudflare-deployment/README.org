@@ -1,0 +1,291 @@
+#+TITLE: Experiment 009: Cloudflare Workers MCP Deployment
+#+AUTHOR: dsp-dr
+#+DATE: 2025-09-13
+#+STARTUP: overview
+
+* Objective
+
+Evaluate Cloudflare Workers as a deployment platform for MCP servers, focusing on edge computing capabilities, global distribution, and serverless architecture benefits.
+
+* Scope
+
+Analysis of Cloudflare Workers platform for hosting Model Context Protocol servers with production-grade requirements including security, performance, and scalability.
+
+* Platform Overview
+
+** Cloudflare Workers Architecture
+
+Cloudflare Workers runs on V8 isolates at the edge, providing:
+- Sub-millisecond cold starts
+- Global deployment across 275+ locations
+- Automatic scaling without configuration
+- Built-in DDoS protection
+
+** Key Technologies
+- JavaScript/TypeScript runtime
+- Web-standard APIs (Fetch, Request, Response)
+- KV storage for persistent data
+- Durable Objects for stateful connections
+- R2 for object storage
+
+* Implementation Pattern
+
+** Basic MCP Server Structure
+
+The MCP server implementation follows a request/response pattern with tool definitions:
+
+#+begin_src javascript
+// Core routing structure
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+
+    switch (url.pathname) {
+      case '/health':
+        return handleHealth();
+      case '/mcp':
+        return handleMCPInfo();
+      case '/mcp/initialize':
+        return handleMCPInitialize(request);
+      case '/mcp/tools/invoke':
+        return handleToolInvoke(request);
+      default:
+        return new Response('Not Found', { status: 404 });
+    }
+  }
+};
+#+end_src
+
+** Tool Definition Schema
+
+MCP tools follow a structured schema for discovery and invocation:
+
+#+begin_src javascript
+const tools = [
+  {
+    name: 'tool_name',
+    description: 'Human-readable description',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        param1: { type: 'string' },
+        param2: { type: 'array', items: { type: 'string' } }
+      },
+      required: ['param1']
+    }
+  }
+];
+#+end_src
+
+* Deployment Process
+
+** Worker Creation
+1. Navigate to Cloudflare Dashboard → Workers & Pages
+2. Create new Worker with chosen template
+3. Replace template code with MCP implementation
+4. Save and deploy
+
+** Custom Domain Configuration
+1. Add custom domain in Worker settings
+2. Configure DNS records (automatic with Cloudflare DNS)
+3. Enable SSL/TLS encryption (automatic)
+
+** DNS Configuration Pattern
+| Record Type | Name | Content | Proxy Status |
+|-------------|------|---------|--------------|
+| A | @ | 192.0.2.1 | Proxied |
+| CNAME | api | example.com | Proxied |
+| CNAME | www | example.com | Proxied |
+
+* Security Considerations
+
+** CORS Configuration
+#+begin_src javascript
+const headers = {
+  'Access-Control-Allow-Origin': 'https://claude.ai',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+#+end_src
+
+** Rate Limiting
+- Configure via Security → Rate limiting rules
+- Recommended: 100 requests/minute per IP
+- Custom rules for specific endpoints
+
+** DDoS Protection
+- Automatic Layer 3/4 DDoS mitigation
+- Layer 7 protection via firewall rules
+- Challenge suspicious traffic patterns
+
+* Performance Optimization
+
+** Caching Strategy
+#+begin_src javascript
+// Use KV for persistent caching
+async function getCached(key, env) {
+  const cached = await env.KV_NAMESPACE.get(key);
+  if (cached) {
+    return JSON.parse(cached);
+  }
+  return null;
+}
+
+async function setCached(key, value, env, ttl = 3600) {
+  await env.KV_NAMESPACE.put(
+    key,
+    JSON.stringify(value),
+    { expirationTtl: ttl }
+  );
+}
+#+end_src
+
+** Edge Computing Benefits
+- Reduced latency (< 50ms globally)
+- No cold start delays
+- Automatic geographic distribution
+- Built-in load balancing
+
+* Cost Analysis
+
+** Pricing Tiers
+| Tier | Requests/Day | Cost | Additional |
+|------|--------------|------|------------|
+| Free | 100,000 | $0 | Limited KV |
+| Paid | Unlimited | $5/month | $0.15/million requests |
+| Enterprise | Unlimited | Custom | SLA, support |
+
+** Storage Costs
+- KV: $0.50/million reads, $5/million writes
+- Durable Objects: $0.15/million requests
+- R2: $0.015/GB stored, $0.36/million requests
+
+* Monitoring and Observability
+
+** Built-in Analytics
+- Request volume and trends
+- Error rates and types
+- Performance metrics (p50, p95, p99)
+- Geographic distribution
+
+** Logging Options
+#+begin_src javascript
+// Structured logging
+console.log(JSON.stringify({
+  timestamp: new Date().toISOString(),
+  level: 'info',
+  message: 'MCP tool invoked',
+  tool: toolName,
+  duration: performance.now() - startTime
+}));
+#+end_src
+
+** Error Tracking
+- Automatic error aggregation
+- Stack trace preservation
+- Custom error reporting integration
+
+* Integration Patterns
+
+** Claude.ai Integration
+1. Configure MCP server endpoint
+2. Set up OAuth flow if required
+3. Test tool discovery and invocation
+4. Monitor usage patterns
+
+** External Service Integration
+#+begin_src javascript
+// Fetch from external APIs
+async function callExternalAPI(endpoint, params) {
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params)
+  });
+
+  if (!response.ok) {
+    throw new Error(`API call failed: ${response.status}`);
+  }
+
+  return await response.json();
+}
+#+end_src
+
+* Testing Strategy
+
+** Local Development
+#+begin_src bash
+# Install Wrangler CLI
+npm install -g wrangler
+
+# Local development server
+wrangler dev
+
+# Test endpoints
+curl http://localhost:8787/health
+curl http://localhost:8787/mcp
+#+end_src
+
+** Production Testing
+#+begin_src bash
+# Health check
+curl https://api.example.com/health
+
+# MCP capability discovery
+curl https://api.example.com/mcp
+
+# Tool invocation test
+curl -X POST https://api.example.com/mcp/tools/invoke \
+  -H "Content-Type: application/json" \
+  -d '{"tool":"tool_name","params":{}}'
+#+end_src
+
+* Best Practices
+
+** Code Organization
+- Separate route handlers into modules
+- Use TypeScript for type safety
+- Implement error boundaries
+- Add comprehensive logging
+
+** Deployment Pipeline
+1. Version control with Git
+2. CI/CD with GitHub Actions
+3. Staged deployments (dev → staging → prod)
+4. Automated testing and validation
+
+** Security Hardening
+- Input validation on all endpoints
+- Sanitize user-provided data
+- Implement authentication/authorization
+- Regular security audits
+
+* Limitations and Considerations
+
+** Platform Limitations
+- 10ms CPU time per request (free tier)
+- 128MB memory limit
+- No persistent filesystem
+- Limited execution time (30 seconds)
+
+** When to Consider Alternatives
+- Need for long-running processes
+- Complex stateful operations
+- Large file processing
+- Direct database connections
+
+* Conclusion
+
+Cloudflare Workers provides an excellent platform for MCP server deployment with:
+- Global edge distribution
+- Minimal operational overhead
+- Cost-effective scaling
+- Built-in security features
+
+The platform is particularly well-suited for:
+- API gateways and routing
+- Lightweight processing tasks
+- Global content delivery
+- Real-time request/response patterns
+
+For production MCP deployments, Cloudflare Workers offers the optimal balance of performance, cost, and operational simplicity.

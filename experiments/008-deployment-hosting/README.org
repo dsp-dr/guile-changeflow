@@ -1,0 +1,627 @@
+#+TITLE: Experiment 008: MCP Server Deployment Architecture
+#+AUTHOR: dsp-dr
+#+DATE: 2025-09-13
+#+STARTUP: overview
+
+* Objective
+
+Evaluate hosting platforms and deployment strategies for ChangeFlow MCP server, focusing on performance, scalability, and cost-effectiveness for enterprise-grade Model Context Protocol implementations.
+
+* Executive Summary
+
+Analysis of deployment options for ChangeFlow MCP server reveals Cloudflare Workers with Durable Objects as optimal choice for global edge deployment, with Google Cloud Run as preferred alternative for container-based enterprise requirements.
+
+* Platform Analysis
+
+** Cloudflare Workers + Durable Objects (Recommended)
+
+*** Technical Advantages
+- Global edge network (275+ locations)
+- Native WebSocket support for SSE streams
+- Durable Objects for stateful MCP connections
+- V8 isolates for sub-millisecond cold starts
+- Integrated DDoS protection and security
+
+*** Architecture Pattern
+#+begin_src mermaid :file cloudflare-architecture.png
+graph TB
+    subgraph "Cloudflare Edge Network"
+        A[Workers Script] --> B[Durable Objects]
+        A --> C[KV Storage]
+        A --> D[R2 Object Storage]
+        B --> E[WebSocket Handler]
+        C --> F[OAuth Token Cache]
+        D --> G[Audit Logs]
+    end
+
+    subgraph "External Integration"
+        H[Claude MCP Client]
+        I[GitHub API]
+        J[Corporate OAuth]
+        K[Slack Webhooks]
+    end
+
+    H <--> A
+    A <--> I & J & K
+
+    style A fill:#ff9,stroke:#333,stroke-width:4px
+    style B fill:#9ff,stroke:#333,stroke-width:4px
+#+end_src
+
+*** Implementation Example
+#+begin_src javascript
+// workers/mcp-server.js
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+
+    // Route MCP protocol requests
+    switch (url.pathname) {
+      case '/mcp/initialize':
+        return handleMCPInitialize(request, env);
+      case '/mcp/sse':
+        return handleServerSentEvents(request, env);
+      case '/oauth/callback':
+        return handleOAuthCallback(request, env);
+      default:
+        return new Response('Not Found', { status: 404 });
+    }
+  }
+};
+
+async function handleServerSentEvents(request, env) {
+  // Establish SSE connection for MCP
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
+
+  // Initialize Durable Object for connection state
+  const id = env.MCP_CONNECTIONS.idFromName('default');
+  const stub = env.MCP_CONNECTIONS.get(id);
+
+  // Delegate to Durable Object
+  await stub.handleConnection(request, writer);
+
+  return new Response(readable, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    },
+  });
+}
+
+// Durable Object for stateful MCP connections
+export class MCPConnection {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+    this.sessions = new Map();
+  }
+
+  async handleConnection(request, writer) {
+    const sessionId = this.generateSessionId();
+    this.sessions.set(sessionId, { writer, lastActivity: Date.now() });
+
+    // Handle MCP protocol messages
+    const protocol = new MCPProtocolHandler({
+      onToolInvoke: this.handleToolInvoke.bind(this),
+      onListTools: this.handleListTools.bind(this),
+    });
+
+    await protocol.start(sessionId);
+  }
+
+  async handleToolInvoke(sessionId, toolName, params) {
+    switch (toolName) {
+      case 'create_change_request':
+        return await this.createChangeRequest(params);
+      case 'assess_change_risk':
+        return await this.assessChangeRisk(params);
+      default:
+        throw new Error(`Unknown tool: ${toolName}`);
+    }
+  }
+}
+#+end_src
+
+*** Cost Analysis
+| Component | Free Tier | Paid Usage | Enterprise |
+|-----------|-----------|------------|------------|
+| Workers | 100K req/day | $0.15/million | Custom |
+| Durable Objects | 400K req/day | $0.15/million | Custom |
+| KV Storage | 100K ops/day | $0.50/million | Custom |
+| Bandwidth | 100GB | $0.045/GB | Negotiated |
+| **Monthly Est.** | **$0** | **$50-200** | **$500+** |
+
+** Google Cloud Run (Enterprise Alternative)
+
+*** Technical Advantages
+- Fully managed container runtime
+- Automatic HTTPS and custom domains
+- WebSocket support (Preview)
+- Integration with GCP Identity Platform
+- Scales to zero for cost optimization
+
+*** Container Implementation
+#+begin_src dockerfile
+# Dockerfile for Guile ChangeFlow MCP
+FROM ubuntu:22.04
+
+# Install Guile 3.0 and dependencies
+RUN apt-get update && apt-get install -y \
+    guile-3.0 \
+    guile-3.0-dev \
+    libgc-dev \
+    pkg-config \
+    sqlite3 \
+    libsqlite3-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Guile JSON library
+RUN guile -c "(use-modules (ice-9 ftw))"
+
+WORKDIR /app
+COPY . .
+
+# Build ChangeFlow MCP server
+RUN make build-mcp-server
+
+# Health check for Cloud Run
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
+
+# Cloud Run requires PORT environment variable
+EXPOSE ${PORT:-8080}
+
+CMD ["./bin/changeflow-mcp", "--port", "${PORT:-8080}", "--mode", "production"]
+#+end_src
+
+*** Cloud Run Service Configuration
+#+begin_src yaml
+# cloud-run-service.yaml
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: changeflow-mcp
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/ingress-status: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "100"
+        run.googleapis.com/memory: "1Gi"
+        run.googleapis.com/cpu: "1000m"
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 3600  # Long timeout for SSE connections
+      containers:
+      - image: gcr.io/PROJECT_ID/changeflow-mcp:latest
+        ports:
+        - name: http1
+          containerPort: 8080
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: OAUTH_PROVIDER
+          value: "gcp"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: changeflow-secrets
+              key: database-url
+        resources:
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+#+end_src
+
+*** Deployment Pipeline
+#+begin_src yaml
+# .github/workflows/deploy-gcp.yml
+name: Deploy to Google Cloud Run
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'src/**', 'Dockerfile', '.github/workflows/deploy-gcp.yml' ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+
+    - name: Configure Docker for Artifact Registry
+      run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+    - name: Build and push container image
+      env:
+        IMAGE_URI: us-central1-docker.pkg.dev/${{ secrets.PROJECT_ID }}/changeflow/mcp-server:${{ github.sha }}
+      run: |
+        docker build -t ${IMAGE_URI} .
+        docker push ${IMAGE_URI}
+
+    - name: Deploy to Cloud Run
+      env:
+        IMAGE_URI: us-central1-docker.pkg.dev/${{ secrets.PROJECT_ID }}/changeflow/mcp-server:${{ github.sha }}
+      run: |
+        gcloud run deploy changeflow-mcp \
+          --image ${IMAGE_URI} \
+          --region us-central1 \
+          --platform managed \
+          --allow-unauthenticated \
+          --memory 1Gi \
+          --cpu 1 \
+          --max-instances 100 \
+          --set-env-vars "OAUTH_CLIENT_ID=${{ secrets.OAUTH_CLIENT_ID }}" \
+          --set-secrets "DATABASE_URL=changeflow-db-url:latest"
+
+    - name: Update traffic to new revision
+      run: |
+        gcloud run services update-traffic changeflow-mcp \
+          --region us-central1 \
+          --to-latest
+#+end_src
+
+** Alternative Platforms Evaluated
+
+*** Vercel Edge Functions
+*Advantages:*
+- Excellent developer experience
+- Built-in Next.js integration
+- Automatic performance optimization
+- Global edge network
+
+*Limitations:*
+- 30-second timeout limit
+- Limited WebSocket support
+- Higher costs at scale
+- Vendor lock-in concerns
+
+*** AWS Lambda + API Gateway
+*Advantages:*
+- Enterprise-grade security
+- Extensive AWS service integration
+- HIPAA/SOC2 compliance options
+- Fine-grained IAM controls
+
+*Limitations:*
+- Cold start latency
+- Complex configuration
+- Higher baseline costs
+- WebSocket complexity with API Gateway v2
+
+*** Railway/Render (Rapid Prototyping)
+*Advantages:*
+- Simple deployment workflow
+- Built-in database provisioning
+- Automatic HTTPS
+- Cost-effective for small deployments
+
+*Limitations:*
+- Limited enterprise features
+- Scaling constraints
+- Geographic distribution limited
+- Less suitable for production workloads
+
+* Security Architecture
+
+** OAuth 2.0 + PKCE Implementation
+#+begin_src scheme
+;; OAuth PKCE flow in Guile
+(define (generate-pkce-challenge)
+  "Generate PKCE code challenge and verifier"
+  (let* ((code-verifier (base64url-encode (random-bytes 32)))
+         (code-challenge (base64url-encode
+                         (sha256 (string->utf8 code-verifier)))))
+    (values code-verifier code-challenge)))
+
+(define (oauth-authorization-url client-id redirect-uri)
+  "Generate OAuth URL with PKCE"
+  (receive (verifier challenge) (generate-pkce-challenge)
+    (let ((state (generate-random-state)))
+      (store-oauth-session! state verifier)
+      (format #f "~a?client_id=~a&redirect_uri=~a&state=~a&code_challenge=~a&code_challenge_method=S256"
+              *oauth-auth-endpoint*
+              (uri-encode client-id)
+              (uri-encode redirect-uri)
+              state
+              challenge))))
+
+(define (validate-oauth-callback code state)
+  "Validate OAuth callback and exchange for tokens"
+  (let ((session (retrieve-oauth-session! state)))
+    (unless session
+      (error "Invalid OAuth state"))
+
+    (let ((token-response
+           (http-post *oauth-token-endpoint*
+                     `((grant_type . "authorization_code")
+                       (code . ,code)
+                       (redirect_uri . ,*redirect-uri*)
+                       (client_id . ,*client-id*)
+                       (code_verifier . ,(oauth-session-verifier session))))))
+
+      (delete-oauth-session! state)
+      (parse-token-response token-response))))
+#+end_src
+
+** Rate Limiting and Security Headers
+#+begin_src javascript
+// Cloudflare Workers rate limiting
+class RateLimiter {
+  constructor(env) {
+    this.kv = env.RATE_LIMIT_KV;
+  }
+
+  async checkLimit(clientId, limit = 100, window = 3600) {
+    const key = `rate_limit:${clientId}`;
+    const current = await this.kv.get(key, { type: "json" }) || { count: 0, resetTime: Date.now() + window * 1000 };
+
+    if (Date.now() > current.resetTime) {
+      current.count = 0;
+      current.resetTime = Date.now() + window * 1000;
+    }
+
+    if (current.count >= limit) {
+      return { allowed: false, retryAfter: Math.ceil((current.resetTime - Date.now()) / 1000) };
+    }
+
+    current.count++;
+    await this.kv.put(key, JSON.stringify(current), { expirationTtl: window });
+
+    return { allowed: true, remaining: limit - current.count };
+  }
+}
+
+// Security headers middleware
+function addSecurityHeaders(response) {
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-XSS-Protection', '1; mode=block');
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  response.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'");
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  return response;
+}
+#+end_src
+
+* Performance Optimization
+
+** Connection Pooling Strategy
+#+begin_src javascript
+// External API connection pooling
+class ConnectionPool {
+  constructor(options = {}) {
+    this.maxConnections = options.max || 100;
+    this.idleTimeout = options.idleTimeout || 30000;
+    this.connections = new Map();
+  }
+
+  async getConnection(endpoint) {
+    const pool = this.connections.get(endpoint) || [];
+
+    // Reuse idle connection if available
+    const idleConnection = pool.find(conn =>
+      conn.state === 'idle' &&
+      Date.now() - conn.lastUsed < this.idleTimeout
+    );
+
+    if (idleConnection) {
+      idleConnection.state = 'active';
+      return idleConnection;
+    }
+
+    // Create new connection if under limit
+    if (pool.length < this.maxConnections) {
+      const connection = await this.createConnection(endpoint);
+      pool.push(connection);
+      this.connections.set(endpoint, pool);
+      return connection;
+    }
+
+    throw new Error('Connection pool exhausted');
+  }
+
+  releaseConnection(endpoint, connection) {
+    connection.state = 'idle';
+    connection.lastUsed = Date.now();
+  }
+}
+#+end_src
+
+** Caching Strategy
+#+begin_src javascript
+// Multi-level caching for MCP responses
+class MCPCache {
+  constructor(env) {
+    this.kv = env.MCP_CACHE;
+    this.memory = new Map();
+    this.maxMemorySize = 1000;
+  }
+
+  async get(key) {
+    // Level 1: Memory cache
+    if (this.memory.has(key)) {
+      const entry = this.memory.get(key);
+      if (Date.now() < entry.expires) {
+        return entry.value;
+      }
+      this.memory.delete(key);
+    }
+
+    // Level 2: KV cache
+    const kvEntry = await this.kv.get(key, { type: 'json' });
+    if (kvEntry && Date.now() < kvEntry.expires) {
+      this.setMemory(key, kvEntry.value, kvEntry.expires);
+      return kvEntry.value;
+    }
+
+    return null;
+  }
+
+  async set(key, value, ttl = 3600) {
+    const expires = Date.now() + ttl * 1000;
+
+    // Store in both levels
+    this.setMemory(key, value, expires);
+    await this.kv.put(key, JSON.stringify({ value, expires }), { expirationTtl: ttl });
+  }
+
+  setMemory(key, value, expires) {
+    if (this.memory.size >= this.maxMemorySize) {
+      const firstKey = this.memory.keys().next().value;
+      this.memory.delete(firstKey);
+    }
+    this.memory.set(key, { value, expires });
+  }
+}
+#+end_src
+
+* Monitoring and Observability
+
+** Health Check Implementation
+#+begin_src scheme
+;; Health check endpoint for container deployments
+(define (health-check-handler request)
+  "Comprehensive health check for MCP server"
+  (let ((checks `((database . ,(check-database-connection))
+                  (oauth . ,(check-oauth-provider))
+                  (external-apis . ,(check-external-apis))
+                  (memory . ,(check-memory-usage))
+                  (disk . ,(check-disk-space)))))
+
+    (let ((failed-checks (filter (lambda (check) (not (cdr check))) checks)))
+      (if (null? failed-checks)
+          (json-response 200 `((status . "healthy")
+                              (timestamp . ,(current-time))
+                              (checks . ,checks)))
+          (json-response 503 `((status . "unhealthy")
+                              (failed . ,(map car failed-checks))
+                              (checks . ,checks)))))))
+
+(define (check-database-connection)
+  "Test database connectivity"
+  (catch #t
+    (lambda ()
+      (sqlite-execute *db* "SELECT 1")
+      #t)
+    (lambda (key . args)
+      #f)))
+#+end_src
+
+** Metrics Collection
+#+begin_src javascript
+// CloudFlare Analytics and metrics
+class MetricsCollector {
+  constructor(env) {
+    this.analytics = env.ANALYTICS;
+  }
+
+  async recordMCPRequest(toolName, duration, success) {
+    await this.analytics.writeDataPoint({
+      doubles: [duration],
+      blobs: [toolName, success ? 'success' : 'failure'],
+      indexes: [toolName],
+    });
+  }
+
+  async recordError(error, context) {
+    console.error('MCP Error:', {
+      message: error.message,
+      stack: error.stack,
+      context,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+#+end_src
+
+* Cost Optimization
+
+** Platform Cost Comparison
+| Platform | Setup Cost | Monthly Base | Per Request | Storage | Bandwidth |
+|----------|------------|--------------|-------------|---------|-----------|
+| Cloudflare | $0 | $5 | $0.15/M | $0.015/GB | $0.045/GB |
+| Google Cloud | $0 | $0 | $0.40/M | $0.020/GB | $0.12/GB |
+| AWS Lambda | $0 | $0 | $0.20/M | $0.023/GB | $0.09/GB |
+| Vercel | $0 | $20 | $2.00/M | Included | $0.15/GB |
+
+** Traffic Estimation for 10K Users
+- Daily requests: ~100K (10 req/user/day)
+- Monthly requests: ~3M
+- Storage needs: ~50GB (audit logs, cache)
+- Bandwidth: ~500GB/month
+
+** Recommended Configuration
+*For Demo/POC (< 1K users):*
+- Platform: Cloudflare Workers Free Tier
+- Estimated cost: $0-10/month
+
+*For Production (10K+ users):*
+- Platform: Cloudflare Workers + Google Cloud Run hybrid
+- Estimated cost: $100-300/month
+
+* Deployment Checklist
+
+** Pre-Deployment
+- [ ] Domain registration and DNS configuration
+- [ ] SSL certificate provisioning
+- [ ] OAuth application registration
+- [ ] Environment variable configuration
+- [ ] Database schema initialization
+- [ ] Security headers configuration
+
+** Deployment
+- [ ] Container image build and push
+- [ ] Service deployment and configuration
+- [ ] Load balancer setup
+- [ ] CDN configuration
+- [ ] Monitoring and alerting setup
+- [ ] Rate limiting implementation
+
+** Post-Deployment
+- [ ] Health check validation
+- [ ] Performance testing
+- [ ] Security scanning
+- [ ] Backup strategy implementation
+- [ ] Incident response procedures
+- [ ] Documentation updates
+
+* Conclusion
+
+For ChangeFlow MCP server deployment, the analysis recommends:
+
+1. **Development/Demo**: Cloudflare Workers (cost-effective, global edge)
+2. **Enterprise Production**: Google Cloud Run (container flexibility, enterprise features)
+3. **Hybrid Approach**: Cloudflare for API gateway + GCP for compute-intensive operations
+
+The container-based Google Cloud Run deployment provides optimal balance of enterprise requirements, cost efficiency, and operational simplicity while maintaining compatibility with corporate security policies and compliance requirements.

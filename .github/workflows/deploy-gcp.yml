@@ -1,0 +1,61 @@
+name: Deploy to Google Cloud Run
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile'
+      - 'src/**'
+      - '.github/workflows/deploy-gcp.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure Docker
+      run: |
+        gcloud auth configure-docker us-central1-docker.pkg.dev
+
+    - name: Build and Push Container
+      env:
+        PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        REGION: ${{ secrets.GCP_REGION }}
+      run: |
+        IMAGE_URI="us-central1-docker.pkg.dev/${PROJECT_ID}/changeflow/mcp-server:${{ github.sha }}"
+        docker build -t ${IMAGE_URI} .
+        docker push ${IMAGE_URI}
+
+    - name: Deploy to Cloud Run
+      env:
+        PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        REGION: ${{ secrets.GCP_REGION }}
+        OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+        OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      run: |
+        IMAGE_URI="us-central1-docker.pkg.dev/${PROJECT_ID}/changeflow/mcp-server:${{ github.sha }}"
+
+        gcloud run deploy changeflow-mcp \
+          --image ${IMAGE_URI} \
+          --region ${REGION} \
+          --platform managed \
+          --allow-unauthenticated \
+          --set-env-vars "OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}" \
+          --set-secrets "OAUTH_CLIENT_SECRET=oauth-client-secret:latest,DATABASE_URL=database-url:latest"
