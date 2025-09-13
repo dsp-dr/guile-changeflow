@@ -1,0 +1,992 @@
+#+TITLE: Experiment 010: CI/CD Branch Management Strategies
+#+DATE: 2025-09-13
+#+AUTHOR: dsp-dr
+#+STARTUP: overview
+
+* Overview
+
+This experiment explores different approaches for:
+1. Keeping feature branches synchronized with main
+2. Running CI pipelines on both features and main
+3. Preventing integration drift in parallel development
+4. Automated merge strategies
+
+We examine how major tech companies and open source projects handle these challenges, then evaluate options for our multi-agent development scenario.
+
+* Problem Statement
+
+When multiple agents (or developers) work in parallel on feature branches:
+- Branches drift from main over time
+- Integration conflicts accumulate
+- CI may pass on branch but fail after merge
+- Manual sync is error-prone
+
+* Industry Case Studies
+
+** Google (Internal Monorepo)
+
+*** Approach: Trunk-Based Development
+- Single source of truth (google3 monorepo)
+- No long-lived branches
+- All changes land in head within hours
+- Feature flags for incomplete work
+
+*** Tools
+- *Piper*: Version control system
+- *TAP*: Test Automation Platform
+- *Rosie*: Large-scale change automation
+
+*** Key Insights
+#+begin_quote
+"We have over 2 billion lines of code in a single repository, with 45,000 commits per day.
+Branches would be impossible to manage at this scale." - Google Engineering
+#+end_quote
+
+** Facebook/Meta (Mercurial + Bots)
+
+*** Approach: Aggressive Rebasing
+- Feature branches auto-rebased every 4 hours
+- Failing branches get "pushed out" of queue
+- Sandcastle CI runs on every rebase
+
+*** Tools
+- *Sandcastle*: Distributed CI
+- *Phabricator*: Code review with auto-land
+- *FBShipIt*: Sync tool for open source
+
+*** Example Workflow
+#+begin_src text
+Developer pushes → Auto-rebase → CI runs → Conflicts? → Bot comments → Manual fix
+                                      ↓
+                                  Success → Queue for land → Auto-merge
+#+end_src
+
+** Microsoft (Azure DevOps)
+
+*** Approach: Git Virtual File System + PR Validation
+- GVFS handles massive repos
+- PR builds merge with target before testing
+- Branch policies enforce sync
+
+*** Configuration Example
+#+begin_src yaml
+# azure-pipelines.yml
+trigger:
+  branches:
+    include: ['main', 'feature/*']
+
+pr:
+  branches:
+    include: ['main']
+  autoCancel: true
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- checkout: self
+  fetchDepth: 0
+
+- script: |
+    git fetch origin main:main
+    git merge-base --is-ancestor main HEAD || \
+      (echo "Branch is behind main" && exit 1)
+#+end_src
+
+** Linux Kernel (Email + Integration Trees)
+
+*** Approach: Hierarchical Integration
+- Subsystem maintainer trees
+- linux-next integration testing
+- No direct commits to master
+
+*** Process
+1. Developer → Subsystem tree
+2. Subsystem → linux-next (daily integration)
+3. linux-next → Report conflicts
+4. Maintainer → Resolve and resubmit
+5. Linus → Pull during merge window
+
+*** Tools
+- *0-day bot*: Automated testing
+- *linux-next*: Integration branch
+- Email-based workflow
+
+** Shopify (Merge Queue + Shipit)
+
+*** Approach: Merge Queue with Speculative Execution
+#+begin_src ruby
+# shipit.yml
+merge:
+  revalidate_after: 30m
+  method: squash
+  require_branch_to_be_up_to_date: true
+
+ci:
+  require:
+    - continuous-integration/buildkite/pipeline
+  blocking:
+    - continuous-integration/buildkite/blocking
+#+end_src
+
+*** Features
+- Speculative merges (test combinations)
+- Auto-rollback on main breakage
+- Stack ranking for priority
+
+** GitHub (GitHub Actions + Merge Queue)
+
+*** Native Merge Queue (2023+)
+#+begin_src yaml
+# .github/merge-queue.yml
+merge_queue:
+  merge_method: squash
+  update_method: rebase
+  merge_commit_message: PR_TITLE
+
+  # Grouping strategy
+  grouping_strategy:
+    max_group_size: 3
+    max_wait_time: 10m
+
+  # Required checks
+  required_checks:
+    - build
+    - test
+    - lint
+#+end_src
+
+** Netflix (Spinnaker + Automated Canary)
+
+*** Approach: Forward-Fix Philosophy
+- No rollbacks, only forward
+- Automated canary analysis
+- Feature flags for instant disable
+
+*** Pipeline
+#+begin_src groovy
+pipeline {
+  stages {
+    stage('Build') { }
+    stage('Test') { }
+    stage('Canary') {
+      steps {
+        deployCanary(5) // 5% traffic
+        analyzeMetrics(duration: '10m')
+        deployCanary(50)
+        analyzeMetrics(duration: '10m')
+        deployProduction()
+      }
+    }
+  }
+}
+#+end_src
+
+** Uber (SubmitQueue + Merge-on-Green)
+
+*** Approach: Probabilistic Testing
+- Not all tests on all commits
+- Risk-based test selection
+- Auto-merge when probability of success > threshold
+
+*** Algorithm
+#+begin_src python
+def should_run_test(test, change):
+    # Based on historical data
+    failure_rate = get_failure_rate(test)
+    change_risk = analyze_change_risk(change)
+    time_since_last_run = get_time_since_run(test)
+
+    probability = (failure_rate * change_risk * time_since_last_run)
+    return probability > THRESHOLD
+#+end_src
+
+** Open Source Projects
+
+*** Kubernetes (Prow + Tide)
+
+#+begin_src yaml
+# prow/config.yaml
+tide:
+  merge_method:
+    kubernetes/kubernetes: squash
+
+  queries:
+  - repos:
+    - kubernetes/kubernetes
+    labels:
+    - lgtm
+    - approved
+    - "cncf-cla: yes"
+    missingLabels:
+    - do-not-merge
+    - needs-rebase
+    - hold
+#+end_src
+
+*** Rust (Bors)
+
+#+begin_src toml
+# bors.toml
+status = [
+  "continuous-integration/travis-ci/push",
+  "continuous-integration/appveyor/branch"
+]
+
+block_labels = ["S-blocked"]
+delete_merged_branches = true
+timeout_sec = 7200 # 2 hours
+#+end_src
+
+*** Chromium (Commit Queue)
+
+- CQ Dry Run on upload
+- CQ+1 for staging
+- CQ+2 for commit
+- Auto-rebase and retry
+
+* Options Analysis
+
+** Option 1: Continuous Rebasing (Facebook Style)
+
+#+begin_src yaml
+name: Continuous Rebase
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'  # Every 4 hours
+
+jobs:
+  rebase-all:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Rebase all feature branches
+      run: |
+        for branch in $(git branch -r | grep 'feat/'); do
+          git checkout $branch
+          git rebase origin/main || git rebase --abort
+          git push --force-with-lease
+        done
+#+end_src
+
+| Pros | Cons |
+|------+------|
+| Always near HEAD | Force pushes disruptive |
+| Linear history | Loses branch context |
+| Conflicts found early | Can break developer flow |
+
+** Option 2: Merge Queue (GitHub/Shopify Style)
+
+#+begin_src yaml
+name: Merge Queue
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  queue:
+    if: contains(github.event.label.name, 'ready-to-merge')
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Add to queue
+      uses: pascalgn/merge-queue-action@v0.1.0
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Test with main
+      run: |
+        git fetch origin main
+        git merge origin/main --no-commit
+        make test
+
+    - name: Merge if green
+      if: success()
+      run: gh pr merge --auto --squash
+#+end_src
+
+| Pros | Cons |
+|------+------|
+| Guarantees green main | Can create bottlenecks |
+| Orderly process | Slower for many PRs |
+| Clear ownership | Complex setup |
+
+** Option 3: Virtual Merge Testing (Microsoft Style)
+
+#+begin_src yaml
+name: Virtual Merge Test
+
+on:
+  pull_request:
+  push:
+    branches: ['feat/**']
+
+jobs:
+  virtual-merge:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Virtual merge with main
+      run: |
+        git fetch origin main
+
+        # Create virtual merge
+        git config user.email "ci@example.com"
+        git config user.name "CI"
+
+        MERGE_RESULT=$(git merge origin/main --no-commit --no-ff 2>&1)
+
+        if [ $? -ne 0 ]; then
+          echo "::error::Merge conflicts detected"
+          echo "$MERGE_RESULT"
+          exit 1
+        fi
+
+    - name: Run tests on merged code
+      run: make test
+#+end_src
+
+| Pros | Cons |
+|------+------|
+| Non-invasive | Doesn't fix conflicts |
+| Tests integration | Can miss semantic conflicts |
+| No branch modification | Extra CI resources |
+
+** Option 4: Hierarchical Integration (Linux Style)
+
+#+begin_src bash
+#!/bin/bash
+# integration-tree.sh
+
+# Nightly integration branch
+git checkout -b integration/$(date +%Y%m%d)
+
+# Merge in order of dependency
+BRANCHES=(
+  "feat/core-models"      # Base layer
+  "feat/risk-engine"      # Depends on core
+  "feat/mcp-server"       # Depends on core
+  "feat/web-interface"    # Depends on all
+  "feat/integrations"     # Depends on all
+)
+
+for branch in "${BRANCHES[@]}"; do
+  echo "Integrating $branch..."
+  git merge origin/$branch --no-edit || {
+    echo "Conflict in $branch"
+    git merge --abort
+    break
+  }
+done
+#+end_src
+
+| Pros | Cons |
+|------+------|
+| Respects dependencies | Complex coordination |
+| Staged integration | Slower feedback |
+| Clear hierarchy | Not all projects hierarchical |
+
+** Option 5: Feature Flags (Google Style)
+
+#+begin_src scheme
+;; feature-flags.scm
+(define-module (feature-flags)
+  #:export (with-feature))
+
+(define-syntax with-feature
+  (syntax-rules ()
+    ((with-feature flag-name old-code new-code)
+     (if (feature-enabled? 'flag-name)
+         new-code
+         old-code))))
+
+;; Usage
+(with-feature new-risk-engine
+  (calculate-risk-v1 change)    ; old
+  (calculate-risk-v2 change))   ; new
+#+end_src
+
+| Pros | Cons |
+|------+------|
+| No merge conflicts | Code complexity |
+| Gradual rollout | Runtime overhead |
+| Quick rollback | Dead code accumulation |
+
+** Option 6: GitOps + Environments (Kubernetes Style)
+
+#+begin_src yaml
+# environments/staging/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+patchesStrategicMerge:
+  - deployment-patch.yaml
+
+images:
+  - name: changeflow
+    newTag: feat-risk-engine-abc123
+#+end_src
+
+| Pros | Cons |
+|------+------|
+| Environment isolation | Infrastructure heavy |
+| Progressive delivery | Complex for libraries |
+| Easy rollback | Not for all projects |
+
+* Approaches Tested
+
+** 1. Scheduled Sync Check (Current Implementation)
+
+#+begin_src yaml
+# .github/workflows/branch-sync-check.yml
+name: Branch Sync Status
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:       # Manual trigger
+
+jobs:
+  check-sync:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Check all feature branches
+      run: |
+        BRANCHES=($(git branch -r | grep 'origin/feat/' | sed 's/.*origin\///' | sort))
+        for branch in "${BRANCHES[@]}"; do
+          BEHIND=$(git rev-list --count origin/$branch..origin/main)
+          if [ "$BEHIND" -gt 0 ]; then
+            echo "⚠️ $branch is $BEHIND commits behind main"
+          fi
+        done
+#+end_src
+
+*** Pros
+- Non-intrusive monitoring
+- Good for awareness
+- Can generate reports
+
+*** Cons
+- Doesn't fix the problem
+- Requires manual intervention
+- Can be ignored
+
+** 2. Auto-Merge Bot (Mergify/Renovate Style)
+
+#+begin_src yaml
+# .github/workflows/auto-sync-branches.yml
+name: Auto Sync Feature Branches
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  sync-features:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Auto-merge main into features
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        BRANCHES=($(git branch -r | grep 'origin/feat/' | sed 's/.*origin\///' | sort))
+
+        for branch in "${BRANCHES[@]}"; do
+          echo "Syncing $branch..."
+          git checkout $branch
+
+          if git merge origin/main --no-edit -m "chore: auto-sync with main"; then
+            git push origin $branch
+            echo "✅ $branch synced successfully"
+          else
+            git merge --abort
+            echo "❌ $branch has conflicts - manual intervention needed"
+
+            # Create issue for conflicts
+            gh issue create \
+              --title "Merge conflict: $branch needs manual sync" \
+              --body "Branch $branch has conflicts with main and needs manual resolution" \
+              --label "merge-conflict"
+          fi
+        done
+#+end_src
+
+*** Pros
+- Keeps branches automatically synced
+- Reduces integration surprises
+- Creates issues for conflicts
+
+*** Cons
+- Can create noisy commit history
+- May interrupt developer flow
+- Requires conflict resolution
+
+** 3. Merge Queue (GitHub Merge Queue / Bors)
+
+#+begin_src yaml
+# .github/workflows/merge-queue.yml
+name: Merge Queue
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  merge-queue:
+    if: contains(github.event.label.name, 'ready-to-merge')
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Update branch
+      run: |
+        git fetch origin main
+        git rebase origin/main
+
+    - name: Run tests
+      run: |
+        make test
+
+    - name: Merge if passing
+      if: success()
+      uses: pascalgn/merge-action@v0.15.0
+      with:
+        method: squash
+#+end_src
+
+*** Pros
+- Ensures main is always green
+- Tests integration before merge
+- Orderly merge process
+
+*** Cons
+- Can create bottlenecks
+- Requires all tests to be fast
+- Complex for many branches
+
+** 4. Feature Flags Instead of Branches
+
+#+begin_src scheme
+;; Use feature flags instead of long-lived branches
+(define-module (config features)
+  #:export (feature-enabled?))
+
+(define features
+  '((new-risk-engine . #f)     ; In development
+    (mcp-v2 . #f)              ; Testing
+    (github-webhooks . #t)))   ; Deployed
+
+(define (feature-enabled? feature)
+  (assoc-ref features feature))
+
+;; In code
+(if (feature-enabled? 'new-risk-engine)
+    (calculate-risk-v2 change)
+    (calculate-risk-v1 change))
+#+end_src
+
+*** Pros
+- Everything in main
+- No merge conflicts
+- Gradual rollout possible
+
+*** Cons
+- Code complexity increases
+- Dead code accumulation
+- Requires discipline
+
+** 5. Parallel CI Matrix
+
+#+begin_src yaml
+# .github/workflows/matrix-ci.yml
+name: Feature Branch CI Matrix
+
+on:
+  push:
+    branches: [ main, 'feat/**' ]
+  pull_request:
+
+jobs:
+  test-matrix:
+    strategy:
+      matrix:
+        branch:
+          - main
+          - feat/core-models
+          - feat/mcp-server
+          - feat/risk-engine
+        test-suite:
+          - unit
+          - integration
+          - smoke
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ matrix.branch }}
+
+    - name: Run ${{ matrix.test-suite }} tests
+      run: |
+        make test-${{ matrix.test-suite }}
+
+    - name: Test integration with main
+      if: matrix.branch != 'main'
+      run: |
+        git fetch origin main
+        git merge origin/main --no-commit --no-ff
+        make test-integration
+#+end_src
+
+*** Pros
+- Tests branches in isolation and integrated
+- Catches issues early
+- Comprehensive coverage
+
+*** Cons
+- Resource intensive
+- Long CI times
+- Complex to maintain
+
+* Recommended Approach for Multi-Agent Development
+
+** Hybrid Strategy
+
+1. **Continuous Sync Monitoring** (every 30 mins)
+   - Dashboard showing branch status
+   - Alerts when >10 commits behind
+
+2. **Daily Auto-Sync** (once per day)
+   - Attempt automatic merge
+   - Create issues for conflicts
+
+3. **Pre-Integration Testing**
+   - Before demo/integration phase
+   - Test all branches merged together
+
+#+begin_src yaml
+# .github/workflows/hybrid-branch-management.yml
+name: Hybrid Branch Management
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Monitor every 30 mins
+    - cron: '0 2 * * *'     # Auto-sync at 2 AM
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'monitor'
+        type: choice
+        options:
+          - monitor
+          - sync
+          - test-integration
+
+jobs:
+  branch-management:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Monitor Branch Status
+      if: github.event_name == 'schedule' || github.event.inputs.action == 'monitor'
+      run: |
+        ./scripts/check-branch-sync.sh > sync-status.md
+
+        # Update status badge
+        echo "![Branch Sync](https://img.shields.io/badge/branches-synced-green)" > STATUS.md
+
+        # Commit if changed
+        git add STATUS.md
+        git diff --staged --quiet || git commit -m "chore: update sync status [skip ci]"
+        git push
+
+    - name: Auto-Sync Branches
+      if: contains(github.event.schedule, '0 2') || github.event.inputs.action == 'sync'
+      run: |
+        ./scripts/sync-agent-branches.sh
+
+        # Send notification
+        curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
+          -d '{"text":"Branch sync completed. Check results."}'
+
+    - name: Test Integration
+      if: github.event.inputs.action == 'test-integration'
+      run: |
+        # Create integration branch
+        git checkout -b integration/test-$(date +%s)
+
+        # Merge all feature branches
+        for branch in $(git branch -r | grep 'origin/feat/'); do
+          git merge $branch --no-edit || exit 1
+        done
+
+        # Run integration tests
+        make test-integration
+
+        # Clean up
+        git checkout main
+        git branch -D integration/test-*
+#+end_src
+
+* Scripts Created
+
+** scripts/check-branch-sync.sh
+
+#+begin_src bash
+#!/usr/bin/env bash
+# Check sync status of all feature branches
+
+set -euo pipefail
+
+echo "# Branch Sync Status"
+echo "Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+echo ""
+echo "| Branch | Behind | Ahead | Status |"
+echo "|--------|--------|-------|--------|"
+
+for branch in $(git branch -r | grep 'origin/feat/' | sed 's/.*origin\///'); do
+    BEHIND=$(git rev-list --count origin/$branch..origin/main)
+    AHEAD=$(git rev-list --count origin/main..origin/$branch)
+
+    if [ "$BEHIND" -eq 0 ]; then
+        STATUS="✅ Synced"
+    elif [ "$BEHIND" -lt 5 ]; then
+        STATUS="🟡 Slightly behind"
+    else
+        STATUS="🔴 Needs sync"
+    fi
+
+    echo "| $branch | $BEHIND | $AHEAD | $STATUS |"
+done
+#+end_src
+
+** scripts/auto-merge-main.sh
+
+#+begin_src bash
+#!/usr/bin/env bash
+# Auto-merge main into all feature branches
+
+set -euo pipefail
+
+CONFLICTS=()
+SYNCED=()
+
+for branch in $(git branch -r | grep 'origin/feat/' | sed 's/.*origin\///'); do
+    echo "Processing $branch..."
+
+    git checkout $branch
+
+    if git merge origin/main --no-edit -m "chore: sync with main"; then
+        git push origin $branch
+        SYNCED+=("$branch")
+    else
+        git merge --abort
+        CONFLICTS+=("$branch")
+    fi
+done
+
+# Report results
+echo ""
+echo "Sync Summary:"
+echo "✅ Synced: ${#SYNCED[@]} branches"
+echo "❌ Conflicts: ${#CONFLICTS[@]} branches"
+
+if [ ${#CONFLICTS[@]} -gt 0 ]; then
+    echo ""
+    echo "Branches with conflicts:"
+    printf '%s\n' "${CONFLICTS[@]}"
+    exit 1
+fi
+#+end_src
+
+* Metrics to Track
+
+1. **Branch Drift**
+   - Average commits behind main
+   - Max commits behind main
+   - Time since last sync
+
+2. **Integration Health**
+   - Merge conflict frequency
+   - CI failures after merge
+   - Time to resolve conflicts
+
+3. **Development Velocity**
+   - Feature branches created/merged per week
+   - Average branch lifetime
+   - Parallel development efficiency
+
+* Lessons Learned
+
+1. **For Agent Development**
+   - Auto-sync is crucial when agents can't resolve conflicts
+   - Need clear integration windows
+   - Monitor but don't over-automate
+
+2. **For Human Development**
+   - Developers prefer control over auto-merge
+   - Notifications better than automatic actions
+   - Make sync status highly visible
+
+3. **For Mixed Teams**
+   - Different strategies for different branch types
+   - Critical branches need stricter sync
+   - Feature flags for truly parallel work
+
+* Recommendations by Context
+
+** For Multi-Agent Development (Our Case)
+
+Given that agents:
+- Can't resolve semantic conflicts
+- Work in parallel without communication
+- Need clear integration points
+- Generate code from specs
+
+*Recommended Approach*: **Hierarchical Integration + Virtual Testing**
+
+#+begin_src yaml
+# .github/workflows/agent-integration.yml
+name: Agent Integration Pipeline
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Check every 6 hours
+  workflow_dispatch:
+
+jobs:
+  virtual-test:
+    strategy:
+      matrix:
+        branch: ['feat/core-models', 'feat/mcp-server', 'feat/risk-engine']
+
+    steps:
+    - name: Virtual merge test
+      run: |
+        git merge origin/main --no-commit
+        make test || echo "::warning::${{ matrix.branch }} has issues"
+
+  hierarchical-integration:
+    needs: virtual-test
+    steps:
+    - name: Create integration branch
+      run: |
+        git checkout -b integration/$(date +%Y%m%d-%H%M%S)
+
+        # Merge in dependency order
+        for branch in core-models risk-engine mcp-server web-interface integrations; do
+          git merge origin/feat/$branch --no-edit || break
+        done
+#+end_src
+
+** For Small Teams (2-5 developers)
+
+*Recommended*: **PR Validation + Daily Sync**
+- Simple GitHub branch protection
+- Daily sync reminder
+- Manual conflict resolution
+
+** For Medium Teams (5-20 developers)
+
+*Recommended*: **Merge Queue + Virtual Testing**
+- GitHub native merge queue
+- Speculative merging
+- Auto-rebase on schedule
+
+** For Large Teams (20+ developers)
+
+*Recommended*: **Trunk-Based + Feature Flags**
+- Short-lived branches (<24 hours)
+- Feature flags for WIP
+- Continuous integration to trunk
+
+** For Open Source Projects
+
+*Recommended*: **Bors/Tide + Staged Merging**
+- Label-based workflow
+- Community review required
+- Automated merge when ready
+
+* Decision Matrix
+
+| Factor | Rebase | Merge Queue | Virtual Test | Feature Flags | Hierarchical |
+|--------+--------+-------------+--------------+---------------+--------------|
+| Team Size | Small | Medium | Any | Large | Any |
+| Branch Lifetime | Short | Medium | Long | None | Long |
+| Conflict Frequency | Low | Medium | High | None | High |
+| CI Resources | Low | High | Medium | Low | Medium |
+| Complexity | Low | High | Medium | Medium | High |
+| Agent-Friendly | No | No | Yes | No | Yes |
+
+* Tool Comparison
+
+| Tool | GitHub Actions | GitLab CI | Jenkins | CircleCI | BuildKite |
+|------+---------------+-----------+---------+----------+-----------|
+| Native Merge Queue | ✅ | ✅ | ❌ | ❌ | Via Shipit |
+| Virtual Merge | Manual | ✅ | Plugin | Manual | ✅ |
+| Cost | Free* | Free* | Self-host | $$$ | $$$ |
+| Complexity | Low | Medium | High | Low | Medium |
+| Scale | Good | Good | Excellent | Good | Excellent |
+
+* Implementation Checklist
+
+For our multi-agent experiment:
+
+- [ ] Set up branch sync monitoring (DONE)
+- [ ] Create hierarchical integration script
+- [ ] Add virtual merge testing to CI
+- [ ] Document merge order dependencies
+- [ ] Create integration test suite
+- [ ] Set up notifications for conflicts
+- [ ] Define integration windows (every 6 hours)
+- [ ] Create rollback procedure
+
+* Conclusion
+
+For the Guile ChangeFlow multi-agent experiment:
+- **Primary**: Virtual merge testing (non-invasive monitoring)
+- **Secondary**: Hierarchical integration (respects dependencies)
+- **Avoid**: Auto-rebasing (agents can't handle conflicts)
+- **Focus**: Clear integration windows and dependency order
+
+The goal is to balance automation with control, especially when dealing with experimental agent-driven development where merge conflicts might reveal interesting integration challenges.
+
+Different organizations solve this differently based on:
+1. **Scale**: Google/Facebook need different solutions than small teams
+2. **Culture**: Linux kernel's email workflow vs GitHub's PR model
+3. **Risk tolerance**: Netflix's forward-only vs traditional rollback
+4. **Resources**: Self-hosted Jenkins vs managed GitHub Actions
+
+Our approach should match our unique constraint: autonomous agents that can't negotiate conflicts.
