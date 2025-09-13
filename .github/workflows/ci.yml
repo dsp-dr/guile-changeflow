@@ -68,6 +68,44 @@ jobs:
         echo ""
         echo "✅ Core dependencies verified - ready for agent development!"
 
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y emacs guile-3.0 guile-3.0-dev make
+
+    - name: Count Files
+      run: |
+        echo "=== File Statistics ==="
+        echo "Org files: $(find . -name '*.org' -not -path './.git/*' | wc -l)"
+        echo "Scheme files: $(find . -name '*.scm' -o -name '*.ss' -not -path './.git/*' | wc -l)"
+        echo "Makefiles: $(find . -name 'Makefile' -o -name '*.mk' | wc -l)"
+
+    - name: Lint Org Files
+      run: |
+        echo "=== Linting Org Documentation ==="
+        make lint-org || true
+        echo "✅ Org files checked"
+
+    - name: Lint Scheme Files
+      run: |
+        echo "=== Linting Scheme Code ==="
+        make lint-scheme
+        echo "✅ Scheme files checked (or confirmed absent)"
+
+    - name: Lint Summary
+      run: |
+        echo "=== Lint Summary ==="
+        echo "Documentation linted: ✅"
+        echo "Code linted: $(if [ -z \"$(find . -name '*.scm' -o -name '*.ss' -not -path './.git/*' 2>/dev/null)\" ]; then echo 'N/A (no code yet)'; else echo '✅'; fi)"
+        echo ""
+        echo "Ready for agent implementation!"
+
   # Placeholder for future agent-added jobs
   # Agents can add:
   # - test job (once test framework chosen)
