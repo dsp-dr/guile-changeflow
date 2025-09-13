@@ -4,7 +4,9 @@
 # Find all org files (excluding .git and .tmp directories)
 ORG_FILES := $(shell find . -name "*.org" -not -path "./.git/*" -not -path "./.tmp/*")
 
-.PHONY: help status agenda agents monitor issues setup clean lint lint-org lint-scheme
+.PHONY: help status agenda agents monitor issues setup clean lint lint-org lint-scheme \
+        ci-status ci-check ci-logs ci-runs ci-branch-sync ci-fix \
+        a1 a2 a3 a4 a5 test-integration quick-status reports
 
 help:
 	@echo "Guile ChangeFlow Project Management"
@@ -21,6 +23,15 @@ help:
 	@echo "  agents    - List all agent worktrees"
 	@echo "  monitor   - Monitor agent progress"
 	@echo "  sessions  - Create tmux sessions for agents"
+	@echo "  a1-a5     - Attach to specific agent session"
+	@echo ""
+	@echo "CI/CD:"
+	@echo "  ci-status - Show recent CI workflow runs"
+	@echo "  ci-check  - Check if CI is passing on main"
+	@echo "  ci-logs   - View logs of latest CI run"
+	@echo "  ci-runs   - List all recent workflow runs"
+	@echo "  ci-branch-sync - Trigger branch sync check"
+	@echo "  ci-fix    - Show common CI fixes"
 	@echo ""
 	@echo "GitHub:"
 	@echo "  issues    - List GitHub issues"
@@ -98,6 +109,42 @@ issue:
 	else \
 		gh issue create --title "$(TITLE)" --body "$(BODY)"; \
 	fi
+
+# CI/CD Management
+ci-status:
+	@echo "=== CI Workflow Status ==="
+	@gh run list --limit 10 --json status,name,conclusion,createdAt \
+		| jq -r '.[] | "\(.createdAt | split("T")[0]) \(.status) \(.conclusion // "pending") \(.name)"' \
+		| column -t
+
+ci-check:
+	@echo "=== Checking CI status on main branch ==="
+	@gh run list --branch main --limit 5 --json conclusion,name \
+		| jq -r 'map(select(.conclusion == "failure")) | if length > 0 then "❌ CI FAILING: " + (.[0].name) else "✅ CI PASSING" end'
+
+ci-logs:
+	@echo "=== Latest CI run logs ==="
+	@gh run view --log $$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')
+
+ci-runs:
+	@echo "=== Recent CI runs (use 'gh run view <id>' for details) ==="
+	@gh run list --limit 20
+
+ci-branch-sync:
+	@echo "=== Branch Sync Status ==="
+	@echo "Triggering branch sync check..."
+	@gh workflow run branch-sync-check.yml --ref main
+	@echo "Check status with: gmake ci-status"
+
+ci-fix:
+	@echo "=== Checking for CI issues ==="
+	@echo "1. Checking for failing workflows..."
+	@gh run list --branch main --status failure --limit 5
+	@echo ""
+	@echo "2. Common fixes:"
+	@echo "   - Missing optional tools: Update .github/workflows/ci.yml"
+	@echo "   - Branch out of sync: gmake ci-branch-sync"
+	@echo "   - Lint failures: gmake lint"
 
 # Project setup
 setup: setup-forge setup-hooks
