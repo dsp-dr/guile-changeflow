@@ -39,7 +39,7 @@ agents:
 	@git worktree list | grep -v main
 
 monitor:
-	@./monitor-agents.sh
+	@./scripts/monitor-agents.sh
 
 sessions:
 	@echo "Creating tmux sessions for agents..."

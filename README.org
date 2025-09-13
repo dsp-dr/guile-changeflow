@@ -3,13 +3,12 @@
 #+DATE: 2025-09-13
 #+STARTUP: overview
 
-* Guile ChangeFlow
-
-[[https://img.shields.io/badge/Status-Prototype-orange]]
-[[https://img.shields.io/badge/Guile-3.0+-blue]]
-[[https://img.shields.io/badge/License-MIT-green]]
-[[https://img.shields.io/badge/ITIL-4-purple]]
-[[https://img.shields.io/badge/MCP-Compatible-yellow]]
+[[https://img.shields.io/badge/Status-Prototype-orange.svg]]
+[[https://img.shields.io/badge/Guile-3.0+-blue.svg]]
+[[https://img.shields.io/badge/License-MIT-green.svg]]
+[[https://img.shields.io/badge/ITIL-4-purple.svg]]
+[[https://img.shields.io/badge/MCP-Compatible-yellow.svg]]
+[[https://img.shields.io/badge/Language-Scheme-red.svg]]
 
 An ITIL 4-compliant change management system implemented as a remote MCP (Model Context Protocol) server in GNU Guile 3.
 
@@ -29,14 +28,32 @@ Transform change management from a bureaucratic bottleneck into an intelligent e
 
 *PLANNING PHASE* - Currently documenting architecture and requirements before implementation.
 
-** Documentation Structure
+** Project Documentation
 
+*** Core Documents
 | Document | Purpose | Status |
 |----------|---------|--------|
-| [[file:setup.org][Setup Document]] | Build system and tooling configuration | Planning |
-| Design Documents | System architecture and data models | To Create |
-| ITIL Requirements | ITIL 4 mapping and requirements | To Create |
-| MCP Protocol Guide | Protocol implementation specifics | To Create |
+| [[file:setup.org][Setup & Build]] | Build system and tooling configuration | Complete |
+| [[file:design.org][System Design]] | Architecture and data models | Complete |
+| [[file:itil-requirements.org][ITIL Requirements]] | ITIL 4 mapping and compliance | Complete |
+| [[file:mcp-protocol.org][MCP Protocol]] | Protocol implementation guide | Complete |
+| [[file:deployment.org][Deployment]] | Infrastructure and scaling strategy | Complete |
+| [[file:research.org][Research]] | Competing methodologies and analysis | Complete |
+
+*** Sprint & Development
+| Document | Purpose | Status |
+|----------|---------|--------|
+| [[file:sprint-plan.org][Sprint Plan]] | 12-hour development timeline | Active |
+| [[file:demo-requirements.org][Demo Requirements]] | MVP specifications | Active |
+| [[file:integration-test-plan.org][Integration Tests]] | Testing strategy | Active |
+| [[file:agent-coordinator.org][Agent Coordination]] | Multi-agent management | Active |
+| [[file:tracking.org][Project Tracking]] | Timeline and milestones | Active |
+
+*** Visual & Reference
+| Document | Purpose |
+|----------|---------|
+| [[file:diagrams.org][Architecture Diagrams]] | Visual system representations |
+| [[file:experiments/README.org][Experiments]] | Isolated testing framework |
 
 ** Quick Overview
 
