@@ -1,0 +1,290 @@
+#+TITLE: Guile ChangeFlow - 12-Hour Sprint Plan
+#+AUTHOR: dsp-dr
+#+DATE: 2025-09-13
+#+STARTUP: showall
+#+TODO: ASSIGNED(a) ACTIVE(!) BLOCKED(b) | COMPLETE(c) FAILED(f)
+
+* Sprint Overview
+
+**Goal**: Demo-ready MVP by morning
+**Time**: 12-hour sprint
+**Strategy**: 5 parallel agents, mock what we can, focus on demo flow
+**Coordinator**: Monitor via tmux, update every 30 minutes
+
+* Demo Requirements (MVP)
+
+** Must Have (Critical Path)
+1. [X] Create a change request via MCP
+2. [X] Risk assessment calculation visible
+3. [X] Basic web dashboard showing changes
+4. [X] One state transition working
+
+** Nice to Have
+5. [ ] GitHub webhook creating change
+6. [ ] Multiple approval states
+7. [ ] Real-time updates (vs polling)
+
+** Can Skip for Demo
+- Full OAuth flow (use static token: "demo-token")
+- Database persistence (in-memory hash tables)
+- SSE events (2-second polling is fine)
+- Error handling (happy path only)
+- Performance optimization
+
+* Agent Allocation and Timeline
+
+** Hour-by-Hour Schedule
+
+| Hour | Time | A1 Core | A2 MCP | A3 Risk | A4 Web | A5 Integration |
+|------+------+---------+--------+---------+--------+----------------|
+| H+0 | Start | Setup | Setup | Setup | Setup | Setup |
+| H+1 | +1hr | Models | Discovery | Calculator | Server | GitHub mock |
+| H+2 | +2hr | State machine | Tools | Factors | API | Notifications |
+| H+3 | +3hr | Storage | Handlers | Scoring | Dashboard | Router |
+| H+4 | +4hr | Testing | Testing | Testing | Testing | Testing |
+| H+5 | +5hr | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE |
+| H+6 | +6hr | Integration Testing - All Agents Together |
+| H+7 | +7hr | Bug fixes and integration |
+| H+8 | +8hr | Demo preparation |
+| H+9 | +9hr | Demo script testing |
+| H+10 | +10hr | Final polish |
+| H+11 | +11hr | Documentation |
+| H+12 | +12hr | DEMO READY |
+
+** Agent Details
+
+*** Agent 1: Core Models (gcf-a1)
+- Branch: feat/core-models
+- Focus: Foundation that others depend on
+- Critical deliverables:
+  - change-request record type
+  - state machine (3 states minimum)
+  - in-memory storage
+
+*** Agent 2: MCP Server (gcf-a2)
+- Branch: feat/mcp-server
+- Focus: Claude integration
+- Critical deliverables:
+  - .well-known/mcp endpoint
+  - Tool listing
+  - create_change_request tool
+
+*** Agent 3: Risk Engine (gcf-a3)
+- Branch: feat/risk-engine
+- Focus: Risk scoring
+- Critical deliverables:
+  - calculate-risk function
+  - 0-100 scoring
+  - Risk categories (low/medium/high)
+
+*** Agent 4: Web Interface (gcf-a4)
+- Branch: feat/web-interface
+- Focus: Visual dashboard
+- Critical deliverables:
+  - HTTP server on 8080
+  - /api/changes endpoint
+  - Dashboard HTML
+
+*** Agent 5: Integrations (gcf-a5)
+- Branch: feat/integrations
+- Focus: External connections
+- Critical deliverables:
+  - GitHub webhook receiver
+  - Console notifications
+  - Mock payloads for testing
+
+* Integration Points
+
+#+begin_src mermaid
+graph LR
+    A1[Core Models] --> A2[MCP Server]
+    A1 --> A3[Risk Engine]
+    A1 --> A4[Web Interface]
+    A3 --> A2
+    A3 --> A4
+    A4 --> A5[Integrations]
+    A2 --> A4
+#+end_src
+
+** Critical Dependencies
+1. A1 MUST complete models by H+2 for others to integrate
+2. A2 and A4 must agree on port usage (8081 for MCP, 8080 for Web)
+3. All agents can mock dependencies initially
+
+* Demo Script
+
+** 5-Minute Demo Flow
+
+*** Minute 1: Introduction
+"This is ChangeFlow, an ITIL 4-compliant change management system integrated with Claude AI"
+
+*** Minute 2: Claude Integration
+1. Show Claude with MCP connector
+2. Type: "I need to deploy the payment gateway update to production"
+3. Claude creates change request
+
+*** Minute 3: Risk Assessment
+1. Show risk score: 85/100 (high)
+2. Explain factors: production + payment + critical system
+3. Show automatic categorization
+
+*** Minute 4: Dashboard
+1. Switch to web dashboard
+2. Show change in "assessing" state
+3. Demonstrate state transition to "approved"
+
+*** Minute 5: Integration
+1. Trigger mock GitHub webhook
+2. Show new change created from PR
+3. Demonstrate end-to-end flow
+
+** Backup Plan
+- Have screenshots ready
+- Pre-recorded video as fallback
+- Static HTML mockup if server fails
+
+* Success Criteria Checklist
+
+** Minimum Viable Demo
+- [ ] Claude can connect to MCP server
+- [ ] Tool appears in Claude's interface
+- [ ] create_change_request returns valid JSON
+- [ ] Change appears in dashboard
+
+** Good Demo
+- [ ] Risk score calculated and shown
+- [ ] State transitions work
+- [ ] Dashboard updates (via polling)
+- [ ] Different risk levels visible
+
+** Excellent Demo
+- [ ] GitHub integration works
+- [ ] Multiple changes shown
+- [ ] Real-time feel (fast polling)
+- [ ] Professional UI appearance
+
+* Risk Mitigation
+
+** If Behind Schedule
+
+*** 3-Hour Checkpoint
+If any agent is behind:
+- Simplify their component
+- Have them create mocks only
+- Coordinator takes over
+
+*** 6-Hour Checkpoint
+If integration failing:
+- Focus on MCP + Dashboard only
+- Skip GitHub integration
+- Use static data
+
+*** 9-Hour Checkpoint
+If demo not working:
+- Switch to mockup mode
+- Use static HTML + screenshots
+- Focus on explaining architecture
+
+* Communication Protocol
+
+** Status Updates
+Every 30 minutes, each agent should update STATUS.org with:
+- Current task
+- Percent complete
+- Blockers
+- Next step
+
+** Coordinator Actions
+- Monitor via monitor-agents.sh
+- Check tmux panes every 15 minutes
+- Update this document hourly
+- Message jwalsh on Keybase with critical updates
+
+** Emergency Signals
+- BLOCKED: Can't proceed without help
+- FAILING: Component won't work
+- PIVOT: Changing approach
+- DONE: Ready for integration
+
+* Post-Sprint Plan
+
+** After Demo Success
+1. Gather feedback
+2. Plan production implementation
+3. Create technical debt list
+4. Schedule retrospective
+
+** If Demo Fails
+1. Identify root cause
+2. Create recovery plan
+3. Schedule follow-up demo
+4. Document lessons learned
+
+* Code Quality Standards for Demo
+
+** Acceptable for Demo
+- Hard-coded values
+- Console.log debugging
+- Inline styles
+- Mock data
+- Happy path only
+
+** NOT Acceptable
+- Syntax errors
+- Crashes
+- Infinite loops
+- Breaking changes to other agents' code
+- Uncommitted code
+
+* Integration Test Plan
+
+** Hour 6-7: Component Integration
+1. Merge all branches to integration branch
+2. Test A1 + A2: Can MCP create changes?
+3. Test A1 + A3: Are risks calculated?
+4. Test A1 + A4: Do changes show in dashboard?
+5. Test A5 + A1: Does webhook create changes?
+
+** Hour 8: End-to-End Test
+1. Claude -> MCP -> Change created
+2. Risk calculated
+3. Shows in dashboard
+4. State transition works
+
+** Hour 9: Demo Dry Run
+1. Full demo script
+2. Time it (must be under 5 minutes)
+3. Identify rough edges
+4. Polish UI
+
+* Final Checklist
+
+** Technical
+- [ ] All services start without errors
+- [ ] No port conflicts
+- [ ] JSON responses valid
+- [ ] Dashboard loads
+
+** Demo
+- [ ] Demo script printed
+- [ ] Backup slides ready
+- [ ] Screen recording software ready
+- [ ] Internet connection stable
+
+** Team
+- [ ] All agents committed code
+- [ ] Integration branch created
+- [ ] README updated
+- [ ] Handoff notes written
+
+* Notes
+
+Remember: Perfect is the enemy of done. We need "good enough to demo" not "production ready"!
+
+Focus on the critical path:
+1. Claude can connect
+2. Changes are created
+3. Dashboard shows them
+4. It looks professional
+
+Everything else is optional!

@@ -1,0 +1,303 @@
+#+TITLE: Integration Test Plan - Guile ChangeFlow
+#+AUTHOR: dsp-dr
+#+DATE: 2025-09-13
+#+STARTUP: overview
+
+* Test Strategy
+
+Progressive integration testing - start with individual components, then pairs, then full system.
+
+* Phase 1: Component Smoke Tests (Hour 5)
+
+Each agent tests their own component in isolation.
+
+** Agent 1: Core Models
+#+begin_src scheme
+;; Test: Can create change request
+(define test-change
+  (make-change-request "CHG-001" "Test" "Description" 50 'submitted))
+(assert (change-request? test-change))
+
+;; Test: State transitions
+(set-change-request-status! test-change 'approved)
+(assert (eq? (change-request-status test-change) 'approved))
+
+;; Test: Storage
+(store-change! test-change)
+(assert (get-change "CHG-001"))
+#+end_src
+
+** Agent 2: MCP Server
+#+begin_src bash
+# Test: Discovery endpoint
+curl http://localhost:8081/.well-known/mcp
+
+# Test: Tools listing
+curl http://localhost:8081/tools
+
+# Test: Tool invocation
+curl -X POST http://localhost:8081/tools/create_change_request/invoke \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test","description":"Test change"}'
+#+end_src
+
+** Agent 3: Risk Engine
+#+begin_src scheme
+;; Test: Risk calculation
+(assert (= 10 (calculate-risk "documentation" "update docs" '())))
+(assert (= 50 (calculate-risk "production" "deploy" '("api"))))
+(assert (= 90 (calculate-risk "production security" "auth fix" '("auth" "api"))))
+#+end_src
+
+** Agent 4: Web Interface
+#+begin_src bash
+# Test: Server running
+curl http://localhost:8080/health
+
+# Test: API endpoint
+curl http://localhost:8080/api/changes
+
+# Test: Dashboard loads
+curl http://localhost:8080/ | grep "ChangeFlow Dashboard"
+#+end_src
+
+** Agent 5: Integrations
+#+begin_src bash
+# Test: Webhook endpoint
+curl -X POST http://localhost:8080/webhooks/github \
+  -H "X-GitHub-Event: pull_request" \
+  -d @mock-pr-payload.json
+
+# Test: Notifications
+# Check console for [NOTIFICATION] messages
+#+end_src
+
+* Phase 2: Pairwise Integration Tests (Hour 6)
+
+** Test A1 + A2: MCP can use models
+1. MCP server imports core models
+2. create_change_request creates valid change object
+3. Change is stored in memory
+
+#+begin_src bash
+# Integration test
+curl -X POST http://localhost:8081/tools/create_change_request/invoke \
+  -d '{"title":"Integration Test","description":"Testing A1+A2"}' \
+  | grep "CHG-"
+#+end_src
+
+** Test A1 + A3: Risk engine uses models
+1. Risk calculator receives change object
+2. Risk score is set on change
+3. Risk category is determined
+
+#+begin_src scheme
+(define change (make-change-request "CHG-002" "Payment Update" "Production payment" 0 'submitted))
+(calculate-and-set-risk! change)
+(assert (> (change-request-risk-score change) 70))
+#+end_src
+
+** Test A1 + A4: Web API serves changes
+1. API can retrieve stored changes
+2. Changes serialize to JSON
+3. Dashboard displays changes
+
+#+begin_src bash
+# Create change via API
+curl -X POST http://localhost:8080/api/changes \
+  -d '{"title":"Web Test","description":"Testing web"}'
+
+# Retrieve changes
+curl http://localhost:8080/api/changes | grep "Web Test"
+#+end_src
+
+** Test A3 + A2: MCP includes risk
+1. create_change_request calculates risk
+2. Risk score included in response
+3. Risk category determined
+
+** Test A5 + A1: Webhook creates changes
+1. GitHub webhook parsed
+2. Change created from PR
+3. Change stored in memory
+
+* Phase 3: End-to-End Tests (Hour 7)
+
+** Test 1: Claude -> Dashboard Flow
+1. [ ] Claude connects to MCP server
+2. [ ] Claude sees create_change_request tool
+3. [ ] Claude invokes tool with parameters
+4. [ ] Change created with ID
+5. [ ] Risk calculated
+6. [ ] Change appears in dashboard
+7. [ ] Status shows correctly
+
+** Test 2: GitHub -> Dashboard Flow
+1. [ ] GitHub webhook received
+2. [ ] PR data extracted
+3. [ ] Change created
+4. [ ] Risk calculated (default 50)
+5. [ ] Notification logged
+6. [ ] Change visible in dashboard
+
+** Test 3: State Transition Flow
+1. [ ] Create change (submitted)
+2. [ ] Transition to assessing
+3. [ ] Calculate risk
+4. [ ] Transition to approved/rejected
+5. [ ] Dashboard updates
+
+** Test 4: Multiple Changes
+1. [ ] Create 5+ changes
+2. [ ] Different risk levels
+3. [ ] Dashboard shows all
+4. [ ] Sorting by risk works
+5. [ ] Status filtering works
+
+* Phase 4: Demo Dry Run (Hour 8)
+
+** Pre-Demo Checklist
+- [ ] All services start without errors
+- [ ] No port conflicts (8080 web, 8081 MCP)
+- [ ] Dashboard loads in browser
+- [ ] Claude can connect to MCP
+
+** Demo Script Test
+1. [ ] Introduction (30 seconds)
+2. [ ] Claude creates change (1 minute)
+3. [ ] Show risk assessment (1 minute)
+4. [ ] Dashboard walkthrough (1 minute)
+5. [ ] GitHub integration (1 minute)
+6. [ ] Summary (30 seconds)
+
+Total time: Must be under 5 minutes
+
+** Failure Points to Test
+- What if MCP connection fails?
+- What if risk calculation errors?
+- What if dashboard doesn't update?
+- What if GitHub webhook fails?
+
+* Test Data
+
+** Sample Changes for Demo
+#+begin_src json
+[
+  {
+    "id": "CHG-2025-001",
+    "title": "Update API documentation",
+    "risk_score": 10,
+    "risk_category": "low",
+    "status": "approved"
+  },
+  {
+    "id": "CHG-2025-002",
+    "title": "Deploy feature to staging",
+    "risk_score": 45,
+    "risk_category": "medium",
+    "status": "assessing"
+  },
+  {
+    "id": "CHG-2025-003",
+    "title": "Production payment gateway update",
+    "risk_score": 90,
+    "risk_category": "high",
+    "status": "submitted"
+  }
+]
+#+end_src
+
+** GitHub PR Payload
+#+begin_src json
+{
+  "action": "opened",
+  "pull_request": {
+    "title": "Security patch for authentication",
+    "body": "Fixes CVE-2025-1234 in auth module",
+    "user": {"login": "developer"},
+    "base": {
+      "repo": {"name": "production-api"}
+    }
+  }
+}
+#+end_src
+
+* Success Criteria
+
+** Minimum for Demo
+- [ ] At least one change can be created
+- [ ] Change appears somewhere (console/dashboard/API)
+- [ ] No crashes during demo
+
+** Good Demo
+- [ ] All Phase 3 E2E tests pass
+- [ ] Dashboard looks professional
+- [ ] Risk scores make sense
+- [ ] State transitions work
+
+** Excellent Demo
+- [ ] Everything works smoothly
+- [ ] Multiple integrations shown
+- [ ] Real-time feel
+- [ ] No manual interventions needed
+
+* Troubleshooting Guide
+
+** Common Issues and Fixes
+
+| Issue | Symptom | Fix |
+|-------+---------+-----|
+| Port conflict | "Address in use" | Change MCP to 8081 |
+| Import error | "Module not found" | Check load paths |
+| JSON error | "Invalid JSON" | Validate with jq |
+| No changes showing | Empty dashboard | Check API response |
+| Risk always 0 | No risk calculation | Check function export |
+
+** Emergency Fallbacks
+
+If integration fails completely:
+1. Each agent demos their component standalone
+2. Use curl commands to show API working
+3. Show JSON responses as proof
+4. Use mockup dashboard
+
+** Debug Commands
+
+#+begin_src bash
+# Check if services are running
+ps aux | grep guile
+
+# Check ports
+netstat -an | grep -E "8080|8081"
+
+# Test endpoints
+curl -v http://localhost:8080/health
+curl -v http://localhost:8081/.well-known/mcp
+
+# Check logs (if any)
+tail -f /tmp/changeflow.log
+
+# Monitor agent outputs
+tmux capture-pane -t gcf-a1 -p
+#+end_src
+
+* Post-Integration Tasks
+
+** After Successful Integration
+1. [ ] Commit all code to feature branches
+2. [ ] Create integration branch
+3. [ ] Merge all features to integration
+4. [ ] Tag as demo-v0.1
+5. [ ] Update README with running instructions
+
+** Documentation Updates
+1. [ ] Document actual vs planned
+2. [ ] List known issues
+3. [ ] Create setup instructions
+4. [ ] Write demo script
+
+** Handoff Preparation
+1. [ ] Create STATUS-FINAL.org in each worktree
+2. [ ] Document what was built
+3. [ ] List TODOs for production
+4. [ ] Estimate completion time

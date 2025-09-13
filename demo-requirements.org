@@ -1,0 +1,269 @@
+#+TITLE: Demo Requirements - Guile ChangeFlow MVP
+#+AUTHOR: dsp-dr
+#+DATE: 2025-09-13
+#+STARTUP: overview
+
+* Demo Objective
+
+Show a working ITIL 4-compliant change management system integrated with Claude AI that can:
+1. Accept change requests via MCP protocol
+2. Calculate risk automatically
+3. Display changes in a web dashboard
+4. Demonstrate integration capabilities
+
+* Technical Requirements
+
+** MCP Server Requirements
+
+*** Endpoints
+| Endpoint | Method | Purpose | Response |
+|----------+--------+---------+----------|
+| /.well-known/mcp | GET | Discovery | MCP manifest |
+| /tools | GET | List tools | Tool array |
+| /tools/create_change_request/invoke | POST | Create change | Change object |
+
+*** MCP Manifest
+#+begin_src json
+{
+  "mcp_version": "1.0.0",
+  "server_name": "guile-changeflow",
+  "server_version": "0.1.0-demo",
+  "capabilities": {
+    "tools": true,
+    "prompts": false,
+    "resources": false
+  }
+}
+#+end_src
+
+*** Tool Definition
+#+begin_src json
+{
+  "name": "create_change_request",
+  "description": "Create a new change request with automatic risk assessment",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "title": {"type": "string"},
+      "description": {"type": "string"},
+      "systems": {"type": "array", "items": {"type": "string"}},
+      "urgency": {"type": "string", "enum": ["low", "normal", "high", "emergency"]}
+    },
+    "required": ["title", "description"]
+  }
+}
+#+end_src
+
+** Change Request Model
+
+*** Required Fields
+| Field | Type | Description | Example |
+|-------+------+-------------+---------|
+| id | string | Unique identifier | "CHG-2025-001" |
+| title | string | Change title | "Deploy payment gateway" |
+| description | string | Details | "Update Stripe integration" |
+| risk_score | integer | 0-100 risk | 75 |
+| risk_category | string | low/medium/high | "high" |
+| status | string | Current state | "submitted" |
+| created_at | timestamp | Creation time | "2025-09-13T19:00:00Z" |
+| systems | array | Affected systems | ["payment", "api"] |
+
+*** State Machine
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> submitted
+    submitted --> assessing
+    assessing --> approved
+    assessing --> rejected
+    approved --> [*]
+    rejected --> [*]
+#+end_src
+
+** Risk Engine Requirements
+
+*** Risk Calculation Formula
+Base Score = 10
++ Production mention: +40
++ Security/auth mention: +30
++ Payment/financial mention: +20
++ Per affected system: +10
++ Emergency urgency: +25
+
+Cap at 100
+
+*** Risk Categories
+| Score | Category | Color | Action |
+|-------+----------+-------+--------|
+| 0-29 | Low | Green | Auto-approve possible |
+| 30-69 | Medium | Yellow | Single approval |
+| 70-100 | High | Red | Multiple approvals |
+
+** Web Dashboard Requirements
+
+*** Pages
+1. Main Dashboard (/)
+   - List of all changes
+   - Color-coded by risk
+   - Status badges
+   - Auto-refresh every 2 seconds
+
+### API Endpoints
+| Endpoint | Method | Purpose | Response |
+|----------+--------+---------+----------|
+| /api/changes | GET | List all | Array of changes |
+| /api/changes | POST | Create new | Created change |
+| /api/changes/:id | GET | Get one | Single change |
+| /health | GET | Health check | "OK" |
+
+*** Visual Requirements
+- Clean, professional appearance
+- Risk color coding (green/yellow/red)
+- Status badges
+- Responsive layout
+- No external dependencies (inline CSS)
+
+** Integration Requirements
+
+*** GitHub Webhook
+- Endpoint: POST /webhooks/github
+- Events: pull_request.opened
+- Action: Create change request from PR
+- Default risk: 50 (medium)
+
+*** Notification System
+- Console logging for demo
+- Format: "[NOTIFICATION] type: message"
+- Events: change created, status changed, risk calculated
+
+* Demo Scenarios
+
+** Scenario 1: Low Risk Change
+Input: "Update documentation for API endpoints"
+- Risk Score: 10
+- Category: Low
+- Status: Auto-approved (mock)
+
+** Scenario 2: Medium Risk Change
+Input: "Deploy new feature to staging environment"
+- Risk Score: 45
+- Category: Medium
+- Status: Pending approval
+
+** Scenario 3: High Risk Change
+Input: "Update payment gateway in production"
+- Risk Score: 90
+- Category: High
+- Status: Requires CAB approval
+
+** Scenario 4: GitHub Integration
+Webhook: PR opened "Security patch for authentication"
+- Risk Score: 80
+- Category: High
+- Status: Emergency review
+
+* Success Metrics
+
+** Must Work
+1. Claude can see and invoke tool
+2. Change request created successfully
+3. Risk score calculated
+4. Change visible in dashboard
+
+** Should Work
+5. State transitions
+6. Different risk levels
+7. GitHub webhook
+8. Auto-refresh dashboard
+
+** Nice to Have
+9. Multiple changes displayed
+10. Sorting/filtering
+11. Detailed change view
+12. Audit trail
+
+* Demo Script Outline
+
+** Setup (Pre-demo)
+1. Start MCP server (port 8081)
+2. Start web server (port 8080)
+3. Open dashboard in browser
+4. Connect Claude to MCP
+5. Prepare GitHub webhook test
+
+** Demo Flow (5 minutes)
+
+*** 0:00-0:30 - Introduction
+"ChangeFlow: AI-powered change management"
+
+*** 0:30-1:30 - Claude Integration
+Show Claude creating a change request
+
+*** 1:30-2:30 - Risk Assessment
+Explain risk calculation and factors
+
+*** 2:30-3:30 - Dashboard
+Show real-time updates and state changes
+
+*** 3:30-4:30 - Integration
+Demonstrate GitHub webhook
+
+*** 4:30-5:00 - Summary
+Key benefits and next steps
+
+* Technical Constraints
+
+** Must Use
+- GNU Guile 2.2+ (we have 2.2.7)
+- In-memory storage only
+- Polling for updates
+- Mock authentication
+
+** Cannot Use
+- External databases
+- WebSockets
+- Real OAuth
+- External API calls
+
+** Performance Targets
+- API response: < 200ms
+- Dashboard load: < 1 second
+- Polling interval: 2 seconds
+- Risk calculation: < 100ms
+
+* Fallback Options
+
+** If MCP Fails
+- Use direct HTTP POST to create changes
+- Show curl commands
+
+** If Dashboard Fails
+- Use JSON API responses
+- Show in terminal
+
+** If Integration Fails
+- Use mock data
+- Pre-created changes
+
+** If Everything Fails
+- Static HTML mockup
+- Screenshots
+- Architecture diagrams
+
+* Definition of Done
+
+A successful demo shows:
+1. ✓ Claude AI creating a change request
+2. ✓ Automatic risk assessment
+3. ✓ Visual dashboard with changes
+4. ✓ At least one integration working
+5. ✓ Professional appearance
+6. ✓ No crashes during demo
+
+* Post-Demo Requirements
+
+After successful demo:
+1. Document what was built
+2. List technical debt
+3. Create production roadmap
+4. Estimate full implementation
+5. Gather stakeholder feedback
