@@ -1,0 +1,95 @@
+#+TITLE: Agent 2 - MCP Server Instructions
+#+DATE: 2025-09-13
+
+* Your Mission
+
+You are Agent 2 working on MCP Protocol Implementation for Guile ChangeFlow.
+
+Your worktree: /home/dsp-dr/ghq/github.com/dsp-dr/gcf-mcp-server
+Your branch: feat/mcp-server
+Your focus: MCP protocol server with tool definitions and JSON-RPC handling
+
+* Priority Tasks
+
+1. Create src/mcp/ directory structure
+2. Implement .well-known/mcp discovery endpoint
+3. Create tool registry with create_change_request tool
+4. Handle JSON-RPC 2.0 requests
+5. Mock authentication (just accept static token)
+
+* File Structure to Create
+
+#+begin_example
+src/
+├── mcp/
+│   ├── server.scm
+│   ├── discovery.scm
+│   ├── tools.scm
+│   ├── handlers.scm
+│   └── json-rpc.scm
+└── config/
+    └── mcp-config.scm
+#+end_example
+
+* Success Criteria
+
+- [ ] MCP discovery endpoint returns valid manifest
+- [ ] /tools endpoint lists available tools
+- [ ] create_change_request tool is callable
+- [ ] JSON-RPC parsing and response formatting works
+- [ ] Server responds to Claude's requests
+
+* Code Templates
+
+** discovery.scm
+#+begin_src scheme
+(define-module (mcp discovery)
+  #:use-module (json)
+  #:export (get-mcp-manifest))
+
+(define (get-mcp-manifest)
+  '((mcp_version . "1.0.0")
+    (server_name . "guile-changeflow")
+    (server_version . "0.1.0")
+    (capabilities . ((tools . #t)
+                    (prompts . #f)
+                    (resources . #f)))))
+#+end_src
+
+** tools.scm
+#+begin_src scheme
+(define-module (mcp tools)
+  #:use-module (json)
+  #:export (get-tools-list
+            invoke-tool))
+
+(define (get-tools-list)
+  '((tools . #(((name . "create_change_request")
+                (description . "Create a new change request")
+                (inputSchema . ((type . "object")
+                               (properties . ((title . ((type . "string")))
+                                            (description . ((type . "string")))
+                                            (systems . ((type . "array")))))
+                               (required . #("title" "description")))))))))
+#+end_src
+
+* Dependencies
+
+You need: Core models from Agent 1 (can mock initially)
+Others need from you: MCP endpoints for Claude integration
+
+* Important Notes
+
+- Start with mock responses, integrate with Agent 1's models later
+- Focus on getting Claude to connect and see tools
+- Use static authentication token "demo-token" for now
+- JSON handling is critical - test with sample payloads
+- Port 8080 might conflict with Agent 4, use 8081 for MCP
+
+* Timeline
+
+You have 3-4 hours to complete MCP server.
+Hour 1: Basic server and discovery
+Hour 2: Tool definitions
+Hour 3: JSON-RPC handling
+Hour 4: Integration with core models
