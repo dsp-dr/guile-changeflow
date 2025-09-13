@@ -1,0 +1,152 @@
+#+TITLE: Core Models Agent Instructions
+#+DATE: 2025-09-13
+#+STARTUP: overview
+
+* Your Mission
+
+You are the Core Models agent working on the Guile ChangeFlow system.
+
+Your worktree: /home/dsp-dr/ghq/github.com/dsp-dr/gcf-core-models
+Your branch: feat/core-models
+Your focus: Core data models, state machine, and in-memory storage
+
+* Priority Tasks
+
+1. Create src/models/ directory structure
+2. Implement change-request record type with all necessary fields
+3. Create state machine for change lifecycle (submitted -> assessing -> approved/rejected)
+4. Implement in-memory storage using hash tables for demo
+
+* File Structure to Create
+
+#+begin_example
+src/
+├── models/
+│   ├── change-request.scm
+│   ├── state-machine.scm
+│   ├── approval.scm
+│   └── audit.scm
+└── storage/
+    └── memory.scm
+#+end_example
+
+* Critical Deliverables (MUST HAVE for Demo)
+
+- [ ] Change requests can be created with ID, title, description, risk score
+- [ ] State transitions work (submitted -> assessing -> approved)
+- [ ] Basic CRUD operations functional (create, read, update, delete)
+- [ ] Audit trail captures all state changes
+- [ ] Other agents can import and use your models
+
+* Code Template to Start With
+
+** src/models/change-request.scm
+#+begin_src scheme
+(define-module (models change-request)
+  #:use-module (srfi srfi-9)
+  #:use-module (srfi srfi-19)
+  #:export (make-change-request
+            change-request?
+            change-request-id
+            change-request-title
+            change-request-description
+            change-request-risk-score
+            change-request-status
+            change-request-created-at
+            change-request-updated-at
+            set-change-request-status!))
+
+;; Define the change request record type
+(define-record-type <change-request>
+  (make-change-request id title description risk-score status created-at updated-at)
+  change-request?
+  (id change-request-id)
+  (title change-request-title)
+  (description change-request-description)
+  (risk-score change-request-risk-score)
+  (status change-request-status set-change-request-status!)
+  (created-at change-request-created-at)
+  (updated-at change-request-updated-at))
+#+end_src
+
+** src/models/state-machine.scm
+#+begin_src scheme
+(define-module (models state-machine)
+  #:export (valid-transition?
+            transition-state
+            get-next-states))
+
+(define state-transitions
+  '((submitted . (assessing cancelled))
+    (assessing . (approved rejected needs-info))
+    (approved . (implementing))
+    (implementing . (completed failed))
+    (rejected . ())
+    (cancelled . ())
+    (completed . ())))
+#+end_src
+
+** src/storage/memory.scm
+#+begin_src scheme
+(define-module (storage memory)
+  #:use-module (models change-request)
+  #:export (init-storage!
+            store-change!
+            get-change
+            get-all-changes
+            update-change!
+            delete-change!))
+
+;; Simple hash table storage
+(define changes-table (make-hash-table))
+
+(define (store-change! change)
+  (hash-set! changes-table
+             (change-request-id change)
+             change))
+#+end_src
+
+* Integration Points
+
+Your models will be used by:
+- MCP Server (Agent 2) - for create_change_request tool
+- Risk Engine (Agent 3) - for risk scoring updates
+- Web Interface (Agent 4) - for displaying changes
+- Integrations (Agent 5) - for GitHub webhook processing
+
+* Testing Your Work
+
+#+begin_src scheme
+;; Quick test - run this in Guile REPL
+(add-to-load-path "src")
+(use-modules (models change-request))
+(use-modules (storage memory))
+
+(define test-change
+  (make-change-request
+    "CHG-001"
+    "Test Change"
+    "Testing the system"
+    25
+    'submitted
+    (current-time)
+    (current-time)))
+
+(store-change! test-change)
+(display (get-change "CHG-001"))
+#+end_src
+
+* Timeline
+
+- Hour 1: Basic record types and storage
+- Hour 2: State machine implementation
+- Hour 3: CRUD operations complete
+- Hour 4: Testing and debugging
+- Hour 5: Ready for integration
+
+* Notes
+
+- Keep it simple - this is for a demo
+- In-memory storage is fine (no database needed)
+- Focus on happy path - minimal error handling
+- Coordinate with other agents if you finish early
