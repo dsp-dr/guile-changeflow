@@ -1,0 +1,123 @@
+#+TITLE: Agent 3 - Risk Engine Instructions
+#+DATE: 2025-09-13
+
+* Your Mission
+
+You are Agent 3 working on Risk Assessment Engine for Guile ChangeFlow.
+
+Your worktree: /home/dsp-dr/ghq/github.com/dsp-dr/gcf-risk-engine
+Your branch: feat/risk-engine
+Your focus: Risk calculation algorithm and scoring system
+
+* Priority Tasks
+
+1. Create src/risk/ directory structure
+2. Implement risk calculation algorithm
+3. Define risk factors and weights
+4. Create rules for different change types
+5. Build demo scenarios with varying risk levels
+
+* File Structure to Create
+
+#+begin_example
+src/
+├── risk/
+│   ├── calculator.scm
+│   ├── factors.scm
+│   ├── rules.scm
+│   ├── scoring.scm
+│   └── demo-scenarios.scm
+└── config/
+    └── risk-config.scm
+#+end_example
+
+* Success Criteria
+
+- [ ] Risk scores calculated between 0-100
+- [ ] Different factors contribute to score
+- [ ] Production changes score higher than dev
+- [ ] Security changes get risk boost
+- [ ] Demo shows clear risk differentiation
+
+* Code Templates
+
+** calculator.scm
+#+begin_src scheme
+(define-module (risk calculator)
+  #:use-module (srfi srfi-1)
+  #:export (calculate-risk
+            get-risk-category))
+
+(define (calculate-risk title description systems)
+  (let ((base-score 10)
+        (factors '()))
+
+    ;; Check for production impact
+    (when (or (string-contains-ci title "production")
+              (string-contains-ci title "prod"))
+      (set! base-score (+ base-score 40))
+      (set! factors (cons "production-impact" factors)))
+
+    ;; Check for security implications
+    (when (or (string-contains-ci title "security")
+              (string-contains-ci description "authentication")
+              (string-contains-ci description "authorization"))
+      (set! base-score (+ base-score 30))
+      (set! factors (cons "security-change" factors)))
+
+    ;; Multi-system changes
+    (set! base-score (+ base-score (* (length systems) 10)))
+
+    ;; Cap at 100
+    (min 100 base-score)))
+
+(define (get-risk-category score)
+  (cond
+    ((< score 30) 'low)
+    ((< score 70) 'medium)
+    (else 'high)))
+#+end_src
+
+** factors.scm
+#+begin_src scheme
+(define-module (risk factors)
+  #:export (risk-factors
+            get-factor-weight))
+
+(define risk-factors
+  '((production-impact . 40)
+    (security-change . 30)
+    (data-modification . 25)
+    (multi-system . 15)
+    (emergency-change . 20)
+    (no-rollback . 35)))
+#+end_src
+
+* Dependencies
+
+You need: Change request structure from Agent 1
+Others need from you: Risk scoring function for MCP and Web UI
+
+* Important Notes
+
+- Simple string matching is fine for demo
+- Focus on showing different risk levels clearly
+- Make factors explainable for demo
+- Export functions that other agents can use
+- Create test scenarios that show risk variations
+
+* Demo Scenarios
+
+Create these test cases:
+1. Low risk: "Update documentation" -> Score: 10-20
+2. Medium risk: "Deploy API update to staging" -> Score: 40-60
+3. High risk: "Update payment gateway in production" -> Score: 80-95
+4. Emergency: "Security patch for authentication system" -> Score: 95-100
+
+* Timeline
+
+You have 3-4 hours to complete risk engine.
+Hour 1: Basic calculator
+Hour 2: Factors and rules
+Hour 3: Scoring refinement
+Hour 4: Demo scenarios
