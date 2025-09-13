@@ -1,7 +1,7 @@
 # Guile ChangeFlow Project Management Makefile
 # For managing documentation and coordination
 
-.PHONY: help status agenda agents monitor issues setup clean
+.PHONY: help status agenda agents monitor issues setup clean lint
 
 help:
 	@echo "Guile ChangeFlow Project Management"
@@ -10,6 +10,7 @@ help:
 	@echo "Documentation:"
 	@echo "  status    - Generate project status reports"
 	@echo "  agenda    - Open Emacs org-agenda"
+	@echo "  lint      - Lint all org files with org-lint"
 	@echo ""
 	@echo "Agent Management:"
 	@echo "  agents    - List all agent worktrees"
@@ -32,6 +33,19 @@ status:
 
 agenda:
 	@emacs -l guile-changeflow.el -f org-agenda
+
+# Linting
+lint:
+	@echo "=== Linting Org Files ==="
+	@for file in $$(find . -name "*.org" -not -path "./.git/*" -not -path "./.tmp/*"); do \
+		echo "Checking: $$file"; \
+		emacs --batch -Q \
+			--eval "(require 'org)" \
+			--visit "$$file" \
+			-f org-lint \
+			2>&1 | grep -v "^Loading" | grep -v "^Checking" | grep -v "^Done" || true; \
+	done
+	@echo "=== Org Lint Complete ==="
 
 # Agent management
 agents:
