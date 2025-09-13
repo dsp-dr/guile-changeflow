@@ -1,0 +1,147 @@
+#+TITLE: Experiment 000: Core Tools Validation
+#+AUTHOR: dsp-dr
+#+DATE: 2025-09-13
+
+* Objective
+
+Validate that all core tools required for Guile ChangeFlow development are available and properly configured on the system.
+
+* Hypothesis
+
+The FreeBSD 14.3 system has the necessary GNU Guile 3.0+ toolchain and supporting utilities for implementing an MCP server with change management capabilities.
+
+* Method
+
+** Tool Categories to Validate
+
+1. Guile Core
+   - guile interpreter (3.0+)
+   - guild compiler
+   - guile-config
+
+2. Build Tools
+   - gmake (GNU Make)
+   - gcc/clang
+   - pkg-config
+   - autotools suite
+
+3. Guile Libraries
+   - guile-json
+   - guile-sqlite3
+   - SRFI support
+
+4. Development Tools
+   - git
+   - gh (GitHub CLI)
+   - texinfo (documentation)
+
+5. Optional Tools
+   - redis (caching)
+   - postgresql (production database)
+   - docker/podman (containerization)
+
+** Test Procedures
+
+Each tool will be tested for:
+1. Availability (is it installed?)
+2. Version (meets minimum requirements?)
+3. Functionality (basic operations work?)
+4. Integration (can tools work together?)
+
+* Results
+
+** Tool Availability Matrix
+
+| Tool | Required | Available | Version | Status |
+|------+----------+-----------+---------+--------|
+| guile | Yes | TBD | TBD | TBD |
+| guild | Yes | TBD | TBD | TBD |
+| gmake | Yes | TBD | TBD | TBD |
+| git | Yes | TBD | TBD | TBD |
+| gh | Yes | TBD | TBD | TBD |
+| guile-json | Yes | TBD | TBD | TBD |
+| gcc | Yes | TBD | TBD | TBD |
+| pkg-config | Yes | TBD | TBD | TBD |
+| sqlite3 | Yes | TBD | TBD | TBD |
+| texinfo | No | TBD | TBD | TBD |
+| redis | No | TBD | TBD | TBD |
+| postgresql | No | TBD | TBD | TBD |
+
+** Guile Feature Tests
+
+| Feature | Required | Available | Notes |
+|---------+----------+-----------+-------|
+| SRFI-1 (lists) | Yes | TBD | |
+| SRFI-9 (records) | Yes | TBD | |
+| SRFI-18 (threads) | Yes | TBD | |
+| SRFI-64 (testing) | Yes | TBD | |
+| ice-9 match | Yes | TBD | |
+| ice-9 threads | Yes | TBD | |
+| web server | Yes | TBD | |
+| json module | Yes | TBD | |
+| sqlite3 bindings | Yes | TBD | |
+
+** System Information
+
+#+begin_src bash :results output
+uname -a
+#+end_src
+
+#+begin_src bash :results output
+freebsd-version
+#+end_src
+
+* Test Execution Log
+
+** Running Core Tool Tests
+
+Use the Makefile to run all tests:
+
+#+begin_example
+gmake test
+#+end_example
+
+** Individual Test Results
+
+[Test output will be captured here]
+
+* Issues Found
+
+** Missing Tools
+- [ ] List any tools that need to be installed
+
+** Version Mismatches
+- [ ] List any tools with incompatible versions
+
+** Configuration Issues
+- [ ] List any tools that need configuration
+
+* Conclusions
+
+** Ready for Development?
+[Yes/No - with justification]
+
+** Required Actions
+1. Install missing tools
+2. Update outdated tools
+3. Configure tools
+
+** Recommendations
+- Package manager commands for installation
+- Configuration file templates
+- Alternative tool suggestions
+
+* Next Steps
+
+Based on findings:
+1. Create installation script for missing tools
+2. Document configuration requirements
+3. Update main README with prerequisites
+4. Create Docker/VM image with all tools
+
+* References
+
+- [[https://www.gnu.org/software/guile/manual/][GNU Guile Manual]]
+- [[https://www.gnu.org/software/guile/libraries/][Guile Libraries]]
+- [[https://srfi.schemers.org/][SRFI Documentation]]
+- [[https://www.freebsd.org/ports/][FreeBSD Ports]]

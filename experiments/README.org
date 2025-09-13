@@ -1,0 +1,106 @@
+#+TITLE: Guile ChangeFlow Experiments
+#+AUTHOR: dsp-dr
+#+DATE: 2025-09-13
+
+* Experiments Directory
+
+This directory contains isolated experiments for testing and validating various aspects of the Guile ChangeFlow system. Each experiment is self-contained in its own subdirectory.
+
+** Structure
+
+Each experiment follows this naming convention:
+- =XXX-name= where XXX is a three-digit number for ordering
+
+Each experiment directory contains:
+- =README.org= - Documentation for the experiment
+- =Makefile= - Build and test commands for the experiment
+- NO other code or artifacts (those belong in worktrees/branches)
+
+** Purpose
+
+Experiments serve to:
+1. Validate tool availability and versions
+2. Test architectural decisions
+3. Prototype features in isolation
+4. Document findings for future reference
+5. Provide templates for agent/worktree tasks
+
+** Current Experiments
+
+| Experiment | Description | Status |
+|------------|-------------|--------|
+| [[file:000-core-tools/README.org][000-core-tools]] | Validate core toolchain | Active |
+
+** Guidelines
+
+1. Each experiment must be completely self-contained
+2. Document all findings in the README.org
+3. Use Makefile targets for all operations
+4. No code artifacts should be committed
+5. Results should inform main development
+
+** Creating New Experiments
+
+To create a new experiment:
+
+#+begin_src bash
+# Get next number
+NUM=$(printf "%03d" $(($(ls -d [0-9][0-9][0-9]-* 2>/dev/null | wc -l) + 1)))
+NAME="your-experiment-name"
+
+# Create directory
+mkdir $NUM-$NAME
+
+# Create README
+cat > $NUM-$NAME/README.org << EOF
+#+TITLE: Experiment: $NAME
+#+DATE: $(date +%Y-%m-%d)
+
+* Objective
+
+[State the goal of this experiment]
+
+* Hypothesis
+
+[What we expect to find/prove]
+
+* Method
+
+[How we will test]
+
+* Results
+
+[Document findings]
+
+* Conclusions
+
+[What we learned]
+EOF
+
+# Create Makefile
+cat > $NUM-$NAME/Makefile << 'EOF'
+.PHONY: all test clean help
+
+help:
+	@echo "Available targets:"
+	@echo "  test  - Run experiment tests"
+	@echo "  clean - Clean up artifacts"
+
+test:
+	@echo "Running experiment..."
+
+clean:
+	@echo "Cleaning up..."
+EOF
+#+end_src
+
+** Worktree Integration
+
+Experiments can spawn worktrees for actual implementation:
+
+#+begin_src bash
+# From an experiment directory
+git worktree add ../../guile-changeflow-exp-$NAME -b exp/$NAME
+#+end_src
+
+This keeps experiments clean while allowing full development in worktrees.
