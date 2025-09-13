@@ -1,0 +1,555 @@
+#+TITLE: MCP Protocol Implementation Guide for Guile ChangeFlow
+#+AUTHOR: defrecord.com
+#+DATE: [2025-09-13 Fri]
+#+STARTUP: show2levels
+#+OPTIONS: toc:2 num:t
+
+* MCP Protocol Overview
+
+The Model Context Protocol (MCP) enables AI assistants like Claude to interact with external tools and data sources through a standardized interface.
+
+** Protocol Characteristics
+
+- *Transport*: HTTP/HTTPS with SSE (Server-Sent Events)
+- *Format*: JSON-RPC 2.0
+- *Authentication*: OAuth 2.0 with PKCE
+- *Discovery*: Well-known endpoint pattern
+- *Versioning*: Semantic versioning
+
+* MCP Message Flow
+
+** Connection Establishment
+
+#+begin_src mermaid :file mcp-connection-flow.png
+sequenceDiagram
+    participant Claude
+    participant Browser
+    participant MCP_Client
+    participant ChangeFlow
+    participant OAuth_Server
+    
+    Claude->>Browser: User clicks "Connect"
+    Browser->>MCP_Client: Initialize connection
+    MCP_Client->>ChangeFlow: GET /.well-known/mcp
+    ChangeFlow-->>MCP_Client: Server metadata
+    
+    MCP_Client->>Browser: Request auth
+    Browser->>OAuth_Server: Authorization flow
+    OAuth_Server-->>Browser: Auth code
+    Browser->>MCP_Client: Auth code
+    
+    MCP_Client->>ChangeFlow: POST /oauth/token
+    ChangeFlow->>OAuth_Server: Validate code
+    OAuth_Server-->>ChangeFlow: Access token
+    ChangeFlow-->>MCP_Client: Token + metadata
+    
+    MCP_Client->>ChangeFlow: GET /session
+    ChangeFlow-->>MCP_Client: Session established
+    
+    Note over MCP_Client,ChangeFlow: SSE connection established
+#+end_src
+
+** Tool Discovery
+
+#+begin_src mermaid :file mcp-tool-discovery.png
+graph TB
+    subgraph "Discovery Request"
+        A[GET /tools]
+    end
+    
+    subgraph "Discovery Response"
+        B[Tool List]
+        C[Tool Schemas]
+        D[Tool Metadata]
+    end
+    
+    subgraph "Tool Categories"
+        E[Change Management]
+        F[Risk Assessment]
+        G[Approvals]
+        H[Reporting]
+    end
+    
+    A --> B
+    B --> C & D
+    C --> E & F & G & H
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#ff9,stroke:#333,stroke-width:2px
+#+end_src
+
+* Protocol Messages
+
+** Well-Known Endpoint Response
+
+#+begin_src json :tangle well-known-mcp.json
+{
+  "mcp_version": "1.0.0",
+  "server_name": "guile-changeflow",
+  "server_version": "0.1.0",
+  "capabilities": {
+    "tools": true,
+    "prompts": true,
+    "resources": true,
+    "auth": {
+      "type": "oauth2",
+      "authorization_url": "https://changeflow.example.com/oauth/authorize",
+      "token_url": "https://changeflow.example.com/oauth/token",
+      "scopes": ["read", "write", "admin"]
+    }
+  },
+  "metadata": {
+    "description": "ITIL 4 compliant change management system",
+    "documentation_url": "https://changeflow.example.com/docs",
+    "support_email": "support@changeflow.example.com"
+  }
+}
+#+end_src
+
+** Tool Invocation Format
+
+*** Request Structure
+
+#+begin_src mermaid :file mcp-request-structure.png
+graph TB
+    subgraph "JSON-RPC Request"
+        A[jsonrpc: "2.0"]
+        B[method: "tools/invoke"]
+        C[id: unique-id]
+        D[params]
+    end
+    
+    subgraph "Params Object"
+        E[tool_name]
+        F[tool_params]
+        G[context]
+    end
+    
+    subgraph "Tool Params"
+        H[title]
+        I[description]
+        J[affected_systems]
+        K[change_type]
+    end
+    
+    D --> E & F & G
+    F --> H & I & J & K
+    
+    style A fill:#ff9,stroke:#333,stroke-width:2px
+    style D fill:#9ff,stroke:#333,stroke-width:2px
+#+end_src
+
+*** Example Request
+
+#+begin_src json :tangle example-request.json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/invoke",
+  "id": "msg_01XYZ",
+  "params": {
+    "tool_name": "create_change_request",
+    "tool_params": {
+      "title": "Update payment gateway to v2.5",
+      "description": "Upgrade payment gateway library to fix security vulnerability CVE-2025-1234",
+      "change_type": "normal",
+      "affected_systems": ["payment-api", "checkout-service", "billing-cron"],
+      "implementation_plan": "1. Update dependencies\n2. Run tests\n3. Deploy to staging\n4. Verify\n5. Deploy to production",
+      "rollback_plan": "Revert to previous version using git revert"
+    },
+    "context": {
+      "user_id": "claude_user_123",
+      "conversation_id": "conv_abc456",
+      "timestamp": "2025-09-13T10:30:00Z"
+    }
+  }
+}
+#+end_src
+
+*** Response Structure
+
+#+begin_src json :tangle example-response.json
+{
+  "jsonrpc": "2.0",
+  "id": "msg_01XYZ",
+  "result": {
+    "tool": "create_change_request",
+    "status": "success",
+    "data": {
+      "change_id": "NC-20250913-042",
+      "risk_score": 72,
+      "risk_factors": [
+        {
+          "factor": "production_impact",
+          "score": 30,
+          "description": "Changes affect production payment systems"
+        },
+        {
+          "factor": "security_related",
+          "score": 25,
+          "description": "Security vulnerability fix"
+        },
+        {
+          "factor": "multi_system",
+          "score": 17,
+          "description": "Impacts 3 interconnected systems"
+        }
+      ],
+      "approval_status": {
+        "auto_approved": false,
+        "required_approvals": [
+          {
+            "role": "tech_lead",
+            "assignee": "alice@example.com",
+            "status": "pending"
+          },
+          {
+            "role": "security_team",
+            "assignee": "security@example.com",
+            "status": "pending"
+          }
+        ],
+        "estimated_approval_time": "2-4 hours"
+      },
+      "next_actions": [
+        "Awaiting approval from 2 reviewers",
+        "You'll be notified when approved",
+        "Suggested deployment window: Tuesday 2-4 PM"
+      ]
+    },
+    "metadata": {
+      "execution_time_ms": 127,
+      "api_version": "1.0.0"
+    }
+  }
+}
+#+end_src
+
+* SSE Implementation
+
+** Event Stream Format
+
+#+begin_src mermaid :file sse-event-flow.png
+sequenceDiagram
+    participant Client
+    participant Server
+    
+    Client->>Server: GET /events
+    Server-->>Client: HTTP 200 OK
+    Server-->>Client: Content-Type: text/event-stream
+    
+    loop Continuous Stream
+        Server-->>Client: event: approval_update
+        Server-->>Client: data: {"change_id": "NC-123", "status": "approved"}
+        Server-->>Client: id: evt_456
+        Server-->>Client: (blank line)
+        
+        Note over Client: Process event
+        
+        Server-->>Client: event: risk_alert
+        Server-->>Client: data: {"change_id": "EC-789", "new_risk": 85}
+        Server-->>Client: id: evt_457
+        Server-->>Client: (blank line)
+    end
+    
+    Client->>Server: Connection closed
+#+end_src
+
+** Event Types
+
+| Event Type | Description | Payload |
+|------------|-------------|---------|
+| approval_update | Approval status changed | change_id, approver, status, notes |
+| risk_alert | Risk score changed significantly | change_id, old_score, new_score, factors |
+| status_change | Change request status updated | change_id, old_status, new_status |
+| schedule_update | Deployment window modified | change_id, old_time, new_time, reason |
+| system_notification | System-wide announcements | message, severity, affected_changes |
+
+* Guile Implementation Structure
+
+** Module Organization
+
+#+begin_src mermaid :file guile-mcp-modules.png
+graph TB
+    subgraph "MCP Core"
+        A[(mcp server)]
+        B[(mcp protocol)]
+        C[(mcp auth)]
+    end
+    
+    subgraph "HTTP Layer"
+        D[(web server)]
+        E[(web request)]
+        F[(web response)]
+        G[(web sse)]
+    end
+    
+    subgraph "Business Logic"
+        H[(changeflow core)]
+        I[(changeflow tools)]
+        J[(changeflow events)]
+    end
+    
+    subgraph "Integration"
+        K[(json-rpc)]
+        L[(oauth2)]
+        M[(persistence)]
+    end
+    
+    A --> B & C
+    A --> D
+    D --> E & F & G
+    B --> K
+    C --> L
+    H --> I & J
+    I --> A
+    J --> G
+    
+    style A fill:#ff9,stroke:#333,stroke-width:4px
+    style H fill:#9ff,stroke:#333,stroke-width:4px
+#+end_src
+
+** Request Processing Pipeline
+
+#+begin_src scheme :tangle mcp-pipeline-example.scm
+;; Conceptual pipeline structure (not executable)
+(define-module (changeflow mcp pipeline)
+  #:use-module (ice-9 match)
+  #:use-module (web request)
+  #:use-module (web response)
+  #:use-module (json))
+
+;; Request pipeline stages
+(define (mcp-pipeline request body)
+  (pipeline 
+    request body
+    validate-json-rpc
+    authenticate-request
+    parse-tool-invocation
+    authorize-tool-access
+    invoke-tool
+    format-response
+    add-metadata
+    serialize-json))
+
+;; Example middleware pattern
+(define (validate-json-rpc continue)
+  (lambda (request body)
+    (match (json-string->scm body)
+      ((('jsonrpc . "2.0") 
+        ('method . method)
+        ('id . id)
+        ('params . params))
+       (continue request (make-rpc-request method id params)))
+      (else
+       (error-response "Invalid JSON-RPC request")))))
+#+end_src
+
+* Security Implementation
+
+** OAuth 2.0 Flow with PKCE
+
+#+begin_src mermaid :file oauth-pkce-flow.png
+sequenceDiagram
+    participant User
+    participant Claude
+    participant ChangeFlow
+    participant AuthServer
+    
+    User->>Claude: Add ChangeFlow connector
+    Claude->>Claude: Generate code_verifier
+    Claude->>Claude: Calculate code_challenge
+    
+    Claude->>User: Redirect to auth
+    User->>AuthServer: GET /authorize
+    Note over AuthServer: code_challenge included
+    
+    AuthServer->>User: Login page
+    User->>AuthServer: Credentials
+    AuthServer->>User: Redirect with code
+    User->>Claude: Authorization code
+    
+    Claude->>ChangeFlow: POST /token
+    Note over Claude,ChangeFlow: Includes code_verifier
+    
+    ChangeFlow->>AuthServer: Validate PKCE
+    AuthServer-->>ChangeFlow: Access token
+    ChangeFlow-->>Claude: Token response
+    
+    Claude->>ChangeFlow: Use token for API calls
+#+end_src
+
+** Token Management
+
+#+begin_src mermaid :file token-lifecycle.png
+stateDiagram-v2
+    [*] --> Requesting: User connects
+    Requesting --> Active: Token received
+    Active --> Refreshing: Token expiring
+    Refreshing --> Active: New token
+    Active --> Revoked: User disconnects
+    Refreshing --> Error: Refresh failed
+    Error --> Requesting: Retry
+    Revoked --> [*]
+    
+    note right of Active
+        Check expiry before
+        each request
+    end note
+    
+    note right of Refreshing
+        Use refresh token
+        if available
+    end note
+#+end_src
+
+* Error Handling
+
+** MCP Error Response Format
+
+#+begin_src json :tangle error-response.json
+{
+  "jsonrpc": "2.0",
+  "id": "msg_01XYZ",
+  "error": {
+    "code": -32603,
+    "message": "Internal error",
+    "data": {
+      "type": "RiskCalculationError",
+      "details": "Unable to retrieve historical change data",
+      "suggestion": "Try again in a few moments",
+      "support_id": "err_abc123"
+    }
+  }
+}
+#+end_src
+
+** Error Codes
+
+| Code | Meaning | Description |
+|------|---------|-------------|
+| -32700 | Parse error | Invalid JSON |
+| -32600 | Invalid request | Not valid JSON-RPC |
+| -32601 | Method not found | Unknown tool name |
+| -32602 | Invalid params | Missing/invalid parameters |
+| -32603 | Internal error | Server error |
+| 1001 | Auth required | Missing/invalid token |
+| 1002 | Permission denied | Insufficient scope |
+| 2001 | Change rejected | Business rule violation |
+| 2002 | Approval timeout | Approval window expired |
+
+* Performance Considerations
+
+** Caching Strategy
+
+#+begin_src mermaid :file caching-layers.png
+graph TB
+    subgraph "Request Path"
+        A[Incoming Request]
+        B{Token Cache}
+        C{Tool Cache}
+        D{Data Cache}
+        E[Business Logic]
+        F[Response]
+    end
+    
+    subgraph "Cache Types"
+        G[Memory Cache<br/>TTL: 5 min]
+        H[Redis Cache<br/>TTL: 1 hour]
+        I[DB Cache<br/>TTL: 24 hours]
+    end
+    
+    A --> B
+    B -->|Hit| C
+    B -->|Miss| E
+    C -->|Hit| D
+    C -->|Miss| E
+    D -->|Hit| F
+    D -->|Miss| E
+    E --> F
+    
+    B -.-> G
+    C -.-> H
+    D -.-> I
+    
+    style B fill:#9f9,stroke:#333,stroke-width:2px
+    style C fill:#9ff,stroke:#333,stroke-width:2px
+    style D fill:#ff9,stroke:#333,stroke-width:2px
+#+end_src
+
+** Scaling Architecture
+
+#+begin_src mermaid :file scaling-architecture.png
+graph TB
+    subgraph "Load Balancer"
+        LB[HAProxy/Nginx]
+    end
+    
+    subgraph "Application Tier"
+        A1[Guile Instance 1]
+        A2[Guile Instance 2]
+        A3[Guile Instance N]
+    end
+    
+    subgraph "Cache Tier"
+        R[Redis Cluster]
+    end
+    
+    subgraph "Data Tier"
+        DB[(PostgreSQL)]
+        Q[Message Queue]
+    end
+    
+    subgraph "External Services"
+        E1[GitHub]
+        E2[Calendar]
+        E3[Slack]
+    end
+    
+    LB --> A1 & A2 & A3
+    A1 & A2 & A3 --> R
+    A1 & A2 & A3 --> DB
+    A1 & A2 & A3 --> Q
+    Q --> E1 & E2 & E3
+    
+    style LB fill:#f9f,stroke:#333,stroke-width:2px
+    style R fill:#ff9,stroke:#333,stroke-width:2px
+    style DB fill:#9ff,stroke:#333,stroke-width:2px
+#+end_src
+
+* Testing Strategy
+
+** Test Coverage Requirements
+
+| Component | Coverage Target | Test Types |
+|-----------|----------------|------------|
+| MCP Protocol | 100% | Unit, Integration |
+| OAuth Flow | 95% | Integration, E2E |
+| Tool Handlers | 90% | Unit, Integration |
+| Risk Engine | 95% | Unit, Property |
+| Event Stream | 85% | Integration, Load |
+
+** Test Scenarios
+
+1. **Protocol Compliance**
+   - Valid JSON-RPC requests
+   - Invalid request handling
+   - Batch request support
+   - Notification handling
+
+2. **Authentication**
+   - Full OAuth flow
+   - Token refresh
+   - Revocation handling
+   - Scope enforcement
+
+3. **Tool Execution**
+   - All tool permutations
+   - Error conditions
+   - Timeout handling
+   - Concurrent requests
+
+4. **Performance**
+   - Load testing (1000 req/s)
+   - Latency requirements
+   - Memory usage
+   - Connection pooling

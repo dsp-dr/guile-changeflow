@@ -1,0 +1,411 @@
+#+TITLE: ITIL 4 to MCP Mapping for Guile ChangeFlow
+#+AUTHOR: defrecord.com
+#+DATE: [2025-09-13 Fri]
+#+STARTUP: showall
+#+OPTIONS: toc:2 num:t
+
+* ITIL 4 Change Enablement Principles
+
+** Core Philosophy
+:PROPERTIES:
+:ID: philosophy
+:END:
+
+ITIL 4 reframes change management as "change enablement" - focusing on facilitating value delivery rather than controlling changes.
+
+#+begin_src mermaid :file itil4-principles.png
+mindmap
+  root((Change Enablement))
+    Velocity
+      Automation
+      Pre-approvals
+      Standard changes
+    Safety
+      Risk assessment
+      Rollback plans
+      Testing requirements
+    Value
+      Business outcomes
+      Customer impact
+      Continuous improvement
+    Culture
+      Blameless reviews
+      Learning mindset
+      Collaboration
+#+end_src
+
+** Key Differences from Traditional ITIL
+
+| Traditional ITIL | ITIL 4 Change Enablement |
+|------------------|--------------------------|
+| Control-focused | Enablement-focused |
+| CAB bottlenecks | Distributed authority |
+| Heavy documentation | Just-enough documentation |
+| Risk avoidance | Risk management |
+| Scheduled releases | Continuous deployment |
+| Siloed teams | Cross-functional collaboration |
+
+* MCP Tool Mapping to ITIL Practices
+
+** ITIL Practice to MCP Tool Matrix
+
+#+begin_src mermaid :file itil-mcp-mapping.png
+graph TB
+    subgraph "ITIL 4 Practices"
+        A[Change Enablement]
+        B[Risk Management]
+        C[Service Configuration]
+        D[Release Management]
+        E[Continual Improvement]
+    end
+    
+    subgraph "MCP Tools"
+        F[create_change_request]
+        G[assess_change_risk]
+        H[check_freeze_periods]
+        I[trigger_deployment]
+        J[analyze_metrics]
+    end
+    
+    subgraph "Guile Modules"
+        K[(change-enablement)]
+        L[(risk-assessment)]
+        M[(configuration-mgmt)]
+        N[(release-orchestrator)]
+        O[(metrics-analyzer)]
+    end
+    
+    A --> F --> K
+    B --> G --> L
+    C --> H --> M
+    D --> I --> N
+    E --> J --> O
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style K fill:#ff9,stroke:#333,stroke-width:2px
+#+end_src
+
+** Detailed Practice Mappings
+
+*** Change Enablement Practice
+
+#+begin_example
+ITIL Requirement: "Maximize successful changes by ensuring proper assessment"
+MCP Implementation: assess_change_risk tool with AI-powered analysis
+
+Guile Module Structure:
+(define-module (changeflow change-enablement)
+  #:use-module (ice-9 match)
+  #:use-module (changeflow models)
+  #:use-module (changeflow risk-assessment)
+  #:export (create-change
+            classify-change
+            route-approval))
+#+end_example
+
+*** Risk Management Practice
+
+#+begin_src mermaid :file risk-calculation-flow.png
+graph LR
+    subgraph "Input Factors"
+        A[System Criticality]
+        B[Change Complexity]
+        C[Historical Success]
+        D[Time Constraints]
+        E[Dependencies]
+    end
+    
+    subgraph "Risk Engine"
+        F[Weight Calculator]
+        G[Score Aggregator]
+        H[Threshold Checker]
+    end
+    
+    subgraph "Output"
+        I[Risk Score 0-100]
+        J[Risk Factors List]
+        K[Recommendations]
+    end
+    
+    A & B & C & D & E --> F
+    F --> G
+    G --> H
+    H --> I & J & K
+    
+    style G fill:#ff9,stroke:#333,stroke-width:2px
+#+end_src
+
+* Guile-Specific Design Patterns
+
+** Functional Change State Management
+
+#+begin_src mermaid :file guile-state-pattern.png
+classDiagram
+    class ChangeState {
+        <<record-type>>
+        +status symbol
+        +transitions list
+        +validators list
+        +side-effects list
+    }
+    
+    class StateTransition {
+        <<procedure>>
+        +from-state symbol
+        +to-state symbol
+        +condition procedure
+        +action procedure
+    }
+    
+    class ChangeStateMachine {
+        <<module>>
+        +define-state()
+        +define-transition()
+        +can-transition?()
+        +perform-transition()
+    }
+    
+    ChangeState "1" --> "*" StateTransition
+    ChangeStateMachine --> ChangeState
+    ChangeStateMachine --> StateTransition
+#+end_src
+
+** Approval Workflow as Continuations
+
+#+begin_src mermaid :file approval-continuations.png
+sequenceDiagram
+    participant Request
+    participant ApprovalEngine
+    participant Continuation
+    participant Approver
+    participant Callback
+    
+    Request->>ApprovalEngine: submit-for-approval
+    ApprovalEngine->>Continuation: capture-continuation
+    
+    loop For each approver
+        ApprovalEngine->>Approver: send-approval-request
+        Note over Continuation: Suspended waiting
+        Approver-->>ApprovalEngine: approval-decision
+        ApprovalEngine->>Continuation: resume-with-decision
+    end
+    
+    Continuation->>Callback: all-approvals-complete
+    Callback->>Request: change-approved
+#+end_src
+
+* Detailed Requirements
+
+** Functional Requirements Matrix
+
+| ID | Requirement | ITIL Practice | MCP Tool | Priority |
+|----|-------------|---------------|----------|----------|
+| FR001 | Automated risk scoring | Risk Management | assess_change_risk | HIGH |
+| FR002 | Multi-level approval routing | Change Enablement | request_approval | HIGH |
+| FR003 | Calendar integration | Service Continuity | check_freeze_periods | MEDIUM |
+| FR004 | Audit trail generation | Information Security | generate_audit_report | HIGH |
+| FR005 | Rollback plan validation | Change Enablement | validate_rollback | MEDIUM |
+| FR006 | Success rate prediction | Continual Improvement | predict_success | LOW |
+| FR007 | Dependency mapping | Service Configuration | map_dependencies | MEDIUM |
+| FR008 | Emergency escalation | Incident Management | expedite_approval | HIGH |
+
+** Non-Functional Requirements
+
+*** Performance Requirements
+
+#+begin_src mermaid :file performance-targets.png
+graph LR
+    subgraph "Response Times"
+        A[API Call: <100ms]
+        B[Risk Calc: <500ms]
+        C[Approval Route: <200ms]
+    end
+    
+    subgraph "Throughput"
+        D[1000 changes/hour]
+        E[10K approvals/hour]
+        F[100K audit writes/hour]
+    end
+    
+    subgraph "Concurrency"
+        G[500 active changes]
+        H[50 concurrent requests]
+        I[Async processing]
+    end
+    
+    style A fill:#9f9,stroke:#333,stroke-width:2px
+    style D fill:#9ff,stroke:#333,stroke-width:2px
+    style G fill:#f9f,stroke:#333,stroke-width:2px
+#+end_src
+
+*** Security Requirements
+
+1. **Authentication**
+   - OAuth 2.0 with PKCE required
+   - Token rotation every 1 hour
+   - MFA for emergency changes
+
+2. **Authorization**
+   - RBAC with fine-grained permissions
+   - Principle of least privilege
+   - Audit all permission checks
+
+3. **Data Protection**
+   - Encryption at rest (AES-256)
+   - TLS 1.3 for transport
+   - PII data masking in logs
+
+* Integration Patterns
+
+** Event-Driven Architecture
+
+#+begin_src mermaid :file event-architecture.png
+graph TB
+    subgraph "Event Sources"
+        A[GitHub Webhooks]
+        B[Calendar Changes]
+        C[Manual Requests]
+        D[Scheduled Tasks]
+    end
+    
+    subgraph "Event Bus"
+        E[Message Queue]
+        F[Event Router]
+        G[Event Store]
+    end
+    
+    subgraph "Event Handlers"
+        H[Change Creator]
+        I[Risk Assessor]
+        J[Approval Router]
+        K[Notifier]
+    end
+    
+    subgraph "Side Effects"
+        L[Update Database]
+        M[Send Notifications]
+        N[Trigger Workflows]
+        O[Log Audit Trail]
+    end
+    
+    A & B & C & D --> E
+    E --> F
+    F --> G
+    F --> H & I & J & K
+    H & I & J & K --> L & M & N & O
+    
+    style E fill:#ff9,stroke:#333,stroke-width:2px
+    style F fill:#9ff,stroke:#333,stroke-width:2px
+#+end_src
+
+** External System Connectors
+
+#+begin_src mermaid :file connector-pattern.png
+classDiagram
+    class Connector {
+        <<interface>>
+        +connect()
+        +disconnect()
+        +health-check()
+    }
+    
+    class GitHubConnector {
+        +fetch-pr-details()
+        +update-pr-status()
+        +create-deployment()
+    }
+    
+    class CalendarConnector {
+        +check-availability()
+        +book-time-slot()
+        +get-freeze-periods()
+    }
+    
+    class SlackConnector {
+        +send-notification()
+        +create-channel()
+        +post-thread-reply()
+    }
+    
+    class ConnectorPool {
+        +get-connector()
+        +return-connector()
+        +health-check-all()
+    }
+    
+    Connector <|-- GitHubConnector
+    Connector <|-- CalendarConnector
+    Connector <|-- SlackConnector
+    ConnectorPool --> Connector
+#+end_src
+
+* Implementation Roadmap
+
+** Phase 1: Foundation (Weeks 1-2)
+
+#+begin_src mermaid :file phase1-roadmap.png
+gantt
+    title Phase 1: Foundation Components
+    dateFormat  YYYY-MM-DD
+    
+    section Data Models
+    Define record types     :a1, 2025-09-14, 3d
+    Implement serialization :a2, after a1, 2d
+    Create persistence layer:a3, after a2, 2d
+    
+    section State Machine
+    Design state transitions:b1, 2025-09-14, 2d
+    Implement validators    :b2, after b1, 2d
+    Add side effects       :b3, after b2, 3d
+    
+    section Testing
+    Unit test framework    :c1, 2025-09-16, 2d
+    Model tests           :c2, after c1, 3d
+#+end_src
+
+** Phase 2: Business Logic (Weeks 3-4)
+
+#+begin_src mermaid :file phase2-roadmap.png
+gantt
+    title Phase 2: Core Business Logic
+    dateFormat  YYYY-MM-DD
+    
+    section Risk Engine
+    Risk factor definition  :a1, 2025-09-28, 2d
+    Calculation algorithm   :a2, after a1, 3d
+    Historical analysis     :a3, after a2, 2d
+    
+    section Approval System
+    Routing logic          :b1, 2025-09-28, 3d
+    Escalation paths       :b2, after b1, 2d
+    Delegation support     :b3, after b2, 2d
+    
+    section Integration Tests
+    Risk engine tests      :c1, after a3, 1d
+    Approval flow tests    :c2, after b3, 1d
+#+end_src
+
+** Phase 3: MCP Protocol (Weeks 5-6)
+
+Requirements for MCP implementation:
+- SSE (Server-Sent Events) support
+- JSON-RPC 2.0 compliance  
+- Tool discovery endpoint
+- Schema validation
+- Error handling per MCP spec
+
+** Phase 4: External Integrations (Weeks 7-8)
+
+Priority integrations:
+1. GitHub webhook receiver
+2. Google Calendar API
+3. Slack notifications
+4. Generic webhook dispatcher
+
+** Phase 5: Production Readiness (Weeks 9-10)
+
+- Performance optimization
+- Security hardening
+- Monitoring instrumentation
+- Documentation completion
+- Deployment automation

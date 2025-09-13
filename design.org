@@ -1,0 +1,553 @@
+#+TITLE: Guile ChangeFlow: ITIL-based Remote MCP Server Design
+#+AUTHOR: defrecord.com
+#+DATE: [2025-09-13 Fri]
+#+STARTUP: overview
+#+OPTIONS: toc:3 num:t
+
+* Overview
+
+Guile ChangeFlow is a remote MCP (Model Context Protocol) server implementation that provides ITIL 4-compliant change management capabilities for Claude and other AI assistants.
+
+* Table of Contents :TOC:
+- [[#overview][Overview]]
+- [[#historical-context][Historical Context]]
+- [[#core-requirements][Core Requirements]]
+- [[#system-architecture][System Architecture]]
+- [[#data-models][Data Models]]
+- [[#workflow-diagrams][Workflow Diagrams]]
+- [[#mcp-integration][MCP Integration]]
+- [[#api-specification][API Specification]]
+- [[#implementation-notes][Implementation Notes]]
+
+* Historical Context
+
+** Evolution of Change Management
+
+*** Traditional ITIL (pre-2019)
+- Focus on "change control"
+- CAB (Change Advisory Board) bottlenecks
+- Heavy documentation requirements
+- Risk-averse approach
+
+*** ITIL 4 (2019-present)
+- Renamed to "change enablement"
+- Emphasis on velocity with safety
+- Automated approvals for standard changes
+- Risk-based approach
+- DevOps integration
+
+*** Modern Practices (2020+)
+- GitOps and Infrastructure as Code
+- Continuous deployment
+- AI-assisted risk assessment
+- Real-time compliance
+
+** Why Guile for This Implementation
+
+1. *Functional paradigm* - Natural fit for state management and workflows
+2. *Scheme heritage* - Clean abstractions for complex business logic
+3. *GOOPS* - Object system for modeling ITIL concepts
+4. *Concurrent* - Built-in threading for async operations
+5. *Embeddable* - Can integrate with existing systems
+
+* Core Requirements
+
+** Functional Requirements
+
+*** Change Request Management
+- Create, read, update, delete change requests
+- Automatic change type classification
+- Risk score calculation
+- Approval workflow orchestration
+
+*** Risk Assessment
+- Multi-factor risk analysis
+- Historical data consideration
+- Blast radius calculation
+- Success probability prediction
+
+*** Approval Workflows
+- Role-based approval routing
+- Emergency escalation paths
+- Delegation support
+- Audit trail maintenance
+
+*** Integration Points
+- GitHub/GitLab webhooks
+- Calendar systems
+- Notification services
+- Monitoring platforms
+
+** Non-Functional Requirements
+
+*** Performance
+- < 100ms response time for API calls
+- Support 1000+ concurrent changes
+- Real-time risk calculation
+
+*** Security
+- OAuth 2.0 with PKCE
+- End-to-end encryption
+- Immutable audit logs
+- Role-based access control
+
+*** Compliance
+- SOC2 Type II ready
+- ISO 27001 compatible
+- GDPR compliant
+- Full audit trail
+
+* System Architecture
+
+** High-Level Architecture
+
+#+begin_src mermaid :file changeflow-architecture.png
+graph TB
+    subgraph "Client Layer"
+        A[Claude Desktop]
+        B[Claude.ai]
+        C[API Clients]
+    end
+    
+    subgraph "MCP Protocol Layer"
+        D[MCP Server]
+        E[OAuth Handler]
+        F[Request Router]
+    end
+    
+    subgraph "Business Logic Layer"
+        G[Change Manager]
+        H[Risk Engine]
+        I[Approval Orchestrator]
+        J[Notification Service]
+    end
+    
+    subgraph "Data Layer"
+        K[(Change Store)]
+        L[(Audit Log)]
+        M[(Configuration)]
+    end
+    
+    subgraph "Integration Layer"
+        N[GitHub Webhook]
+        O[Calendar API]
+        P[Slack/Teams]
+        Q[Monitoring]
+    end
+    
+    A & B & C --> D
+    D --> E & F
+    F --> G
+    G --> H & I & J
+    G --> K
+    H --> K
+    I --> L
+    J --> P
+    
+    N --> G
+    O --> I
+    Q --> H
+    
+    style D fill:#f9f,stroke:#333,stroke-width:4px
+    style G fill:#ff9,stroke:#333,stroke-width:4px
+#+end_src
+
+** Component Interactions
+
+#+begin_src mermaid :file changeflow-components.png
+sequenceDiagram
+    participant User
+    participant Claude
+    participant MCP_Server
+    participant Risk_Engine
+    participant Approval_System
+    participant External_Systems
+    
+    User->>Claude: "Deploy payment service update"
+    Claude->>MCP_Server: create_change_request()
+    MCP_Server->>Risk_Engine: assess_risk()
+    Risk_Engine->>External_Systems: get_historical_data()
+    External_Systems-->>Risk_Engine: past_changes
+    Risk_Engine-->>MCP_Server: risk_score: 65
+    
+    MCP_Server->>Approval_System: route_approvals()
+    Approval_System->>External_Systems: notify_approvers()
+    
+    loop Approval Collection
+        Approval_System->>Approval_System: wait_for_approval()
+        External_Systems-->>Approval_System: approval_received
+    end
+    
+    Approval_System-->>MCP_Server: all_approvals_complete
+    MCP_Server-->>Claude: change_approved
+    Claude-->>User: "Change approved, scheduling deployment"
+#+end_src
+
+* Data Models
+
+** Core Entities
+
+#+begin_src mermaid :file changeflow-entities.png
+erDiagram
+    CHANGE_REQUEST ||--o{ APPROVAL : requires
+    CHANGE_REQUEST ||--o{ RISK_FACTOR : has
+    CHANGE_REQUEST ||--|| CHANGE_TYPE : categorized_as
+    CHANGE_REQUEST ||--o{ AFFECTED_SYSTEM : impacts
+    CHANGE_REQUEST ||--o{ AUDIT_LOG : generates
+    
+    CHANGE_REQUEST {
+        string id PK
+        string title
+        string description
+        enum type
+        string implementation_plan
+        string rollback_plan
+        int risk_score
+        enum status
+        datetime created_at
+        datetime scheduled_at
+    }
+    
+    CHANGE_TYPE {
+        string name PK
+        int risk_threshold
+        boolean auto_approve
+        array required_approvers
+    }
+    
+    APPROVAL {
+        string id PK
+        string change_id FK
+        string approver
+        enum status
+        datetime timestamp
+        string notes
+    }
+    
+    RISK_FACTOR {
+        string name PK
+        int weight
+        string description
+        boolean present
+    }
+    
+    AFFECTED_SYSTEM {
+        string name PK
+        enum environment
+        int criticality
+        array dependencies
+    }
+    
+    AUDIT_LOG {
+        string id PK
+        string change_id FK
+        string action
+        string actor
+        datetime timestamp
+        json details
+    }
+#+end_src
+
+** State Transitions
+
+#+begin_src mermaid :file changeflow-states.png
+stateDiagram-v2
+    [*] --> Draft: create_request
+    Draft --> Submitted: submit
+    
+    Submitted --> Risk_Assessment: auto
+    Risk_Assessment --> Auto_Approved: risk < 30
+    Risk_Assessment --> Pending_Approval: risk >= 30
+    
+    Auto_Approved --> Scheduled: schedule
+    Pending_Approval --> Approved: all_approvals
+    Pending_Approval --> Rejected: any_rejection
+    
+    Approved --> Scheduled: schedule
+    Scheduled --> Implementing: start_time
+    
+    Implementing --> Completed: success
+    Implementing --> Failed: error
+    Implementing --> Rolled_Back: rollback
+    
+    Completed --> [*]
+    Failed --> [*]
+    Rolled_Back --> [*]
+    Rejected --> [*]
+    
+    note right of Risk_Assessment
+        Automatic risk calculation
+        based on multiple factors
+    end note
+    
+    note right of Implementing
+        Can trigger rollback
+        at any point
+    end note
+#+end_src
+
+* Workflow Diagrams
+
+** Standard Change Flow
+
+#+begin_src mermaid :file changeflow-standard.png
+graph LR
+    A[PR Created] --> B{Is Standard?}
+    B -->|Yes| C[Auto Risk Check]
+    B -->|No| D[Normal Flow]
+    
+    C --> E{Risk < 30?}
+    E -->|Yes| F[Auto Approve]
+    E -->|No| G[Convert to Normal]
+    
+    F --> H[Schedule]
+    H --> I[Implement]
+    I --> J[Complete]
+    
+    G --> D
+    
+    style F fill:#9f9,stroke:#333,stroke-width:2px
+    style J fill:#9f9,stroke:#333,stroke-width:2px
+#+end_src
+
+** Emergency Change Flow
+
+#+begin_src mermaid :file changeflow-emergency.png
+graph TB
+    A[Security Alert] --> B[Create Emergency Change]
+    B --> C[Notify On-Call]
+    C --> D{Severity?}
+    
+    D -->|Critical| E[Immediate Approval]
+    D -->|High| F[Expedited Approval]
+    D -->|Medium| G[Fast Track]
+    
+    E --> H[Deploy Now]
+    F --> I[1hr SLA]
+    G --> J[4hr SLA]
+    
+    H & I & J --> K[Implementation]
+    K --> L[Post-Incident Review]
+    
+    style A fill:#f99,stroke:#333,stroke-width:2px
+    style E fill:#f99,stroke:#333,stroke-width:2px
+    style H fill:#ff9,stroke:#333,stroke-width:2px
+#+end_src
+
+** Approval Routing Logic
+
+#+begin_src mermaid :file changeflow-approvals.png
+graph TB
+    A[Change Submitted] --> B{Change Type?}
+    
+    B -->|Standard| C[No Approval Needed]
+    B -->|Normal| D{Risk Score?}
+    B -->|Emergency| E[Security Team]
+    
+    D -->|< 50| F[Tech Lead Only]
+    D -->|50-75| G[Tech Lead + Manager]
+    D -->|> 75| H[Full CAB]
+    
+    F & G & H --> I{All Approved?}
+    E --> I
+    
+    I -->|Yes| J[Proceed]
+    I -->|No| K[Rejected]
+    
+    C --> J
+    
+    style C fill:#9f9,stroke:#333,stroke-width:2px
+    style J fill:#9f9,stroke:#333,stroke-width:2px
+    style K fill:#f99,stroke:#333,stroke-width:2px
+#+end_src
+
+* MCP Integration
+
+** Protocol Flow
+
+#+begin_src mermaid :file mcp-protocol-flow.png
+sequenceDiagram
+    participant Claude
+    participant MCP_Client
+    participant ChangeFlow_Server
+    participant OAuth_Provider
+    
+    Claude->>MCP_Client: User adds connector
+    MCP_Client->>ChangeFlow_Server: GET /.well-known/mcp
+    ChangeFlow_Server-->>MCP_Client: Server metadata
+    
+    MCP_Client->>OAuth_Provider: Initiate OAuth flow
+    OAuth_Provider-->>MCP_Client: Authorization code
+    MCP_Client->>ChangeFlow_Server: Exchange for token
+    ChangeFlow_Server-->>MCP_Client: Access token
+    
+    loop Tool Invocation
+        Claude->>MCP_Client: Call tool
+        MCP_Client->>ChangeFlow_Server: POST /tools/{tool_name}
+        ChangeFlow_Server-->>MCP_Client: Tool result
+        MCP_Client-->>Claude: Formatted response
+    end
+#+end_src
+
+** Tool Registry
+
+#+begin_src mermaid :file mcp-tools.png
+graph LR
+    subgraph "Change Management Tools"
+        A[create_change_request]
+        B[get_change_status]
+        C[update_change]
+        D[list_changes]
+    end
+    
+    subgraph "Risk Assessment Tools"
+        E[assess_risk]
+        F[calculate_blast_radius]
+        G[get_similar_changes]
+    end
+    
+    subgraph "Approval Tools"
+        H[request_approval]
+        I[expedite_approval]
+        J[check_approvals]
+        K[delegate_approval]
+    end
+    
+    subgraph "Reporting Tools"
+        L[generate_audit_report]
+        M[get_metrics]
+        N[export_changes]
+    end
+    
+    style A fill:#ff9,stroke:#333,stroke-width:2px
+    style E fill:#9ff,stroke:#333,stroke-width:2px
+    style H fill:#f9f,stroke:#333,stroke-width:2px
+    style L fill:#9f9,stroke:#333,stroke-width:2px
+#+end_src
+
+* API Specification
+
+** MCP Server Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| /.well-known/mcp | GET | Server metadata and capabilities |
+| /oauth/authorize | GET | OAuth authorization endpoint |
+| /oauth/token | POST | Token exchange endpoint |
+| /tools | GET | List available tools |
+| /tools/{name}/invoke | POST | Execute a tool |
+| /tools/{name}/schema | GET | Get tool parameter schema |
+
+** Tool Schemas
+
+*** create_change_request
+
+#+begin_example
+{
+  "name": "create_change_request",
+  "description": "Create a new change request with automatic risk assessment",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Brief title of the change"
+      },
+      "description": {
+        "type": "string",
+        "description": "Detailed description"
+      },
+      "change_type": {
+        "type": "string",
+        "enum": ["standard", "normal", "emergency"]
+      },
+      "affected_systems": {
+        "type": "array",
+        "items": {"type": "string"}
+      },
+      "implementation_plan": {
+        "type": "string"
+      },
+      "rollback_plan": {
+        "type": "string"
+      }
+    },
+    "required": ["title", "description", "affected_systems"]
+  }
+}
+#+end_example
+
+** Response Format
+
+#+begin_example
+{
+  "tool": "create_change_request",
+  "status": "success",
+  "result": {
+    "change_id": "NC-20250913-001",
+    "risk_score": 65,
+    "auto_approved": false,
+    "required_approvals": ["tech-lead", "manager"],
+    "next_steps": "Awaiting approval from 2 reviewers"
+  },
+  "metadata": {
+    "execution_time_ms": 87,
+    "version": "1.0.0"
+  }
+}
+#+end_example
+
+* Implementation Notes
+
+** Technology Stack
+
+- *Language*: GNU Guile 3.0+
+- *Web Framework*: Custom using (web server)
+- *Data Store*: SQLite for persistence
+- *JSON*: guile-json for serialization
+- *OAuth*: Custom implementation
+- *Async*: Guile fibers for concurrency
+
+** Directory Structure
+
+#+begin_example
+guile-changeflow/
+├── setup.org           # This file
+├── README.org          # User documentation
+├── src/
+│   ├── server.scm      # MCP server implementation
+│   ├── models/         # Data models
+│   ├── workflows/      # Business logic
+│   ├── risk/           # Risk assessment engine
+│   └── integrations/   # External system connectors
+├── tests/              # Test suites
+├── docs/               # Additional documentation
+└── examples/           # Usage examples
+#+end_example
+
+** Development Phases
+
+*** Phase 1: Core Models (Week 1-2)
+- [ ] Define record types for all entities
+- [ ] Implement state machine
+- [ ] Create data persistence layer
+
+*** Phase 2: Risk Engine (Week 3-4)
+- [ ] Multi-factor risk calculation
+- [ ] Historical data analysis
+- [ ] Success prediction algorithm
+
+*** Phase 3: MCP Protocol (Week 5-6)
+- [ ] OAuth implementation
+- [ ] Tool registry
+- [ ] Request/response handling
+
+*** Phase 4: Integrations (Week 7-8)
+- [ ] GitHub webhook receiver
+- [ ] Calendar integration
+- [ ] Notification dispatcher
+
+*** Phase 5: Testing & Polish (Week 9-10)
+- [ ] Comprehensive test suite
+- [ ] Performance optimization
+- [ ] Security audit

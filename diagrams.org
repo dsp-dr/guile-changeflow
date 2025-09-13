@@ -1,0 +1,413 @@
+#+TITLE: Guile ChangeFlow - Complete Diagram Reference
+#+AUTHOR: defrecord.com
+#+DATE: [2025-09-13 Fri]
+#+STARTUP: showall
+
+* System Overview
+
+#+begin_src mermaid :file changeflow-complete-overview.png :width 1200
+graph TB
+    subgraph "User Layer"
+        U1[Claude AI]
+        U2[Developers]
+        U3[Ops Teams]
+        U4[Managers]
+    end
+    
+    subgraph "MCP Protocol Layer"
+        M1[OAuth 2.0 + PKCE]
+        M2[JSON-RPC 2.0]
+        M3[SSE Events]
+        M4[Tool Registry]
+    end
+    
+    subgraph "ChangeFlow Core"
+        C1[Change Manager]
+        C2[Risk Engine]
+        C3[Approval Orchestrator]
+        C4[Audit Logger]
+        
+        subgraph "Change Types"
+            T1[Standard < 30]
+            T2[Normal 30-70]
+            T3[Emergency > 70]
+        end
+        
+        subgraph "Risk Factors"
+            R1[Production Impact: 30]
+            R2[Data Changes: 25]
+            R3[Security: 20]
+            R4[Multi-System: 15]
+            R5[History: 10]
+        end
+    end
+    
+    subgraph "Data Layer"
+        D1[(Change DB)]
+        D2[(Audit Log)]
+        D3[Redis Cache]
+    end
+    
+    subgraph "Integrations"
+        I1[GitHub/GitLab]
+        I2[Google Calendar]
+        I3[Slack/Teams]
+        I4[PagerDuty]
+        I5[Cloud Providers]
+    end
+    
+    U1 & U2 & U3 & U4 --> M1
+    M1 --> M2
+    M2 --> M4
+    M4 --> C1
+    M3 --> U1
+    
+    C1 --> C2 & C3 & C4
+    C2 --> R1 & R2 & R3 & R4 & R5
+    C1 --> T1 & T2 & T3
+    
+    C1 & C2 & C3 --> D1
+    C4 --> D2
+    C1 --> D3
+    
+    C1 & C3 --> I1 & I2 & I3 & I4 & I5
+    
+    style C1 fill:#ff9,stroke:#333,stroke-width:4px
+    style C2 fill:#9ff,stroke:#333,stroke-width:4px
+    style M2 fill:#f9f,stroke:#333,stroke-width:4px
+#+end_src
+
+* Change Lifecycle
+
+#+begin_src mermaid :file changeflow-complete-lifecycle.png :width 1000
+stateDiagram-v2
+    [*] --> Draft: User creates
+    
+    Draft --> Submitted: Submit
+    Submitted --> RiskAssessment: Automatic
+    
+    RiskAssessment --> AutoApproved: Risk < 30
+    RiskAssessment --> PendingApproval: Risk >= 30
+    RiskAssessment --> EmergencyReview: Emergency type
+    
+    AutoApproved --> Scheduled
+    PendingApproval --> Approved: All approvals
+    PendingApproval --> Rejected: Any rejection
+    EmergencyReview --> FastTracked: Security approval
+    
+    Approved --> Scheduled
+    FastTracked --> Implementing: Immediate
+    Scheduled --> Implementing: Start time reached
+    
+    Implementing --> Testing: Deploy complete
+    Testing --> Verifying: Tests pass
+    Testing --> RollingBack: Tests fail
+    
+    Verifying --> Completed: Verification pass
+    Verifying --> RollingBack: Issues found
+    
+    RollingBack --> RolledBack: Rollback success
+    RollingBack --> Failed: Rollback fail
+    
+    Completed --> [*]: Success
+    RolledBack --> [*]: Reverted
+    Failed --> [*]: Failure
+    Rejected --> [*]: Not approved
+    
+    note right of RiskAssessment
+        AI-powered analysis
+        Multiple factors
+        Historical data
+    end note
+    
+    note right of Implementing
+        Real-time monitoring
+        Automated checks
+        Manual override
+    end note
+    
+    note left of PendingApproval
+        Role-based routing
+        SLA enforcement
+        Escalation paths
+    end note
+#+end_src
+
+* Tool Interaction Flow
+
+#+begin_src mermaid :file changeflow-tool-flow.png :width 1200
+sequenceDiagram
+    participant User
+    participant Claude
+    participant MCP
+    participant ChangeFlow
+    participant Risk
+    participant Approval
+    participant Calendar
+    participant GitHub
+    
+    User->>Claude: "Deploy payment service update"
+    Claude->>MCP: tools/invoke create_change_request
+    MCP->>ChangeFlow: Create change
+    
+    ChangeFlow->>Risk: Calculate risk score
+    Risk->>GitHub: Get PR details
+    GitHub-->>Risk: Files, tests, history
+    Risk->>Risk: Analyze factors
+    Risk-->>ChangeFlow: Score: 68/100
+    
+    ChangeFlow->>Approval: Route for approval
+    Approval->>Calendar: Check freeze periods
+    Calendar-->>Approval: No freezes
+    
+    Approval->>Approval: Identify approvers
+    Approval-->>ChangeFlow: 2 approvers needed
+    
+    ChangeFlow-->>MCP: Change created
+    MCP-->>Claude: Response with details
+    
+    Claude-->>User: "Change NC-2025-001 created
+    Risk: 68/100 (Medium-High)
+    Needs: Tech Lead + Security
+    Suggested: Tuesday 2-4 PM"
+    
+    loop Approval Process
+        Approval->>Claude: SSE: approval_update
+        Claude-->>User: "Tech Lead approved"
+    end
+    
+    Approval->>Claude: SSE: status_change
+    Claude-->>User: "All approvals complete!"
+#+end_src
+
+* Guile Module Architecture
+
+#+begin_src mermaid :file changeflow-guile-modules.png :width 1000
+graph TB
+    subgraph "Application Layer"
+        A1[main.scm]
+        A2[server.scm]
+        A3[config.scm]
+    end
+    
+    subgraph "MCP Protocol"
+        M1[(mcp server)]
+        M2[(mcp auth)]
+        M3[(mcp tools)]
+        M4[(mcp sse)]
+    end
+    
+    subgraph "Business Logic"
+        B1[(changeflow core)]
+        B2[(changeflow changes)]
+        B3[(changeflow risk)]
+        B4[(changeflow approvals)]
+        B5[(changeflow audit)]
+    end
+    
+    subgraph "Infrastructure"
+        I1[(web server)]
+        I2[(json-rpc)]
+        I3[(oauth2)]
+        I4[(persistence)]
+        I5[(cache)]
+    end
+    
+    subgraph "Integrations"
+        G1[(github connector)]
+        G2[(calendar connector)]
+        G3[(slack connector)]
+        G4[(webhook dispatcher)]
+    end
+    
+    A1 --> A2
+    A2 --> M1
+    A2 --> A3
+    
+    M1 --> M2 & M3 & M4
+    M3 --> B1
+    
+    B1 --> B2 & B3 & B4 & B5
+    
+    M1 --> I1
+    M2 --> I3
+    M3 --> I2
+    B1 --> I4 & I5
+    
+    B1 --> G1 & G2 & G3 & G4
+    
+    style A1 fill:#f99,stroke:#333,stroke-width:4px
+    style B1 fill:#ff9,stroke:#333,stroke-width:4px
+    style M1 fill:#9ff,stroke:#333,stroke-width:4px
+#+end_src
+
+* Risk Assessment Algorithm
+
+#+begin_src mermaid :file changeflow-risk-algorithm.png :width 800
+graph TD
+    Start([Change Request]) --> A{Production System?}
+    
+    A -->|Yes +30| B{Security Related?}
+    A -->|No +0| B
+    
+    B -->|Yes +20| C{Data Modification?}
+    B -->|No +0| C
+    
+    C -->|Yes +25| D[Count Systems]
+    C -->|No +0| D
+    
+    D --> E[+5 per system]
+    
+    E --> F{Historical Success}
+    F -->|< 80%| G[+15 points]
+    F -->|>= 80%| H[+0 points]
+    
+    G --> I[Time Since Last]
+    H --> I
+    
+    I -->|> 30 days| J[+10 points]
+    I -->|<= 30 days| K[+0 points]
+    
+    J --> L[Calculate Total]
+    K --> L
+    
+    L --> M{Score > 100?}
+    M -->|Yes| N[Cap at 100]
+    M -->|No| O[Use Score]
+    
+    N --> End([Risk Score])
+    O --> End
+    
+    style A fill:#f99,stroke:#333,stroke-width:2px
+    style B fill:#f99,stroke:#333,stroke-width:2px
+    style L fill:#ff9,stroke:#333,stroke-width:2px
+    style End fill:#9f9,stroke:#333,stroke-width:2px
+#+end_src
+
+* Approval Routing Matrix
+
+#+begin_src mermaid :file changeflow-approval-matrix.png :width 1000
+graph LR
+    subgraph "Input Factors"
+        F1[Change Type]
+        F2[Risk Score]
+        F3[System Criticality]
+        F4[Time Sensitivity]
+    end
+    
+    subgraph "Decision Engine"
+        D1{Type Check}
+        D2{Risk Check}
+        D3{Criticality}
+        D4{Emergency?}
+    end
+    
+    subgraph "Approval Paths"
+        P1[Auto-Approve]
+        P2[Tech Lead]
+        P3[Lead + Manager]
+        P4[Full CAB]
+        P5[Emergency Team]
+    end
+    
+    subgraph "SLA"
+        S1[Instant]
+        S2[2 hours]
+        S3[4 hours]
+        S4[24 hours]
+        S5[30 minutes]
+    end
+    
+    F1 --> D1
+    F2 --> D2
+    F3 --> D3
+    F4 --> D4
+    
+    D1 -->|Standard| P1
+    D1 -->|Normal| D2
+    D1 -->|Emergency| P5
+    
+    D2 -->|< 50| P2
+    D2 -->|50-75| P3
+    D2 -->|> 75| D3
+    
+    D3 -->|High| P4
+    D3 -->|Medium| P3
+    D3 -->|Low| P2
+    
+    D4 -->|Yes| P5
+    
+    P1 --> S1
+    P2 --> S2
+    P3 --> S3
+    P4 --> S4
+    P5 --> S5
+    
+    style P1 fill:#9f9,stroke:#333,stroke-width:2px
+    style P5 fill:#f99,stroke:#333,stroke-width:2px
+    style D2 fill:#ff9,stroke:#333,stroke-width:2px
+#+end_src
+
+* Integration Architecture
+
+#+begin_src mermaid :file changeflow-integrations.png :width 1200
+graph TB
+    subgraph "ChangeFlow Core"
+        CF[Change Engine]
+        EV[Event Bus]
+        WH[Webhook Handler]
+    end
+    
+    subgraph "Inbound Integrations"
+        GH1[GitHub Webhooks]
+        GL1[GitLab Webhooks]
+        API[REST API]
+        MCP[MCP Protocol]
+    end
+    
+    subgraph "Outbound Integrations"
+        GH2[GitHub API]
+        CAL[Google Calendar]
+        SLK[Slack API]
+        PGR[PagerDuty]
+        AWS[AWS/Azure/GCP]
+    end
+    
+    subgraph "Event Types"
+        E1[PR Opened]
+        E2[Deploy Request]
+        E3[Incident Alert]
+        E4[Schedule Change]
+    end
+    
+    subgraph "Actions"
+        A1[Create Change]
+        A2[Update Status]
+        A3[Send Notification]
+        A4[Block Calendar]
+        A5[Trigger Deploy]
+    end
+    
+    GH1 & GL1 --> WH
+    API & MCP --> CF
+    WH --> EV
+    
+    E1 & E2 & E3 & E4 --> EV
+    EV --> CF
+    
+    CF --> A1 & A2
+    CF --> EV
+    EV --> A3 & A4 & A5
+    
+    A2 --> GH2
+    A3 --> SLK
+    A4 --> CAL
+    A5 --> AWS
+    
+    style CF fill:#ff9,stroke:#333,stroke-width:4px
+    style EV fill:#9ff,stroke:#333,stroke-width:4px
+#+end_src
+
+---
+
+These diagrams provide a complete visual reference for the Guile ChangeFlow system architecture, workflows, and integration points.
