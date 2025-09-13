@@ -1,7 +1,10 @@
 # Guile ChangeFlow Project Management Makefile
 # For managing documentation and coordination
 
-.PHONY: help status agenda agents monitor issues setup clean lint
+# Find all org files (excluding .git and .tmp directories)
+ORG_FILES := $(shell find . -name "*.org" -not -path "./.git/*" -not -path "./.tmp/*")
+
+.PHONY: help status agenda agents monitor issues setup clean lint lint-org lint-scheme
 
 help:
 	@echo "Guile ChangeFlow Project Management"
@@ -10,7 +13,9 @@ help:
 	@echo "Documentation:"
 	@echo "  status    - Generate project status reports"
 	@echo "  agenda    - Open Emacs org-agenda"
-	@echo "  lint      - Lint all org files with org-lint"
+	@echo "  lint      - Lint all files (org + scheme)"
+	@echo "  lint-org  - Lint org documentation files"
+	@echo "  lint-scheme - Lint Scheme source files (when they exist)"
 	@echo ""
 	@echo "Agent Management:"
 	@echo "  agents    - List all agent worktrees"
@@ -34,10 +39,14 @@ status:
 agenda:
 	@emacs -l guile-changeflow.el -f org-agenda
 
-# Linting
-lint:
+# Linting - Main target
+lint: lint-org lint-scheme
+
+# Lint org documentation files
+lint-org:
 	@echo "=== Linting Org Files ==="
-	@for file in $$(find . -name "*.org" -not -path "./.git/*" -not -path "./.tmp/*"); do \
+	@echo "Found $(words $(ORG_FILES)) org files to check"
+	@for file in $(ORG_FILES); do \
 		echo "Checking: $$file"; \
 		emacs --batch -Q \
 			--eval "(require 'org)" \
@@ -46,6 +55,21 @@ lint:
 			2>&1 | grep -v "^Loading" | grep -v "^Checking" | grep -v "^Done" || true; \
 	done
 	@echo "=== Org Lint Complete ==="
+
+# Lint Scheme source files (placeholder for when agents create them)
+lint-scheme:
+	@echo "=== Linting Scheme Files ==="
+	@if [ -z "$$(find . -name '*.scm' -o -name '*.ss' -not -path './.git/*' -not -path './.tmp/*' 2>/dev/null)" ]; then \
+		echo "No Scheme files found to lint (yet)"; \
+		echo "Agents will create them soon!"; \
+	else \
+		echo "Found Scheme files:"; \
+		find . -name "*.scm" -o -name "*.ss" -not -path "./.git/*" -not -path "./.tmp/*" | while read file; do \
+			echo "  Checking: $$file"; \
+			guile -L . -c "(use-modules (ice-9 format)) (load \"$$file\")" 2>&1 | grep -E "ERROR|WARNING" || echo "    ✓ Valid"; \
+		done; \
+	fi
+	@echo "=== Scheme Lint Complete ==="
 
 # Agent management
 agents:
