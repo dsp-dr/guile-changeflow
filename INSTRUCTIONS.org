@@ -1,0 +1,169 @@
+#+TITLE: Agent 5 - Integrations Instructions
+#+DATE: 2025-09-13
+
+* Your Mission
+
+You are Agent 5 working on External Integrations for Guile ChangeFlow.
+
+Your worktree: /home/dsp-dr/ghq/github.com/dsp-dr/gcf-integrations
+Your branch: feat/integrations
+Your focus: GitHub webhook receiver and notification system
+
+* Priority Tasks
+
+1. Create src/integrations/ directory structure
+2. Mock GitHub webhook receiver
+3. Create simple notification system
+4. Build event routing framework
+5. Generate test webhook payloads
+
+* File Structure to Create
+
+#+begin_example
+src/
+├── integrations/
+│   ├── github.scm
+│   ├── notifications.scm
+│   ├── webhook-handler.scm
+│   ├── event-router.scm
+│   └── mock-payloads.scm
+└── config/
+    └── integration-config.scm
+#+end_example
+
+* Success Criteria
+
+- [ ] GitHub webhook endpoint receives POST requests
+- [ ] PR opened event creates change request
+- [ ] Notifications logged to console
+- [ ] Event routing framework works
+- [ ] Demo shows GitHub integration
+
+* Code Templates
+
+** github.scm
+#+begin_src scheme
+(define-module (integrations github)
+  #:use-module (json)
+  #:use-module (web request)
+  #:export (handle-github-webhook
+            parse-github-event))
+
+(define (handle-github-webhook headers body)
+  (let* ((event-type (assoc-ref headers 'x-github-event))
+         (payload (json-string->scm body)))
+
+    (case (string->symbol event-type)
+      ((pull_request)
+       (handle-pr-event payload))
+      ((push)
+       (handle-push-event payload))
+      (else
+       (log-event "Unknown GitHub event" event-type)))))
+
+(define (handle-pr-event payload)
+  (let ((action (assoc-ref payload 'action))
+        (pr (assoc-ref payload 'pull_request)))
+
+    (when (string=? action "opened")
+      (create-change-from-pr pr))))
+
+(define (create-change-from-pr pr)
+  (let ((title (assoc-ref pr 'title))
+        (description (assoc-ref pr 'body))
+        (repo (assoc-ref (assoc-ref pr 'base) 'repo)))
+
+    ;; Create change request
+    (make-change-request
+     (generate-id)
+     (string-append "PR: " title)
+     description
+     50  ;; Default risk for PRs
+     'submitted)))
+#+end_src
+
+** notifications.scm
+#+begin_src scheme
+(define-module (integrations notifications)
+  #:use-module (ice-9 format)
+  #:export (send-notification
+            log-notification))
+
+(define (send-notification type message data)
+  ;; For demo, just log to console
+  (format #t "~%[NOTIFICATION] ~a: ~a~%" type message)
+  (format #t "  Data: ~s~%" data)
+
+  ;; In real implementation, would send to:
+  ;; - Slack
+  ;; - Email
+  ;; - Teams
+  ;; - Webhooks
+  )
+
+(define (log-notification event)
+  (let ((timestamp (current-time)))
+    (format #t "~%[~a] Event: ~a~%" timestamp event)))
+#+end_src
+
+** mock-payloads.scm
+#+begin_src scheme
+(define-module (integrations mock-payloads)
+  #:export (github-pr-opened
+            github-pr-merged
+            github-push))
+
+(define github-pr-opened
+  '((action . "opened")
+    (number . 42)
+    (pull_request . ((title . "Add payment gateway integration")
+                    (body . "This PR adds Stripe payment processing")
+                    (user . ((login . "developer123")))
+                    (base . ((repo . ((name . "ecommerce-app")))))))))
+
+(define github-pr-merged
+  '((action . "closed")
+    (merged . #t)
+    (pull_request . ((title . "Security update")
+                    (body . "Critical security patch")))))
+#+end_src
+
+* Dependencies
+
+You need:
+- Core models from Agent 1 for creating changes
+- API endpoints from Agent 4 for webhook registration
+
+Others need from you: Integration endpoints and notifications
+
+* Important Notes
+
+- Mock external services for demo
+- Console logging is sufficient for notifications
+- Focus on GitHub PR -> Change Request flow
+- Create realistic test payloads
+- Make integration visible in demo
+
+* Webhook Endpoints
+
+Implement these endpoints:
+- POST /webhooks/github - GitHub webhook receiver
+- GET /integrations/status - Integration health check
+- POST /notifications/test - Test notification
+
+* Demo Flow
+
+1. Receive GitHub PR opened webhook
+2. Parse PR details
+3. Create change request automatically
+4. Calculate risk based on PR content
+5. Send notification (console log)
+6. Show in dashboard
+
+* Timeline
+
+You have 3-4 hours to complete integrations.
+Hour 1: GitHub webhook handler
+Hour 2: Notification system
+Hour 3: Event routing
+Hour 4: Testing with mock payloads

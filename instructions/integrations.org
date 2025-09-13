@@ -1,0 +1,294 @@
+#+TITLE: Integrations Agent Instructions
+#+DATE: 2025-09-13
+#+STARTUP: overview
+
+* Your Mission
+
+You are the Integrations agent working on the Guile ChangeFlow system.
+
+Your worktree: /home/dsp-dr/ghq/github.com/dsp-dr/gcf-integrations
+Your branch: feat/integrations
+Your focus: External integrations (GitHub webhooks, notifications)
+
+* Priority Tasks
+
+1. Create GitHub webhook receiver endpoint
+2. Implement console notifications
+3. Create mock payload generator for testing
+4. Simple event router
+5. Change creation from PR events
+
+* File Structure to Create
+
+#+begin_example
+src/
+├── integrations/
+│   ├── github.scm        # GitHub webhook handler
+│   ├── notifications.scm # Console notifications
+│   ├── router.scm        # Event routing
+│   └── mock.scm          # Mock payload generator
+├── webhooks/
+│   └── server.scm        # Webhook server (port 8082)
+└── main.scm              # Entry point
+#+end_example
+
+* Critical Deliverables (MUST HAVE for Demo)
+
+- [ ] Webhook endpoint on port 8082
+- [ ] GitHub PR creates change request
+- [ ] Console shows [NOTIFICATION] messages
+- [ ] Mock payload for testing without real GitHub
+- [ ] Integration with other agents' systems
+
+* Code Template to Start With
+
+** src/webhooks/server.scm
+#+begin_src scheme
+(define-module (webhooks server)
+  #:use-module (web server)
+  #:use-module (web request)
+  #:use-module (web response)
+  #:use-module (web uri)
+  #:use-module (json)
+  #:use-module (integrations github)
+  #:use-module (integrations notifications)
+  #:export (start-webhook-server))
+
+(define (handler request body)
+  (let ((path (uri-path (request-uri request)))
+        (headers (request-headers request)))
+    (cond
+      ((string=? path "/webhooks/github")
+       (handle-github-webhook request body))
+      ((string=? path "/webhooks/test")
+       (handle-test-webhook))
+      ((string=? path "/health")
+       (health-handler))
+      (else
+       (not-found-handler)))))
+
+(define (handle-github-webhook request body)
+  (let* ((event-type (assoc-ref (request-headers request) 'x-github-event))
+         (payload (json-string->scm (utf8->string body))))
+
+    ;; Log the event
+    (notify-console
+     (format #f "GitHub Event: ~a" event-type)
+     'info)
+
+    ;; Process based on event type
+    (cond
+      ((string=? event-type "pull_request")
+       (process-pull-request payload))
+      ((string=? event-type "push")
+       (process-push payload))
+      (else
+       (notify-console
+        (format #f "Ignoring event type: ~a" event-type)
+        'debug)))
+
+    (values '((content-type . (application/json)))
+            "{\"status\":\"received\"}")))
+
+(define (start-webhook-server)
+  (display "Starting webhook server on port 8082...\n")
+  (notify-console "Webhook server starting..." 'startup)
+  (run-server handler 'http '(#:port 8082)))
+#+end_src
+
+** src/integrations/github.scm
+#+begin_src scheme
+(define-module (integrations github)
+  #:use-module (models change-request)
+  #:use-module (storage memory)
+  #:use-module (integrations notifications)
+  #:use-module (json)
+  #:use-module (srfi srfi-19)
+  #:export (process-pull-request
+            process-push
+            create-change-from-pr))
+
+(define (process-pull-request payload)
+  "Process GitHub pull request event"
+  (let* ((action (assoc-ref payload 'action))
+         (pr (assoc-ref payload 'pull_request))
+         (title (assoc-ref pr 'title))
+         (body (assoc-ref pr 'body))
+         (number (assoc-ref pr 'number))
+         (author (assoc-ref (assoc-ref pr 'user) 'login)))
+
+    (when (string=? action "opened")
+      ;; Create change request from PR
+      (let* ((change-id (format #f "CHG-PR-~a" number))
+             (description (format #f "PR #~a by @~a\n\n~a"
+                                 number author (or body "No description")))
+             (change (make-change-request
+                      change-id
+                      title
+                      description
+                      25  ; Default risk score for PRs
+                      'submitted
+                      (current-time)
+                      (current-time))))
+
+        (store-change! change)
+
+        (notify-console
+         (format #f "Created change ~a from PR #~a: ~a"
+                change-id number title)
+         'success)
+
+        change))))
+
+(define (process-push payload)
+  "Process GitHub push event"
+  (let* ((ref (assoc-ref payload 'ref))
+         (commits (assoc-ref payload 'commits))
+         (pusher (assoc-ref (assoc-ref payload 'pusher) 'name)))
+
+    (notify-console
+     (format #f "Push to ~a by ~a (~a commits)"
+            ref pusher (length commits))
+     'info)))
+#+end_src
+
+** src/integrations/notifications.scm
+#+begin_src scheme
+(define-module (integrations notifications)
+  #:use-module (srfi srfi-19)
+  #:export (notify-console
+            notify-change-created
+            notify-risk-assessed
+            notify-status-changed))
+
+(define* (notify-console message #:optional (level 'info))
+  "Print notification to console with timestamp and level"
+  (let* ((now (current-time))
+         (timestamp (date->string (time-utc->date now) "~Y-~m-~d ~H:~M:~S"))
+         (prefix (case level
+                   ((error) "❌ ERROR")
+                   ((success) "✅ SUCCESS")
+                   ((warning) "⚠️  WARNING")
+                   ((info) "ℹ️  INFO")
+                   ((debug) "🔍 DEBUG")
+                   ((startup) "🚀 STARTUP")
+                   (else "📢 NOTIFICATION"))))
+
+    (format #t "[~a] ~a: ~a\n" timestamp prefix message)
+    (force-output)))
+
+(define (notify-change-created change-id title)
+  (notify-console
+   (format #f "New change request created: ~a - ~a" change-id title)
+   'success))
+
+(define (notify-risk-assessed change-id risk-score category)
+  (let ((emoji (cond
+                 ((eq? category 'low) "🟢")
+                 ((eq? category 'medium) "🟡")
+                 ((eq? category 'high) "🟠")
+                 ((eq? category 'critical) "🔴")
+                 (else "⚪"))))
+    (notify-console
+     (format #f "~a Risk assessed for ~a: ~a (~a)"
+            emoji change-id risk-score category)
+     'info)))
+
+(define (notify-status-changed change-id old-status new-status)
+  (notify-console
+   (format #f "Status change for ~a: ~a → ~a"
+          change-id old-status new-status)
+   'info))
+#+end_src
+
+** src/integrations/mock.scm
+#+begin_src scheme
+(define-module (integrations mock)
+  #:use-module (json)
+  #:export (generate-pr-payload
+            generate-push-payload
+            test-webhook-with-mock))
+
+(define (generate-pr-payload)
+  "Generate mock GitHub PR payload for testing"
+  `((action . "opened")
+    (number . ,(+ 100 (random 900)))
+    (pull_request . ((title . "Fix critical security vulnerability")
+                     (body . "This PR fixes CVE-2024-12345 in the authentication system")
+                     (number . 423)
+                     (state . "open")
+                     (user . ((login . "developer-bot")
+                             (type . "User")))
+                     (head . ((ref . "fix/security-patch")))
+                     (base . ((ref . "main")))))
+    (repository . ((name . "guile-changeflow")
+                   (full_name . "dsp-dr/guile-changeflow")))))
+
+(define (generate-push-payload)
+  "Generate mock GitHub push payload"
+  `((ref . "refs/heads/main")
+    (commits . #(((id . "abc123")
+                  (message . "Update dependencies")
+                  (author . ((name . "Test User"))))))
+    (pusher . ((name . "test-user")))
+    (repository . ((name . "guile-changeflow")))))
+
+(define (test-webhook-with-mock)
+  "Test webhook processing with mock data"
+  (let ((pr-json (scm->json-string (generate-pr-payload))))
+    ;; Simulate webhook call
+    (display "Testing with mock PR payload...\n")
+    (display pr-json)
+    #t))
+#+end_src
+
+* Integration Points
+
+- Create changes in Core Models (Agent 1)
+- Could trigger MCP tools (Agent 2)
+- Get risk scores from Risk Engine (Agent 3)
+- Changes appear in Web Interface (Agent 4)
+
+* Testing Your Work
+
+#+begin_src bash
+# Test webhook endpoint
+curl -X POST http://localhost:8082/webhooks/github \
+  -H "X-GitHub-Event: pull_request" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "opened",
+    "number": 123,
+    "pull_request": {
+      "title": "Test PR",
+      "body": "Testing webhooks",
+      "number": 123,
+      "user": {"login": "testuser"}
+    }
+  }'
+
+# Test with mock payload
+curl http://localhost:8082/webhooks/test
+
+# Check console for notifications
+# Should see:
+# [2025-09-13 15:30:45] 🚀 STARTUP: Webhook server starting...
+# [2025-09-13 15:31:00] ℹ️  INFO: GitHub Event: pull_request
+# [2025-09-13 15:31:00] ✅ SUCCESS: Created change CHG-PR-123 from PR #123: Test PR
+#+end_src
+
+* Timeline
+
+- Hour 1: Webhook server setup
+- Hour 2: GitHub event processing
+- Hour 3: Notification system
+- Hour 4: Mock payload testing
+- Hour 5: Integration with other agents
+
+* Notes
+
+- Console notifications are key for demo visibility
+- Use emojis to make notifications stand out
+- Mock payloads let us test without real GitHub
+- Keep webhook processing simple
+- Focus on PR → Change creation flow
