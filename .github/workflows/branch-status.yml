@@ -1,0 +1,89 @@
+name: Branch Status
+
+on:
+  push:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'  # Every 30 minutes for status updates
+
+jobs:
+  update-status:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate branch status report
+      run: |
+        echo "# Branch Sync Status Dashboard" > STATUS.md
+        echo "" >> STATUS.md
+        echo "Last updated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> STATUS.md
+        echo "" >> STATUS.md
+
+        # Main branch info
+        echo "## Main Branch" >> STATUS.md
+        echo "- Latest commit: $(git log -1 --format='%h - %s' origin/main)" >> STATUS.md
+        echo "" >> STATUS.md
+
+        echo "## Agent Branches" >> STATUS.md
+        echo "" >> STATUS.md
+        echo "| Branch | Status | Behind Main | Last Commit |" >> STATUS.md
+        echo "|--------|--------|-------------|-------------|" >> STATUS.md
+
+        # Check each agent branch
+        for i in {1..5}; do
+          branch="agent-$(printf "%03d" $i)-*"
+          full_branch=$(git branch -r | grep "origin/$branch" | head -1 | sed 's/.*origin\///')
+
+          if [ -n "$full_branch" ]; then
+            # Calculate commits behind
+            BEHIND=$(git rev-list --count origin/$full_branch..origin/main 2>/dev/null || echo "N/A")
+
+            # Get last commit info
+            LAST_COMMIT=$(git log -1 --format='%h - %ar' origin/$full_branch 2>/dev/null || echo "N/A")
+
+            # Determine status badge
+            if [ "$BEHIND" = "0" ]; then
+              STATUS="![Synced](https://img.shields.io/badge/synced-green)"
+            elif [ "$BEHIND" = "N/A" ]; then
+              STATUS="![Error](https://img.shields.io/badge/error-red)"
+            else
+              STATUS="![Behind](https://img.shields.io/badge/behind-yellow)"
+            fi
+
+            echo "| $full_branch | $STATUS | $BEHIND | $LAST_COMMIT |" >> STATUS.md
+          else
+            echo "| agent-$(printf "%03d" $i) | ![Not Found](https://img.shields.io/badge/not%20found-lightgrey) | - | - |" >> STATUS.md
+          fi
+        done
+
+        echo "" >> STATUS.md
+        echo "## Sync Instructions" >> STATUS.md
+        echo "" >> STATUS.md
+        echo "To update a branch that's behind main:" >> STATUS.md
+        echo '```bash' >> STATUS.md
+        echo 'git checkout <branch-name>' >> STATUS.md
+        echo 'git fetch origin main' >> STATUS.md
+        echo 'git merge origin/main' >> STATUS.md
+        echo 'git push origin <branch-name>' >> STATUS.md
+        echo '```' >> STATUS.md
+
+    - name: Check for changes
+      id: changes
+      run: |
+        if [ -f STATUS.md ]; then
+          git diff --quiet STATUS.md || echo "changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Commit status update
+      if: steps.changes.outputs.changed == 'true' && github.ref == 'refs/heads/main'
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add STATUS.md
+        git diff --staged --quiet || (git commit -m "chore: update branch sync status [skip ci]" && git push)

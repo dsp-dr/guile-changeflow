@@ -1,0 +1,202 @@
+name: Branch Sync Status
+
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:
+
+jobs:
+  check-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout current branch
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history needed for comparison
+
+    - name: Configure Git
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+
+    - name: Fetch all branches
+      run: git fetch --all
+
+    - name: Check sync status with main
+      id: sync-check
+      run: |
+        echo "=== Branch Sync Status Check ==="
+        echo "Current branch: ${GITHUB_REF#refs/heads/}"
+
+        # Get current branch name
+        if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          CURRENT_BRANCH="${GITHUB_HEAD_REF}"
+        else
+          CURRENT_BRANCH="${GITHUB_REF#refs/heads/}"
+        fi
+
+        echo "Checking branch: $CURRENT_BRANCH"
+
+        # Compare with main
+        BEHIND_COUNT=$(git rev-list --count HEAD..origin/main)
+        AHEAD_COUNT=$(git rev-list --count origin/main..HEAD)
+
+        echo "Behind main by: $BEHIND_COUNT commits"
+        echo "Ahead of main by: $AHEAD_COUNT commits"
+
+        # Set outputs
+        echo "behind=$BEHIND_COUNT" >> $GITHUB_OUTPUT
+        echo "ahead=$AHEAD_COUNT" >> $GITHUB_OUTPUT
+        echo "branch=$CURRENT_BRANCH" >> $GITHUB_OUTPUT
+
+        # Check if up to date
+        if [ "$BEHIND_COUNT" -eq 0 ]; then
+          echo "✅ Branch is up to date with main"
+          echo "status=up-to-date" >> $GITHUB_OUTPUT
+        else
+          echo "⚠️ Branch is behind main"
+          echo "status=behind" >> $GITHUB_OUTPUT
+
+          # Show divergent commits
+          echo ""
+          echo "=== Commits in main not in this branch ==="
+          git log --oneline HEAD..origin/main | head -20
+        fi
+
+    - name: Check all agent branches (on schedule/manual)
+      if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+      run: |
+        echo "=== Checking all agent branches ==="
+
+        # List of agent branches to check
+        BRANCHES=(
+          "agent-001-core-system"
+          "agent-002-testing"
+          "agent-003-documentation"
+          "agent-004-integration"
+          "agent-005-deployment"
+        )
+
+        REPORT="# Branch Sync Status Report\n\n"
+        REPORT+="Generated at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')\n\n"
+        REPORT+="| Branch | Status | Behind | Ahead |\n"
+        REPORT+="|--------|--------|--------|-------|\n"
+
+        for branch in "${BRANCHES[@]}"; do
+          if git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+            BEHIND=$(git rev-list --count origin/$branch..origin/main)
+            AHEAD=$(git rev-list --count origin/main..origin/$branch)
+
+            if [ "$BEHIND" -eq 0 ]; then
+              STATUS="✅ Synced"
+            else
+              STATUS="⚠️ Behind"
+            fi
+
+            REPORT+="| $branch | $STATUS | $BEHIND | $AHEAD |\n"
+
+            if [ "$BEHIND" -gt 0 ]; then
+              echo ""
+              echo "Branch $branch is $BEHIND commits behind main"
+            fi
+          else
+            REPORT+="| $branch | 🚫 Not Found | - | - |\n"
+          fi
+        done
+
+        echo -e "$REPORT"
+
+        # Save report as artifact
+        echo -e "$REPORT" > branch-sync-report.md
+
+    - name: Upload sync report
+      if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+      uses: actions/upload-artifact@v4
+      with:
+        name: branch-sync-report
+        path: branch-sync-report.md
+
+    - name: Comment on PR (if applicable)
+      if: github.event_name == 'pull_request' && steps.sync-check.outputs.behind != '0'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const behind = ${{ steps.sync-check.outputs.behind }};
+          const ahead = ${{ steps.sync-check.outputs.ahead }};
+
+          const comment = `## ⚠️ Branch Sync Status
+
+          This branch is **${behind} commits behind** main.
+
+          To update your branch with the latest changes from main:
+          \`\`\`bash
+          git fetch origin main
+          git merge origin/main
+          # or
+          git rebase origin/main
+          \`\`\`
+
+          **Status:**
+          - Behind main: ${behind} commits
+          - Ahead of main: ${ahead} commits`;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+    - name: Set job status
+      if: steps.sync-check.outputs.behind != '0'
+      run: |
+        echo "::warning::Branch is ${{ steps.sync-check.outputs.behind }} commits behind main"
+
+  check-agent-branches:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Check agent branch status
+      run: |
+        echo "=== Agent Branch Status (triggered by main push) ==="
+
+        BRANCHES=(
+          "agent-001-core-system"
+          "agent-002-testing"
+          "agent-003-documentation"
+          "agent-004-integration"
+          "agent-005-deployment"
+        )
+
+        BEHIND_BRANCHES=()
+
+        for branch in "${BRANCHES[@]}"; do
+          if git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+            BEHIND=$(git rev-list --count origin/$branch..origin/main)
+
+            if [ "$BEHIND" -gt 0 ]; then
+              BEHIND_BRANCHES+=("$branch (behind by $BEHIND)")
+              echo "⚠️ $branch is $BEHIND commits behind main"
+            else
+              echo "✅ $branch is up to date"
+            fi
+          fi
+        done
+
+        # Create issue if branches are behind
+        if [ ${#BEHIND_BRANCHES[@]} -gt 0 ]; then
+          echo ""
+          echo "::warning::The following agent branches need to be updated:"
+          printf '%s\n' "${BEHIND_BRANCHES[@]}"
+        fi
