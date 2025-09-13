@@ -1,0 +1,452 @@
+#+TITLE: Agent Coordinator System for Guile ChangeFlow
+#+AUTHOR: Coordinator (dsp-dr)
+#+DATE: 2025-09-13
+#+STARTUP: overview
+#+TODO: ASSIGNED(a) ACTIVE(!) BLOCKED(b) | DONE(d) FAILED(f)
+
+* Coordinator Overview
+
+As coordinator, I will manage 5 parallel Claude Code agents working on different aspects of the Guile ChangeFlow system. Each agent operates in their own git worktree with isolated development environment.
+
+* Agent Setup and Allocation
+
+** Agent Structure
+
+| Agent | Worktree Path | Branch | Focus Area | Tmux Session |
+|-------+---------------+--------+------------+--------------|
+| A1 | ../gcf-core-models | feat/core-models | Core Models & State Machine | gcf-a1 |
+| A2 | ../gcf-mcp-server | feat/mcp-server | MCP Protocol Implementation | gcf-a2 |
+| A3 | ../gcf-risk-engine | feat/risk-engine | Risk Assessment Engine | gcf-a3 |
+| A4 | ../gcf-web-interface | feat/web-interface | Web Server & API | gcf-a4 |
+| A5 | ../gcf-integrations | feat/integrations | External Integrations | gcf-a5 |
+
+** Worktree Setup Commands
+
+#+begin_src bash :tangle setup-worktrees.sh
+#!/bin/sh
+# Setup script for agent worktrees
+
+cd /home/dsp-dr/ghq/github.com/dsp-dr/guile-changeflow
+
+# Create branches and worktrees
+echo "Creating worktrees for agents..."
+
+# Agent 1: Core Models
+git worktree add ../gcf-core-models -b feat/core-models
+
+# Agent 2: MCP Server
+git worktree add ../gcf-mcp-server -b feat/mcp-server
+
+# Agent 3: Risk Engine
+git worktree add ../gcf-risk-engine -b feat/risk-engine
+
+# Agent 4: Web Interface
+git worktree add ../gcf-web-interface -b feat/web-interface
+
+# Agent 5: Integrations
+git worktree add ../gcf-integrations -b feat/integrations
+
+echo "Worktrees created successfully"
+git worktree list
+#+end_src
+
+** Tmux Session Creation
+
+#+begin_src bash :tangle setup-tmux.sh
+#!/bin/sh
+# Create tmux sessions for each agent
+
+# Agent 1: Core Models
+tmux new-session -d -s gcf-a1 -c /home/dsp-dr/ghq/github.com/dsp-dr/gcf-core-models
+tmux send-keys -t gcf-a1 "claude --dangerously-skip-permissions" C-m
+
+# Agent 2: MCP Server
+tmux new-session -d -s gcf-a2 -c /home/dsp-dr/ghq/github.com/dsp-dr/gcf-mcp-server
+tmux send-keys -t gcf-a2 "claude --dangerously-skip-permissions" C-m
+
+# Agent 3: Risk Engine
+tmux new-session -d -s gcf-a3 -c /home/dsp-dr/ghq/github.com/dsp-dr/gcf-risk-engine
+tmux send-keys -t gcf-a3 "claude --dangerously-skip-permissions" C-m
+
+# Agent 4: Web Interface
+tmux new-session -d -s gcf-a4 -c /home/dsp-dr/ghq/github.com/dsp-dr/gcf-web-interface
+tmux send-keys -t gcf-a4 "claude --dangerously-skip-permissions" C-m
+
+# Agent 5: Integrations
+tmux new-session -d -s gcf-a5 -c /home/dsp-dr/ghq/github.com/dsp-dr/gcf-integrations
+tmux send-keys -t gcf-a5 "claude --dangerously-skip-permissions" C-m
+
+echo "All agent sessions created"
+tmux ls
+#+end_src
+
+* Agent Task Assignments
+
+** Agent 1: Core Models (gcf-a1)
+*** ASSIGNED Initial Setup
+- Create src/models/ directory structure
+- Implement change-request record type
+- Implement state machine for change lifecycle
+- Create in-memory storage for demo
+
+*** ASSIGNED Core Components
+#+begin_example
+Priority Order:
+1. models/change-request.scm
+2. models/state-machine.scm
+3. models/approval.scm
+4. models/audit.scm
+#+end_example
+
+*** ASSIGNED Success Criteria
+- [ ] Change requests can be created
+- [ ] State transitions work
+- [ ] Basic CRUD operations functional
+- [ ] Audit trail captures events
+
+** Agent 2: MCP Server (gcf-a2)
+*** ASSIGNED Initial Setup
+- Create src/mcp/ directory structure
+- Implement .well-known/mcp endpoint
+- Create tool registry
+- Handle JSON-RPC requests
+
+*** ASSIGNED Core Components
+#+begin_example
+Priority Order:
+1. mcp/server.scm - Basic MCP server
+2. mcp/tools.scm - Tool definitions
+3. mcp/auth.scm - Simple auth (can be mocked)
+4. mcp/handlers.scm - Request handlers
+#+end_example
+
+*** ASSIGNED Success Criteria
+- [ ] MCP discovery endpoint works
+- [ ] Tools are listed correctly
+- [ ] create_change_request tool functional
+- [ ] JSON-RPC parsing works
+
+** Agent 3: Risk Engine (gcf-a3)
+*** ASSIGNED Initial Setup
+- Create src/risk/ directory structure
+- Implement risk calculation algorithm
+- Create risk factors configuration
+- Build assessment pipeline
+
+*** ASSIGNED Core Components
+#+begin_example
+Priority Order:
+1. risk/calculator.scm - Main algorithm
+2. risk/factors.scm - Risk factor definitions
+3. risk/rules.scm - Business rules
+4. risk/mock-data.scm - Demo scenarios
+#+end_example
+
+*** ASSIGNED Success Criteria
+- [ ] Risk scores calculated correctly
+- [ ] Different change types scored appropriately
+- [ ] Demo shows varying risk levels
+- [ ] Factors are explainable
+
+** Agent 4: Web Interface (gcf-a4)
+*** ASSIGNED Initial Setup
+- Create src/web/ directory structure
+- Set up Guile web server
+- Create API endpoints
+- Build simple dashboard
+
+*** ASSIGNED Core Components
+#+begin_example
+Priority Order:
+1. web/server.scm - HTTP server setup
+2. web/api.scm - REST endpoints
+3. web/static/ - Dashboard HTML/JS
+4. web/handlers.scm - Request routing
+#+end_example
+
+*** ASSIGNED Success Criteria
+- [ ] Web server starts on port 8080
+- [ ] API returns change list
+- [ ] Dashboard displays changes
+- [ ] Real-time updates (or polling)
+
+** Agent 5: Integrations (gcf-a5)
+*** ASSIGNED Initial Setup
+- Create src/integrations/ directory
+- Mock GitHub webhook receiver
+- Create notification system
+- Build integration framework
+
+*** ASSIGNED Core Components
+#+begin_example
+Priority Order:
+1. integrations/github.scm - Webhook handler
+2. integrations/notifications.scm - Alert system
+3. integrations/mock-data.scm - Test payloads
+4. integrations/router.scm - Event routing
+#+end_example
+
+*** ASSIGNED Success Criteria
+- [ ] GitHub webhook creates change
+- [ ] Notifications logged (console is fine)
+- [ ] Integration events tracked
+- [ ] Demo shows integration working
+
+* Coordination Strategy
+
+** Communication Protocol
+
+Each agent will communicate status via:
+1. Git commits with descriptive messages
+2. Status files in their worktree
+3. Tmux pane output
+
+** Monitoring Plan
+
+I will monitor agents by:
+
+#+begin_src bash :tangle monitor-agents.sh
+#!/bin/sh
+# Monitor all agent progress
+
+check_agent() {
+    session=$1
+    agent=$2
+    echo "=== Agent $agent ($session) ==="
+
+    # Capture last 20 lines of output
+    tmux capture-pane -t $session -p | tail -20
+
+    # Check git status
+    echo "Git status:"
+    cd ../gcf-$agent && git status --short
+    echo ""
+}
+
+while true; do
+    clear
+    date
+    echo "AGENT STATUS MONITOR"
+    echo "===================="
+
+    check_agent gcf-a1 core-models
+    check_agent gcf-a2 mcp-server
+    check_agent gcf-a3 risk-engine
+    check_agent gcf-a4 web-interface
+    check_agent gcf-a5 integrations
+
+    sleep 30
+done
+#+end_src
+
+** Progress Tracking
+
+*** Hour-by-Hour Milestones
+
+| Time | A1 Core | A2 MCP | A3 Risk | A4 Web | A5 Integration |
+|------+---------+--------+---------+--------+----------------|
+| H+1 | Setup | Setup | Setup | Setup | Setup |
+| H+2 | Models | Discovery | Algorithm | Server | GitHub mock |
+| H+3 | State | Tools | Scoring | API | Notifications |
+| H+4 | Storage | Handlers | Rules | Dashboard | Events |
+| H+5 | DONE | DONE | DONE | DONE | DONE |
+| H+6 | Integration Testing - All Agents |
+
+*** Status Matrix
+
+| Component | Status | Blocker | Last Update |
+|-----------+--------+---------+-------------|
+| Core Models | ASSIGNED | None | |
+| MCP Server | ASSIGNED | None | |
+| Risk Engine | ASSIGNED | None | |
+| Web Interface | ASSIGNED | None | |
+| Integrations | ASSIGNED | None | |
+
+* Inter-Agent Dependencies
+
+#+begin_src mermaid
+graph LR
+    A1[Core Models] --> A2[MCP Server]
+    A1 --> A3[Risk Engine]
+    A1 --> A4[Web Interface]
+    A3 --> A2
+    A3 --> A4
+    A4 --> A5[Integrations]
+    A2 --> A4
+#+end_src
+
+Critical path:
+1. A1 must complete models first
+2. A2 and A3 can work in parallel after A1
+3. A4 needs A1 models to display
+4. A5 can work independently initially
+
+* Agent Instructions Template
+
+Each agent receives:
+
+#+begin_example
+You are Agent [N] working on [COMPONENT] for Guile ChangeFlow.
+
+Your worktree: [PATH]
+Your branch: [BRANCH]
+Your focus: [DESCRIPTION]
+
+Priority tasks:
+1. [TASK 1]
+2. [TASK 2]
+3. [TASK 3]
+
+Success criteria:
+- [CRITERION 1]
+- [CRITERION 2]
+
+You have 5 hours to complete your components.
+Commit frequently with clear messages.
+Create a STATUS.org file to track your progress.
+
+Dependencies:
+- You need: [WHAT FROM WHO]
+- Others need from you: [WHAT FOR WHO]
+
+Focus on demo-ready, not production-perfect.
+Mock external dependencies as needed.
+#+end_example
+
+* Coordination Commands
+
+** Check All Status
+#+begin_src bash
+for agent in a1 a2 a3 a4 a5; do
+    echo "=== Agent $agent ==="
+    tmux capture-pane -t gcf-$agent -p | tail -5
+done
+#+end_src
+
+** Send Command to All
+#+begin_src bash
+for agent in a1 a2 a3 a4 a5; do
+    tmux send-keys -t gcf-$agent "git status" C-m
+done
+#+end_src
+
+** Emergency Stop All
+#+begin_src bash
+for agent in a1 a2 a3 a4 a5; do
+    tmux send-keys -t gcf-$agent C-c
+done
+#+end_src
+
+* Risk Management
+
+** Potential Issues
+
+| Risk | Probability | Impact | Mitigation |
+|------+-------------+--------+------------|
+| Agent crashes | Medium | High | Monitor every 5 min |
+| Dependency block | High | High | Mock interfaces |
+| Integration fails | Medium | Medium | Test incrementally |
+| Time overrun | Low | High | Cut features |
+
+** Fallback Plan
+
+If an agent fails:
+1. Coordinator takes over that component
+2. Simplify to bare minimum
+3. Mock the component entirely
+4. Redistribute work to other agents
+
+* Success Metrics
+
+Demo is successful if:
+1. [ ] Claude can connect to MCP server
+2. [ ] Change request can be created
+3. [ ] Risk score is calculated
+4. [ ] Dashboard shows the change
+5. [ ] One integration works
+
+Minimum viable demo:
+- Just #1 and #2 working is enough to show concept
+
+* Post-Sprint Actions
+
+After agents complete:
+1. Merge all branches to integration branch
+2. Test full system integration
+3. Document what each agent built
+4. Identify gaps for manual completion
+5. Prepare demo script
+
+* Monitoring Dashboard
+
+#+begin_src bash :tangle dashboard.sh
+#!/bin/sh
+# Live monitoring dashboard
+
+while true; do
+    clear
+    echo "GUILE CHANGEFLOW - AGENT DASHBOARD"
+    echo "=================================="
+    date
+    echo ""
+
+    # Check git branches
+    echo "BRANCHES:"
+    git branch -a | grep feat/
+    echo ""
+
+    # Check worktrees
+    echo "WORKTREES:"
+    git worktree list
+    echo ""
+
+    # Check tmux sessions
+    echo "ACTIVE SESSIONS:"
+    tmux ls 2>/dev/null || echo "No sessions"
+    echo ""
+
+    # Recent commits
+    echo "RECENT COMMITS:"
+    git log --all --oneline -10
+    echo ""
+
+    sleep 10
+done
+#+end_src
+
+* Emergency Procedures
+
+** If Coordinator needs to intervene:
+
+1. Identify blocked agent:
+   #+begin_src bash
+   tmux attach -t gcf-a[N]
+   #+end_src
+
+2. Take over control:
+   - Send C-c to interrupt
+   - Type commands directly
+   - Or switch to manual mode
+
+3. Recovery:
+   #+begin_src bash
+   tmux send-keys -t gcf-a[N] "claude --dangerously-skip-permissions" C-m
+   #+end_src
+
+** Communication with agents:
+
+Agents should create STATUS.org with:
+- Current task
+- Blockers
+- Completed items
+- Next steps
+
+Coordinator checks every 15 minutes:
+#+begin_src bash
+for dir in gcf-*; do
+    if [ -f ../$dir/STATUS.org ]; then
+        echo "=== $dir ==="
+        head -20 ../$dir/STATUS.org
+    fi
+done
+#+end_src
