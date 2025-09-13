@@ -73,14 +73,8 @@ jobs:
       run: |
         echo "=== Checking all agent branches ==="
 
-        # List of agent branches to check
-        BRANCHES=(
-          "agent-001-core-system"
-          "agent-002-testing"
-          "agent-003-documentation"
-          "agent-004-integration"
-          "agent-005-deployment"
-        )
+        # Find all feat/* branches
+        BRANCHES=($(git branch -r | grep 'origin/feat/' | sed 's/.*origin\///' | sort))
 
         REPORT="# Branch Sync Status Report\n\n"
         REPORT+="Generated at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')\n\n"
@@ -171,13 +165,8 @@ jobs:
       run: |
         echo "=== Agent Branch Status (triggered by main push) ==="
 
-        BRANCHES=(
-          "agent-001-core-system"
-          "agent-002-testing"
-          "agent-003-documentation"
-          "agent-004-integration"
-          "agent-005-deployment"
-        )
+        # Find all feat/* branches
+        BRANCHES=($(git branch -r | grep 'origin/feat/' | sed 's/.*origin\///' | sort))
 
         BEHIND_BRANCHES=()
 
