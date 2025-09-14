@@ -55,7 +55,7 @@ const ERROR_HTML = `<!DOCTYPE html>
 </html>`;
 
 // Server Configuration
-const SERVER_VERSION = '1.3.4';
+const SERVER_VERSION = '1.4.0';
 
 // OAuth URLs
 const GITHUB_OAUTH_URL = 'https://github.com/login/oauth/authorize';
@@ -132,39 +132,120 @@ export default {
         });
 
       case '/authorize':
-        // OAuth Step 1: Handle authorization request from Claude.ai
-        // Claude.ai will open this in a popup/iframe after getting 401
-
+        // OAuth Step 1: Show consent page like Atlassian
         if (!env.GITHUB_CLIENT_ID) {
           return new Response('OAuth not configured - GITHUB_CLIENT_ID missing', { status: 500 });
         }
 
-        // Check if this is from Claude.ai (they send specific params)
+        // Get OAuth params from Claude.ai
         const responseType = url.searchParams.get('response_type');
         const clientId = url.searchParams.get('client_id');
         const redirectUri = url.searchParams.get('redirect_uri');
         const state = url.searchParams.get('state');
+        const codeChallenge = url.searchParams.get('code_challenge');
+        const codeChallengeMethod = url.searchParams.get('code_challenge_method');
+        const scope = url.searchParams.get('scope');
 
-        // If Claude.ai sent OAuth params, handle them
-        if (responseType || clientId) {
-          // Claude.ai is initiating OAuth - redirect to GitHub
-          const githubParams = new URLSearchParams({
-            client_id: env.GITHUB_CLIENT_ID,
-            redirect_uri: `${url.origin}/callback`,
-            scope: 'read:user',
-            state: state || crypto.randomUUID(),
-            // Store Claude's redirect URI in state
-            ...(redirectUri && { state: btoa(JSON.stringify({
-              claudeRedirect: redirectUri,
-              claudeState: state,
-              timestamp: Date.now()
-            }))})
+        // If OAuth params present, show consent page
+        if (responseType === 'code' && clientId && redirectUri) {
+          // Generate consent page HTML
+          const consentHTML = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Authorize ChangeFlow MCP</title>
+<style>
+body{font-family:system-ui;background:#0f172a;color:#e2e8f0;margin:0;padding:2rem;max-width:600px;margin:0 auto}
+h1{color:#3b82f6;font-size:1.5rem}
+.client-name{color:#10b981;font-weight:bold}
+.box{background:#1e293b;padding:1.5rem;border-radius:0.5rem;margin:1rem 0}
+.redirect-uri{font-family:monospace;color:#94a3b8;font-size:0.9rem;margin:0.5rem 0}
+.features{list-style:none;padding:0}
+.features li{padding:0.5rem 0;color:#cbd5e1}
+.features li:before{content:"✓ ";color:#10b981;font-weight:bold}
+.buttons{display:flex;gap:1rem;margin-top:2rem}
+button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;cursor:pointer;font-weight:500}
+.approve{background:#3b82f6;color:white}
+.approve:hover{background:#2563eb}
+.cancel{background:#475569;color:#e2e8f0}
+.cancel:hover{background:#334155}
+.logo{font-size:3rem;text-align:center;margin-bottom:1rem}
+</style>
+</head>
+<body>
+<div class="logo">🔄</div>
+<h1>ChangeFlow MCP Server</h1>
+<p><span class="client-name">Claude</span> is requesting access</p>
+
+<div class="box">
+<p>This MCP Client is requesting to be authorized on ChangeFlow MCP server. If you approve, you will be redirected to GitHub to complete authentication.</p>
+
+<p><strong>Details</strong></p>
+<p>Name: <span class="client-name">Claude</span></p>
+<p class="redirect-uri">Redirect URI: ${redirectUri}</p>
+</div>
+
+<div class="box">
+<p><strong>ChangeFlow will provide access to:</strong></p>
+<ul class="features">
+<li>ITIL 4 Change Management Tools</li>
+<li>Risk Assessment & Freeze Periods</li>
+<li>CAB Approval Workflows</li>
+<li>Audit Trail & Compliance</li>
+</ul>
+</div>
+
+<form method="POST" action="/authorize">
+<input type="hidden" name="response_type" value="${responseType}">
+<input type="hidden" name="client_id" value="${clientId}">
+<input type="hidden" name="redirect_uri" value="${redirectUri}">
+<input type="hidden" name="state" value="${state}">
+<input type="hidden" name="code_challenge" value="${codeChallenge || ''}">
+<input type="hidden" name="code_challenge_method" value="${codeChallengeMethod || ''}">
+<input type="hidden" name="scope" value="${scope || ''}">
+<div class="buttons">
+<button type="submit" name="action" value="approve" class="approve">Approve</button>
+<button type="submit" name="action" value="cancel" class="cancel">Cancel</button>
+</div>
+</form>
+</body>
+</html>`;
+
+          return new Response(consentHTML, {
+            headers: { 'Content-Type': 'text/html', ...corsHeaders }
           });
-
-          return Response.redirect(`${GITHUB_OAUTH_URL}?${githubParams}`, 302);
         }
 
-        // Direct browser access - show authorization page
+        // Handle form submission (POST)
+        if (request.method === 'POST') {
+          const formData = await request.formData();
+          const action = formData.get('action');
+
+          if (action === 'approve') {
+            // User approved - redirect to GitHub OAuth
+            const githubParams = new URLSearchParams({
+              client_id: env.GITHUB_CLIENT_ID,
+              redirect_uri: `${url.origin}/callback`,
+              scope: 'read:user',
+              state: btoa(JSON.stringify({
+                claudeRedirect: formData.get('redirect_uri'),
+                claudeState: formData.get('state'),
+                codeChallenge: formData.get('code_challenge'),
+                codeChallengeMethod: formData.get('code_challenge_method'),
+                timestamp: Date.now()
+              }))
+            });
+
+            return Response.redirect(`${GITHUB_OAUTH_URL}?${githubParams}`, 302);
+          } else {
+            // User cancelled
+            const cancelRedirect = formData.get('redirect_uri');
+            const cancelState = formData.get('state');
+            return Response.redirect(`${cancelRedirect}?error=access_denied&state=${cancelState}`, 302);
+          }
+        }
+
+        // Direct browser access - show simple redirect
         const authParams = new URLSearchParams({
           client_id: env.GITHUB_CLIENT_ID,
           redirect_uri: `${url.origin}/callback`,
