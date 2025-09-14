@@ -101,6 +101,7 @@ jobs:
       - name: Deploy to Staging
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           cd infra/cloudflare
           wrangler deploy --env staging
@@ -144,6 +145,7 @@ jobs:
       - name: Deploy to Production
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           cd infra/cloudflare
           wrangler deploy --env production
