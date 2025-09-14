@@ -3,8 +3,8 @@
  * No imports, no build system, everything inline
  */
 
-// Inline HTML for landing page
-const LANDING_HTML = `<!DOCTYPE html>
+// Inline HTML for landing page (as function to use SERVER_VERSION)
+const getLandingHTML = () => `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
@@ -17,7 +17,7 @@ const LANDING_HTML = `<!DOCTYPE html>
 </a>
 <h1>🔄 ChangeFlow MCP Server</h1>
 <p>ITIL 4 Change Management for AI</p>
-<p class="version">v1.3.0 - Now with SSE Support!</p>
+<p class="version">v${SERVER_VERSION} - OAuth + SSE Ready!</p>
 <p><a href="/authorize">🔑 Authorize with GitHub</a></p>
 </body>
 </html>`;
@@ -53,6 +53,9 @@ const ERROR_HTML = `<!DOCTYPE html>
 <p><a href="/" style="color:#3b82f6">Try Again</a></p>
 </body>
 </html>`;
+
+// Server Configuration
+const SERVER_VERSION = '1.3.2';
 
 // OAuth URLs
 const GITHUB_OAUTH_URL = 'https://github.com/login/oauth/authorize';
@@ -111,7 +114,7 @@ export default {
     switch (path) {
       case '/':
         // Landing page
-        return new Response(LANDING_HTML, {
+        return new Response(getLandingHTML(), {
           headers: { 'Content-Type': 'text/html', ...corsHeaders }
         });
 
@@ -120,7 +123,7 @@ export default {
         return new Response(JSON.stringify({
           status: 'healthy',
           service: 'Guile ChangeFlow MCP Server',
-          version: '1.2.0',
+          version: SERVER_VERSION,
           timestamp: new Date().toISOString(),
           environment: env.ENVIRONMENT || 'production',
           capabilities: ['mcp', 'change_management', 'risk_assessment', 'oauth']
@@ -216,7 +219,7 @@ export default {
           return new Response(JSON.stringify({
             mcp_version: '1.0.0',
             server_name: 'guile-changeflow',
-            server_version: '1.3.1',
+            server_version: SERVER_VERSION,
             description: 'ITIL 4-compliant change management system with automatic risk assessment',
             capabilities: {
               tools: true,
@@ -254,7 +257,7 @@ export default {
                   },
                   serverInfo: {
                     name: 'guile-changeflow',
-                    version: '1.3.1'
+                    version: SERVER_VERSION
                   }
                 }
               }), {
@@ -470,7 +473,7 @@ export default {
 
         // For authenticated requests (has session or Bearer token), return SSE stream
         if (request.method === 'GET') {
-          return new Response('data: {"type":"ready","version":"1.3.0"}\n\n', {
+          return new Response(`data: {"type":"ready","version":"${SERVER_VERSION}"}\n\n`, {
             headers: {
               'Content-Type': 'text/event-stream',
               'Cache-Control': 'no-cache',
@@ -510,7 +513,7 @@ export default {
                       },
                       serverInfo: {
                         name: 'guile-changeflow',
-                        version: '1.3.1'
+                        version: SERVER_VERSION
                       }
                     }
                   };
