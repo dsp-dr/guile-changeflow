@@ -1,0 +1,247 @@
+#+TITLE: Claude.ai Custom Connector Setup for Guile ChangeFlow
+#+DATE: 2025-09-14
+#+AUTHOR: dsp-dr
+#+LINK: https://support.anthropic.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp
+
+* Overview
+
+This guide shows how to connect Claude.ai to our ITIL Change Management MCP server using the new Custom Connectors feature (Remote MCP).
+
+* Prerequisites
+
+- Claude.ai account with Custom Connectors enabled
+- Production API running at https://api.changeflow.us
+
+* Setup Instructions
+
+** Step 1: Navigate to Claude Settings
+1. Go to https://claude.ai
+2. Click on your profile/settings
+3. Navigate to: https://claude.ai/settings/connectors
+4. Click "Add custom connector"
+
+** Step 2: Configure the MCP Server Connection
+
+Fill in the following details:
+
+*** Connector Name
+#+BEGIN_EXAMPLE
+Guile ChangeFlow ITIL
+#+END_EXAMPLE
+
+*** Server URL
+#+BEGIN_EXAMPLE
+https://api.changeflow.us
+#+END_EXAMPLE
+
+*** Description (Optional)
+#+BEGIN_EXAMPLE
+ITIL 4 Change Management system with risk assessment and approval workflows
+#+END_EXAMPLE
+
+*** Authentication (if needed)
+- Currently: None required
+- Future: GitHub OAuth token
+
+** Step 3: Test the Connection
+
+Once added, Claude should discover the following tools:
+
+1. *create_change_request* - Create a new change with automatic risk assessment
+2. *get_change_request* - Retrieve a specific change request by ID
+3. *list_change_requests* - List all change requests with optional filtering
+4. *assess_risk* - Perform risk assessment on a proposed change
+
+** Step 4: Verify in Chat
+
+Start a new chat and try:
+#+BEGIN_EXAMPLE
+"What ITIL change management tools do you have available?"
+#+END_EXAMPLE
+
+Claude should respond with the 4 available tools from our MCP server.
+
+* Demo Scenarios
+
+** Scenario 1: Emergency Production Change
+#+BEGIN_EXAMPLE
+User: "I need to create an emergency change request for a critical security patch in production"
+
+Expected behavior:
+- Claude uses create_change_request tool
+- Sets urgency: "emergency"
+- Includes "security" and "production" in description
+- Risk score: 85+ (HIGH)
+- Response: "Created CHG-2025-XXX with HIGH risk (score: 85). CAB review required immediately."
+#+END_EXAMPLE
+
+** Scenario 2: Low Risk Development Change
+#+BEGIN_EXAMPLE
+User: "Create a change request for updating README documentation"
+
+Expected behavior:
+- Claude uses create_change_request tool
+- Sets urgency: "low"
+- Systems: ["documentation"]
+- Risk score: <30 (LOW)
+- Response: "Created CHG-2025-XXX with LOW risk (score: 20). Auto-approved."
+#+END_EXAMPLE
+
+** Scenario 3: Query Existing Change
+#+BEGIN_EXAMPLE
+User: "What's the status of change CHG-2025-001?"
+
+Expected behavior:
+- Claude uses get_change_request tool
+- Retrieves change details
+- Shows: ID, title, status, risk score, approval requirements
+#+END_EXAMPLE
+
+** Scenario 4: Risk Assessment
+#+BEGIN_EXAMPLE
+User: "What would be the risk score for migrating our payment processing system?"
+
+Expected behavior:
+- Claude uses assess_risk tool
+- Identifies keywords: "payment", "system"
+- Calculates risk score: 60-80 (MEDIUM-HIGH)
+- Recommends: "CAB review required due to payment system impact"
+#+END_EXAMPLE
+
+* MCP Protocol Details
+
+** Discovery Endpoints
+| Endpoint | Purpose | Response |
+|----------+---------+----------|
+| GET /mcp | Protocol info | Version, capabilities |
+| GET /mcp/tools | List tools | Array of tool definitions |
+
+** Tool Invocation
+#+BEGIN_SRC http
+POST /mcp/tools/invoke
+Content-Type: application/json
+
+{
+  "tool": "create_change_request",
+  "params": {
+    "title": "Update production database",
+    "description": "Upgrade PostgreSQL to version 15",
+    "systems": ["database", "production"],
+    "urgency": "normal"
+  }
+}
+#+END_SRC
+
+** Response Format
+#+BEGIN_SRC json
+{
+  "id": "CHG-2025-001",
+  "title": "Update production database",
+  "risk_score": 70,
+  "risk_category": "high",
+  "status": "submitted",
+  "created_at": "2025-09-14T12:00:00Z",
+  "recommendation": "CAB review required"
+}
+#+END_SRC
+
+* Risk Scoring Logic (Mock Data)
+
+| Factor | Condition | Points |
+|--------+-----------+--------|
+| Base | Always | 10 |
+| Production | Keywords: "production", "prod" | +40 |
+| Security | Keywords: "security", "auth" | +30 |
+| Payment | Keywords: "payment", "financial" | +20 |
+| Emergency | urgency = "emergency" | +25 |
+| Systems | Per affected system | +10 |
+
+| Total Score | Risk Level | Action |
+|-------------+------------+--------|
+| 0-29 | LOW | Auto-approve |
+| 30-69 | MEDIUM | Single approval |
+| 70-100 | HIGH | CAB review |
+
+* Troubleshooting
+
+** Connection Issues
+| Problem | Solution |
+|---------+----------|
+| "Cannot connect to server" | Verify https://api.changeflow.us/health returns 200 |
+| "No tools available" | Check https://api.changeflow.us/mcp/tools |
+| "Tool invocation failed" | Verify POST to /mcp/tools/invoke with correct format |
+
+** Common Errors
+#+BEGIN_SRC json
+// Missing tool name
+{"error": "Tool name required"}
+
+// Invalid tool
+{"error": "Unknown tool: <name>"}
+
+// Missing required params
+{"error": "Missing required parameter: title"}
+#+END_SRC
+
+* Testing Without Claude.ai
+
+** Quick Test Script
+#+BEGIN_SRC bash
+#!/bin/bash
+# test-mcp-connector.sh
+
+echo "Testing MCP Server Connection..."
+
+# 1. Check health
+echo -n "Health check: "
+curl -s https://api.changeflow.us/health | jq -r '.status'
+
+# 2. Get tools
+echo -n "Available tools: "
+curl -s https://api.changeflow.us/mcp/tools | jq '. | length'
+
+# 3. Create test change
+echo "Creating test change..."
+RESULT=$(curl -s -X POST https://api.changeflow.us/mcp/tools/invoke \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tool": "create_change_request",
+    "params": {
+      "title": "Connector Test",
+      "description": "Testing MCP connector",
+      "systems": ["test"],
+      "urgency": "low"
+    }
+  }')
+
+echo "Created: $(echo $RESULT | jq -r '.id') with risk score: $(echo $RESULT | jq -r '.risk_score')"
+#+END_SRC
+
+* Important Notes
+
+⚠️ **This is bleeding-edge functionality** - Custom Connectors using Remote MCP is very new
+
+⚠️ **Data is not persistent** - Changes are stored in memory and reset on redeploy
+
+⚠️ **Mock data only** - Risk scores and approvals are simulated for demo purposes
+
+✅ **Ready for demo** - All endpoints are working and can be tested immediately
+
+* Demo Video Script
+
+1. Show Claude.ai settings page
+2. Add custom connector with our URL
+3. Start new conversation
+4. Ask: "What change management tools are available?"
+5. Create a high-risk production change
+6. Create a low-risk documentation change
+7. Query the status of created changes
+8. Show risk assessment for different scenarios
+9. Demonstrate the automatic risk categorization
+
+* Reference Links
+
+- Claude Custom Connectors Guide: https://support.anthropic.com/en/articles/11175166
+- MCP Protocol Specification: https://modelcontextprotocol.io
+- Our API Documentation: https://api.changeflow.us/mcp
+- GitHub Repository: https://github.com/dsp-dr/guile-changeflow
