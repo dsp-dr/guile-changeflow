@@ -95,7 +95,7 @@ lint-scheme:
 # Agent management
 agents:
 	@echo "=== Agent Worktrees ==="
-	@git worktree list | grep -v main
+	@git worktree list | grep -v main || echo "No agent worktrees active"
 
 monitor:
 	@./scripts/monitor-agents.sh
@@ -312,3 +312,22 @@ deploy: infra/cloudflare/worker.js
 	@echo "=== Deploying to Cloudflare Workers ==="
 	@cd infra/cloudflare && wrangler publish
 	@echo "✅ Deployment complete"
+
+# Production sanity check
+check-prod:
+	@echo "=== Production Sanity Check ==="
+	@curl -s https://api.changeflow.us/health | jq -r 'if .status == "healthy" then "✅ Production: HEALTHY" else "❌ Production: UNHEALTHY" end'
+	@echo "Service: $$(curl -s https://api.changeflow.us/health | jq -r '.service')"
+	@echo "Version: $$(curl -s https://api.changeflow.us/health | jq -r '.version')"
+	@echo "Environment: $$(curl -s https://api.changeflow.us/health | jq -r '.environment')"
+
+# Staging sanity check
+check-staging:
+	@echo "=== Staging Sanity Check ==="
+	@curl -s https://guile-changeflow-staging.jasonwalsh.workers.dev/health | jq -r 'if .status == "healthy" then "✅ Staging: HEALTHY" else "❌ Staging: UNHEALTHY" end'
+	@echo "Service: $$(curl -s https://guile-changeflow-staging.jasonwalsh.workers.dev/health | jq -r '.service')"
+	@echo "Version: $$(curl -s https://guile-changeflow-staging.jasonwalsh.workers.dev/health | jq -r '.version')"
+
+# Quick health check for both environments
+check: check-staging check-prod
+	@echo "=== All Environments Checked ==="

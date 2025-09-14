@@ -1,0 +1,13 @@
+# Git attributes for Guile ChangeFlow
+
+# Mark generated files
+infra/cloudflare/worker.js linguist-generated=true
+
+# Documentation
+*.org linguist-documentation
+*.md linguist-documentation
+
+# Detect language types
+*.scm linguist-language=Scheme
+*.ss linguist-language=Scheme
+*.js linguist-language=JavaScript

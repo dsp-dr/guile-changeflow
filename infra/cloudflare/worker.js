@@ -17,8 +17,138 @@ const RISK_FACTORS = {
 // Change request storage (in-memory for demo, use KV for production)
 const changeRequests = new Map();
 
+// Audit trail storage
+const auditTrail = [];
+
+// Freeze periods configuration - VERY aggressive holiday schedule!
+const freezePeriods = [
+  // Major holiday freezes
+  { start: '2025-12-20', end: '2026-01-05', name: 'Holiday Season Freeze', type: 'full' },
+  { start: '2025-11-01', end: '2025-12-02', name: 'Pre-Cyber Monday Freeze', type: 'partial' }, // 3 weeks before Cyber Monday
+  { start: '2025-11-24', end: '2025-12-02', name: 'Black Friday/Cyber Monday', type: 'full' },
+  { start: '2025-11-25', end: '2025-11-30', name: 'Thanksgiving Weekend', type: 'full' },
+  { start: '2025-07-03', end: '2025-07-06', name: 'Independence Day Weekend', type: 'full' },
+  { start: '2025-05-23', end: '2025-05-26', name: 'Memorial Day Weekend', type: 'full' },
+  { start: '2025-09-01', end: '2025-09-01', name: 'Labor Day', type: 'full' },
+  { start: '2025-02-14', end: '2025-02-14', name: 'Valentine\'s Day', type: 'partial' },
+  { start: '2025-03-17', end: '2025-03-17', name: 'St. Patrick\'s Day', type: 'partial' },
+  { start: '2025-04-18', end: '2025-04-21', name: 'Easter Weekend', type: 'full' },
+  { start: '2025-10-31', end: '2025-10-31', name: 'Halloween', type: 'partial' },
+  { start: '2025-01-01', end: '2025-01-02', name: 'New Year', type: 'full' },
+  { start: '2025-01-20', end: '2025-01-20', name: 'MLK Jr. Day', type: 'partial' },
+  { start: '2025-02-17', end: '2025-02-17', name: 'Presidents Day', type: 'partial' },
+  { start: '2025-05-05', end: '2025-05-05', name: 'Cinco de Mayo', type: 'partial' },
+  { start: '2025-06-19', end: '2025-06-19', name: 'Juneteenth', type: 'partial' },
+  { start: '2025-10-13', end: '2025-10-13', name: 'Columbus Day', type: 'partial' },
+  { start: '2025-11-11', end: '2025-11-11', name: 'Veterans Day', type: 'partial' },
+  // Super Bowl Sunday
+  { start: '2026-02-08', end: '2026-02-08', name: 'Super Bowl Sunday', type: 'full' },
+  // Prime Day (estimated)
+  { start: '2025-07-15', end: '2025-07-16', name: 'Prime Day', type: 'partial' }
+];
+
+// CAB approval states
+const approvalStates = new Map();
+
 // Sampling configuration for Workers Logs
 const LOG_SAMPLING_RATE = 0.1; // Log 10% of requests
+
+/**
+ * Log an audit event
+ */
+function logAuditEvent(changeId, action, details, performedBy = 'system') {
+  const event = {
+    timestamp: new Date().toISOString(),
+    change_id: changeId,
+    action: action,
+    details: details,
+    performed_by: performedBy
+  };
+  auditTrail.push(event);
+
+  // Keep audit trail to 1000 entries max
+  if (auditTrail.length > 1000) {
+    auditTrail.shift();
+  }
+
+  return event;
+}
+
+/**
+ * Check if a date falls within a freeze period
+ */
+function checkFreezePeriod(dateStr, changeType = 'standard') {
+  const checkDate = new Date(dateStr);
+  const freezesOnDate = [];
+
+  for (const period of freezePeriods) {
+    const start = new Date(period.start);
+    const end = new Date(period.end);
+
+    if (checkDate >= start && checkDate <= end) {
+      freezesOnDate.push(period);
+    }
+  }
+
+  if (freezesOnDate.length === 0) {
+    return {
+      frozen: false,
+      message: 'No freeze period active for this date',
+      next_freeze: getNextFreeze(checkDate)
+    };
+  }
+
+  // Check for full freezes
+  const fullFreezes = freezesOnDate.filter(f => f.type === 'full');
+  if (fullFreezes.length > 0) {
+    // Emergency changes can sometimes bypass
+    if (changeType === 'emergency') {
+      return {
+        frozen: true,
+        override_possible: true,
+        periods: fullFreezes,
+        message: `FULL FREEZE: ${fullFreezes.map(f => f.name).join(', ')} - Emergency override requires VP approval`,
+        bypass_allowed: false
+      };
+    }
+
+    return {
+      frozen: true,
+      periods: fullFreezes,
+      message: `FULL FREEZE: ${fullFreezes.map(f => f.name).join(', ')} - No changes allowed`,
+      bypass_allowed: false
+    };
+  }
+
+  // Only partial freezes
+  if (changeType === 'emergency') {
+    return {
+      frozen: false,
+      override: true,
+      periods: freezesOnDate,
+      message: `Emergency override allowed during: ${freezesOnDate.map(f => f.name).join(', ')}`
+    };
+  }
+
+  return {
+    frozen: true,
+    periods: freezesOnDate,
+    message: `PARTIAL FREEZE: ${freezesOnDate.map(f => f.name).join(', ')} - Standard changes blocked`,
+    bypass_allowed: changeType === 'emergency'
+  };
+}
+
+/**
+ * Get next freeze period after a given date
+ */
+function getNextFreeze(date) {
+  const future = freezePeriods
+    .map(p => ({ ...p, start: new Date(p.start) }))
+    .filter(p => p.start > date)
+    .sort((a, b) => a.start - b.start);
+
+  return future[0] || null;
+}
 
 /**
  * Calculate risk score based on change details
@@ -238,6 +368,79 @@ export default {
                 },
                 required: ['title', 'description']
               }
+            },
+            {
+              name: 'check_freeze_period',
+              description: 'Check if a proposed date falls within a change freeze period',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  proposed_date: {
+                    type: 'string',
+                    description: 'Proposed change date (YYYY-MM-DD format)'
+                  },
+                  change_type: {
+                    type: 'string',
+                    enum: ['standard', 'emergency', 'normal'],
+                    description: 'Type of change'
+                  }
+                },
+                required: ['proposed_date']
+              }
+            },
+            {
+              name: 'get_approval_status',
+              description: 'Get the approval status for a change request',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  change_id: {
+                    type: 'string',
+                    description: 'Change request ID'
+                  }
+                },
+                required: ['change_id']
+              }
+            },
+            {
+              name: 'emergency_override',
+              description: 'Apply emergency override to bypass standard approval process',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  change_id: {
+                    type: 'string',
+                    description: 'Change request ID'
+                  },
+                  justification: {
+                    type: 'string',
+                    description: 'Justification for emergency override'
+                  },
+                  authorized_by: {
+                    type: 'string',
+                    description: 'Person authorizing the override'
+                  }
+                },
+                required: ['change_id', 'justification', 'authorized_by']
+              }
+            },
+            {
+              name: 'audit_trail',
+              description: 'Get audit trail for a change request or all recent activities',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  change_id: {
+                    type: 'string',
+                    description: 'Optional: specific change request ID'
+                  },
+                  limit: {
+                    type: 'number',
+                    description: 'Maximum number of audit entries to return',
+                    default: 50
+                  }
+                }
+              }
             }
           ]), { headers });
           break;
@@ -286,11 +489,23 @@ export default {
 
               changeRequests.set(changeId, changeRequest);
 
+              // Log audit event
+              logAuditEvent(changeId, 'CHANGE_CREATED', {
+                title: params.title,
+                risk_score: riskScore,
+                risk_category: getRiskCategory(riskScore)
+              }, 'claude-ai');
+
               // Auto-approve low risk changes
               if (riskScore < 30) {
                 changeRequest.status = 'approved';
                 changeRequest.approved_at = new Date().toISOString();
                 changeRequest.approval_note = 'Auto-approved due to low risk';
+
+                logAuditEvent(changeId, 'AUTO_APPROVED', {
+                  risk_score: riskScore,
+                  reason: 'Low risk score'
+                }, 'system');
               }
 
               result = changeRequest;
@@ -348,6 +563,62 @@ export default {
               };
               break;
 
+            case 'check_freeze_period':
+              result = checkFreezePeriod(params.proposed_date, params.change_type);
+              break;
+
+            case 'get_approval_status':
+              const approvalState = approvalStates.get(params.change_id) || {
+                approvers: [],
+                status: 'pending',
+                required_approvals: 2
+              };
+              result = {
+                change_id: params.change_id,
+                approval_status: approvalState.status,
+                approvers: approvalState.approvers,
+                required_approvals: approvalState.required_approvals,
+                message: `${approvalState.approvers.length}/${approvalState.required_approvals} approvals received`
+              };
+              break;
+
+            case 'emergency_override':
+              const targetChange = changeRequests.get(params.change_id);
+              if (!targetChange) {
+                result = { error: 'Change request not found' };
+              } else {
+                targetChange.status = 'approved';
+                targetChange.emergency_override = true;
+                targetChange.override_justification = params.justification;
+                targetChange.override_authorized_by = params.authorized_by;
+                targetChange.override_at = new Date().toISOString();
+
+                logAuditEvent(params.change_id, 'EMERGENCY_OVERRIDE', {
+                  justification: params.justification,
+                  previous_status: targetChange.status
+                }, params.authorized_by);
+
+                result = {
+                  success: true,
+                  change_id: params.change_id,
+                  message: 'Emergency override applied successfully',
+                  warning: 'This action has been logged for audit purposes'
+                };
+              }
+              break;
+
+            case 'audit_trail':
+              let auditEntries = auditTrail;
+              if (params.change_id) {
+                auditEntries = auditTrail.filter(e => e.change_id === params.change_id);
+              }
+              const limit = params.limit || 50;
+              result = {
+                count: auditEntries.length,
+                entries: auditEntries.slice(-limit).reverse()
+              };
+              break;
+
             default:
               result = {
                 error: `Unknown tool: ${toolName}`,
@@ -355,7 +626,11 @@ export default {
                   'create_change_request',
                   'get_change_request',
                   'list_change_requests',
-                  'assess_risk'
+                  'assess_risk',
+                  'check_freeze_period',
+                  'get_approval_status',
+                  'emergency_override',
+                  'audit_trail'
                 ]
               };
           }

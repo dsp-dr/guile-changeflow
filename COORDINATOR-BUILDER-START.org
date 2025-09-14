@@ -1,0 +1,90 @@
+#+TITLE: Coordinator & Builder Agent - MCP Server Implementation
+#+DATE: 2025-09-14
+#+AUTHOR: dsp-dr
+
+* Your Mission
+
+Implement the core MCP server with full ITIL tools while the main agent works on OAuth/remote MCP infrastructure.
+
+* What's Ready for You
+
+** Local MCP Server
+- Location: scripts/mcp-local-server.js
+- Port: 8427
+- Status: Basic placeholder ready for your implementation
+
+** Experiment 011
+- Location: experiments/011-mcp-oauth-routes/mcp-server.js
+- Simple hello_world tool as placeholder
+- Replace with full 8 ITIL tools
+
+** Testing Tools
+- MCP Inspector: npx @modelcontextprotocol/inspector@latest
+- Connect to: http://localhost:8427/sse
+- Emacs: mcp.el package if you want to test there
+
+* What You Need to Build
+
+** 8 ITIL Tools
+1. create_change_request
+2. get_change_request
+3. list_change_requests
+4. assess_risk
+5. check_freeze_period
+6. get_approval_status
+7. emergency_override
+8. audit_trail
+
+** MCP Protocol Compliance
+- SSE connection handling
+- JSON-RPC 2.0 format
+- Tool discovery
+- Error handling
+
+* Testing Commands
+
+#+BEGIN_SRC bash
+# Start local server
+node scripts/mcp-local-server.js
+
+# In another terminal, run inspector
+npx @modelcontextprotocol/inspector@latest
+
+# Connect to http://localhost:8427/sse
+#+END_SRC
+
+* Key Files to Modify
+
+1. scripts/mcp-local-server.js - Main local server
+2. experiments/011-mcp-oauth-routes/mcp-server.js - OAuth experiment version
+
+* Don't Worry About
+
+- OAuth implementation (main agent handles this)
+- Cloudflare deployment
+- Production infrastructure
+- GitHub integration
+
+* Success Criteria
+
+- [ ] MCP Inspector can connect
+- [ ] All 8 tools discoverable
+- [ ] Tools return mock ITIL data
+- [ ] Risk scoring works with keywords
+- [ ] SSE connection stable
+
+* Quick Start
+
+#+BEGIN_SRC bash
+# Check current status
+gmake agents
+
+# Start working
+git worktree add ../gcf-mcp-implementation feat/mcp-implementation
+cd ../gcf-mcp-implementation
+
+# Start local server
+node scripts/mcp-local-server.js
+#+END_SRC
+
+The infrastructure is ready - focus on making an awesome MCP server!
