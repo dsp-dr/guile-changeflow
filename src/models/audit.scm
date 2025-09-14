@@ -35,7 +35,7 @@
 (define (make-audit-entry id change-id event-type old-value new-value user timestamp details)
   (%make-audit-entry id change-id event-type old-value new-value user timestamp details))
 
-(define (create-audit-entry change-id event-type
+(define* (create-audit-entry change-id event-type
                            #:key
                            (old-value #f)
                            (new-value #f)

@@ -48,7 +48,7 @@
   (%make-change-request id title description risk-score status created-at
                         updated-at #f '() '() '() 'medium 'normal 'standard))
 
-(define (create-change-request id title description
+(define* (create-change-request id title description
                               #:key
                               (risk-score 0)
                               (status 'submitted)

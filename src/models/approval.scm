@@ -34,7 +34,7 @@
 (define (make-approval id change-id approver decision comments created-at)
   (%make-approval id change-id approver decision comments created-at))
 
-(define (create-approval change-id approver
+(define* (create-approval change-id approver
                         #:key
                         (decision 'pending)
                         (comments ""))

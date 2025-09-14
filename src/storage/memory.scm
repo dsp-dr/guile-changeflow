@@ -117,7 +117,7 @@
   "Get all approvals in the system"
   (apply append (hash-map->list (lambda (k v) v) approvals-table)))
 
-(define (create-and-store-change! title description
+(define* (create-and-store-change! title description
                                  #:key
                                  (risk-score 0)
                                  (status 'submitted)
