@@ -34,7 +34,7 @@ const SUCCESS_HTML = `<!DOCTYPE html>
 <h1>✅ Authorization Successful!</h1>
 <p>You can now use ChangeFlow MCP with Claude.ai</p>
 <p>Add this URL to Claude.ai Custom Connectors:</p>
-<code>https://mcp.changeflow.us/sse</code>
+<code>https://mcp.changeflow.us/v1/sse</code>
 <p><a href="https://claude.ai/settings/connectors" style="color:#3b82f6">Open Claude.ai Settings</a></p>
 </body>
 </html>`;
@@ -206,7 +206,7 @@ export default {
               notifications: true
             },
             endpoints: {
-              sse: '/sse',
+              sse: '/v1/sse',
               legacy: '/mcp'
             }
           }), {
@@ -394,7 +394,7 @@ export default {
         }
         break;
 
-      case '/sse':
+      case '/v1/sse':
         // SSE endpoint for Claude.ai integration
         // Check authentication
         const authHeader = request.headers.get('Authorization');
