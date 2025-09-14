@@ -238,9 +238,13 @@ export default {
     const startTime = Date.now();
     const url = new URL(request.url);
 
-    // CORS headers for Claude.ai
+    // CORS headers for Claude.ai and Cloudflare AI Playground
+    const origin = request.headers.get('origin');
+    const allowedOrigins = ['https://claude.ai', 'https://playground.ai.cloudflare.com'];
+    const corsOrigin = allowedOrigins.includes(origin) ? origin : 'https://claude.ai';
+
     const headers = {
-      'Access-Control-Allow-Origin': 'https://claude.ai',
+      'Access-Control-Allow-Origin': corsOrigin,
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization, anthropic-version',
       'Content-Type': 'application/json'
