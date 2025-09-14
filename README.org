@@ -29,14 +29,34 @@ ChangeFlow is a comprehensive ITIL 4 compliant change management system designed
 
 ** MCP Integration
 The system exposes 8 ITIL-compliant tools via JSON-RPC 2.0:
-- =create_change_request= - Submit new RFCs
-- =approve_change= - CAB approval processing
-- =assess_risk= - Automated risk scoring
-- =schedule_change= - Calendar management
-- =update_status= - State transitions
-- =get_change_details= - Query change information
-- =list_pending_changes= - Dashboard views
-- =emergency_override= - Break-glass procedures
+- =create_change_request= - Submit new RFCs with auto risk assessment
+- =get_change_request= - Query change information by ID
+- =list_change_requests= - Dashboard views with filtering
+- =assess_risk= - Automated risk scoring for proposed changes
+- =check_freeze_period= - Verify if date is in change freeze
+- =get_approval_status= - Check CAB approval progress
+- =emergency_override= - Break-glass procedures with audit
+- =audit_trail= - View change history and compliance logs
+
+* Testing
+
+** Cloudflare AI Playground
+Test the MCP server using the Cloudflare AI Playground:
+
+1. Visit [[https://playground.ai.cloudflare.com/][playground.ai.cloudflare.com]]
+2. In the MCP Server URL field, enter: =https://api.changeflow.us/mcp=
+3. The playground will automatically discover all 8 ITIL tools
+4. Try commands like:
+   - "Create a change request for database upgrade"
+   - "Check if December 25th is in a freeze period"
+   - "Show the audit trail"
+
+** MCP Inspector
+For detailed testing with the MCP Inspector:
+#+BEGIN_SRC bash
+npx @modelcontextprotocol/inspector@latest
+# Connect to: https://api.changeflow.us/sse
+#+END_SRC
 
 * Quick Start
 
