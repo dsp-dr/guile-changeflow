@@ -302,16 +302,28 @@ test: test-guile test-mcp
 	@echo "=== All tests completed ==="
 
 # Build target - only copy worker.js, keep wrangler.toml in infra
+build: infra/cloudflare/worker.js
+
 infra/cloudflare/worker.js: mcp-server/changeflow-mcp.js
-	@echo "📦 Copying MCP server to infra/cloudflare/worker.js..."
+	@echo "📦 Building MCP server to infra/cloudflare/worker.js..."
 	@cp mcp-server/changeflow-mcp.js infra/cloudflare/worker.js
-	@echo "✅ Copy complete"
+	@echo "✅ Build complete"
 
 # Deploy to Cloudflare (depends on worker.js being up to date)
-deploy: infra/cloudflare/worker.js
+deploy: build
 	@echo "=== Deploying to Cloudflare Workers ==="
-	@cd infra/cloudflare && wrangler publish
+	@${MAKE} -C infra/cloudflare deploy
 	@echo "✅ Deployment complete"
+
+deploy-staging: build
+	@echo "=== Deploying to Cloudflare Workers (Staging) ==="
+	@${MAKE} -C infra/cloudflare deploy-staging
+	@echo "✅ Staging deployment complete"
+
+deploy-production: build
+	@echo "=== Deploying to Cloudflare Workers (Production) ==="
+	@${MAKE} -C infra/cloudflare deploy-production
+	@echo "✅ Production deployment complete"
 
 # Production sanity check
 check-prod:
@@ -331,3 +343,13 @@ check-staging:
 # Quick health check for both environments
 check: check-staging check-prod
 	@echo "=== All Environments Checked ==="
+
+# OAuth Experiment Deployment
+oauth-deploy:
+	@echo "=== Deploying OAuth Experiment ==="
+	@${MAKE} -C experiments/011-mcp-oauth-routes deploy
+	@echo "✅ OAuth experiment deployed"
+
+oauth-test:
+	@echo "=== Testing OAuth Locally ==="
+	@${MAKE} -C experiments/011-mcp-oauth-routes test

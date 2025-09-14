@@ -1,0 +1,195 @@
+#+TITLE: Complete OAuth Setup Guide
+#+DATE: 2025-09-14
+#+AUTHOR: dsp-dr
+
+* Overview
+
+This guide walks through setting up GitHub OAuth for the MCP server in three places:
+1. GitHub OAuth App configuration
+2. GitHub repository secrets
+3. Cloudflare Worker secrets
+
+* Step 1: Create GitHub OAuth App
+
+** Navigate to GitHub Settings
+1. Go to: https://github.com/settings/developers
+2. Click "OAuth Apps" (left sidebar)
+3. Click "New OAuth App" (green button)
+
+** Fill in the Application Details
+#+BEGIN_SRC
+Application name:     ChangeFlow MCP Server
+Homepage URL:         https://api.changeflow.us
+Authorization callback URL: https://api.changeflow.us/callback
+Application description: ITIL 4 Change Management with MCP Protocol
+#+END_SRC
+
+** Save Credentials
+1. Click "Register application"
+2. You'll see:
+   - Client ID: (looks like: Ov23li8xyzABC123DEF)
+   - Click "Generate a new client secret"
+   - Client Secret: (looks like: ghp_abcdef123456789...)
+3. ⚠️ SAVE THESE NOW - the secret won't be shown again!
+
+* Step 2: Add to GitHub Repository Secrets
+
+** Navigate to Repository Settings
+1. Go to: https://github.com/dsp-dr/guile-changeflow/settings/secrets/actions
+2. Click "New repository secret"
+
+** Add Client ID
+#+BEGIN_SRC
+Name: GITHUB_OAUTH_CLIENT_ID
+Secret: [paste your Client ID from Step 1]
+#+END_SRC
+Click "Add secret"
+
+** Add Client Secret
+#+BEGIN_SRC
+Name: GITHUB_OAUTH_CLIENT_SECRET
+Secret: [paste your Client Secret from Step 1]
+#+END_SRC
+Click "Add secret"
+
+* Step 3: Add to Cloudflare Dashboard
+
+** Navigate to Cloudflare Workers
+1. Go to: https://dash.cloudflare.com
+2. Select your account
+3. Click "Workers & Pages" in left sidebar
+4. Find "guile-changeflow-prod" worker
+5. Click on it
+
+** Add Environment Variables
+1. Click "Settings" tab
+2. Click "Variables and Secrets"
+3. Under "Environment Variables", click "Add"
+
+** Add Client ID
+#+BEGIN_SRC
+Variable name: GITHUB_CLIENT_ID
+Value: [paste your Client ID]
+Type: Text (not secret for client ID)
+#+END_SRC
+Click "Save"
+
+** Add Client Secret
+#+BEGIN_SRC
+Variable name: GITHUB_CLIENT_SECRET
+Value: [paste your Client Secret]
+Type: Secret (click "Encrypt" button)
+#+END_SRC
+Click "Save"
+
+** Also Add to Staging (Optional)
+Repeat for "guile-changeflow-staging" worker if testing OAuth in staging
+
+* Step 4: Local Development Setup (.env)
+
+For local testing (if you can run wrangler):
+
+#+BEGIN_SRC bash
+# Create .env file in project root
+cat > .env << 'EOF'
+GITHUB_CLIENT_ID=Ov23li8xyzABC123DEF
+GITHUB_CLIENT_SECRET=ghp_abcdef123456789...
+EOF
+
+# Add to .gitignore if not already there
+echo ".env" >> .gitignore
+#+END_SRC
+
+* Step 5: Deploy OAuth-Enabled Server
+
+** Option A: Deploy via GitHub Actions (Recommended)
+#+BEGIN_SRC bash
+# Push changes to trigger deployment
+git push origin main
+
+# Or manually trigger
+gh workflow run deploy-cloudflare.yml --ref main -f environment=production
+#+END_SRC
+
+** Option B: Deploy Experiment Directly
+#+BEGIN_SRC bash
+# If you have wrangler installed locally
+cd experiments/011-mcp-oauth-routes
+wrangler deploy
+#+END_SRC
+
+** Option C: Via Cloudflare Dashboard
+1. Go to Workers & Pages
+2. Find your worker
+3. Upload the worker.js file manually
+
+* Step 6: Verify OAuth Configuration
+
+** Test OAuth Flow
+#+BEGIN_SRC bash
+# Check if OAuth endpoints are working
+curl https://api.changeflow.us/authorize
+
+# Should redirect to GitHub OAuth
+curl -I https://api.changeflow.us/authorize?client_id=test
+#+END_SRC
+
+** Test with Claude.ai
+1. Go to https://claude.ai/settings/connectors
+2. Add Custom Connector
+3. Enter: https://api.changeflow.us/mcp
+4. Should prompt for GitHub login
+
+* Environment Variables Summary
+
+| Location | Variable Name | Type | Where to Get |
+|----------+---------------+------+--------------|
+| GitHub Actions | GITHUB_OAUTH_CLIENT_ID | Secret | OAuth App |
+| GitHub Actions | GITHUB_OAUTH_CLIENT_SECRET | Secret | OAuth App |
+| Cloudflare | GITHUB_CLIENT_ID | Text | OAuth App |
+| Cloudflare | GITHUB_CLIENT_SECRET | Secret | OAuth App |
+| Local .env | GITHUB_CLIENT_ID | Text | OAuth App |
+| Local .env | GITHUB_CLIENT_SECRET | Text | OAuth App |
+
+* Troubleshooting
+
+** OAuth Redirect Issues
+- Ensure callback URL exactly matches: https://api.changeflow.us/callback
+- Check CORS headers allow claude.ai
+
+** Secret Not Working
+- Cloudflare: Must click "Encrypt" for secrets
+- GitHub: Secrets are case-sensitive
+- Local: Check .env is in project root
+
+** Testing Without Deployment
+#+BEGIN_SRC bash
+# Use staging first
+gh workflow run deploy-cloudflare.yml --ref main -f environment=staging
+
+# Test at staging URL
+curl https://guile-changeflow-staging.jasonwalsh.workers.dev/authorize
+#+END_SRC
+
+* Security Notes
+
+⚠️ NEVER commit secrets to git
+⚠️ Always use encrypted secrets in Cloudflare
+⚠️ Rotate secrets if exposed
+⚠️ Use different OAuth apps for dev/staging/prod
+
+* Quick Reference Commands
+
+#+BEGIN_SRC bash
+# Build locally
+gmake build
+
+# Deploy to staging
+gmake deploy-staging
+
+# Deploy to production
+gmake deploy-production
+
+# Check deployment
+gmake check-prod
+#+END_SRC

@@ -36,8 +36,8 @@ jobs:
     - name: Build Worker
       run: |
         echo "Building worker from source..."
-        cp mcp-server/changeflow-mcp.js infra/cloudflare/worker.js
-        echo "✅ Worker built from mcp-server/changeflow-mcp.js"
+        make build
+        echo "✅ Worker built"
 
     - name: Create Version File
       run: |
