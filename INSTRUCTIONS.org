@@ -1,0 +1,175 @@
+#+TITLE: Agent 4 - Web Interface Instructions
+#+DATE: 2025-09-13
+
+* Your Mission
+
+You are Agent 4 working on Web Server and API for Guile ChangeFlow.
+
+Your worktree: /home/dsp-dr/ghq/github.com/dsp-dr/gcf-web-interface
+Your branch: feat/web-interface
+Your focus: HTTP server, REST API, and simple dashboard
+
+* Priority Tasks
+
+1. Create src/web/ directory structure
+2. Set up Guile web server on port 8080
+3. Create REST API endpoints for changes
+4. Build simple HTML dashboard
+5. Implement polling or basic updates
+
+* File Structure to Create
+
+#+begin_example
+src/
+├── web/
+│   ├── server.scm
+│   ├── api.scm
+│   ├── handlers.scm
+│   ├── routes.scm
+│   └── static/
+│       ├── index.html
+│       ├── dashboard.js
+│       └── style.css
+└── config/
+    └── web-config.scm
+#+end_example
+
+* Success Criteria
+
+- [ ] Web server starts and serves on 8080
+- [ ] GET /api/changes returns list of changes
+- [ ] POST /api/changes creates new change
+- [ ] Dashboard displays changes visually
+- [ ] Updates visible (polling every 2-5 seconds)
+
+* Code Templates
+
+** server.scm
+#+begin_src scheme
+(define-module (web server)
+  #:use-module (web server)
+  #:use-module (web request)
+  #:use-module (web response)
+  #:use-module (web uri)
+  #:use-module (json)
+  #:export (start-web-server))
+
+(define (handler request body)
+  (let* ((uri (request-uri request))
+         (path (uri-path uri))
+         (method (request-method request)))
+
+    (cond
+      ;; API endpoints
+      ((string-prefix? "/api/" path)
+       (handle-api-request method path body))
+
+      ;; Static files
+      ((string=? "/" path)
+       (serve-static-file "index.html"))
+
+      ;; Health check
+      ((string=? "/health" path)
+       (values '((content-type . (text/plain)))
+               "OK"))
+
+      (else
+       (values (build-response #:code 404)
+               "Not found")))))
+
+(define (start-web-server)
+  (run-server handler 'http '(#:port 8080)))
+#+end_src
+
+** index.html
+#+begin_src html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ChangeFlow Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        .change-card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            background: white;
+        }
+        .risk-high { border-left: 5px solid #f44336; }
+        .risk-medium { border-left: 5px solid #ff9800; }
+        .risk-low { border-left: 5px solid #4caf50; }
+        .status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .status-submitted { background: #e3f2fd; }
+        .status-assessing { background: #fff3e0; }
+        .status-approved { background: #e8f5e9; }
+    </style>
+</head>
+<body>
+    <h1>ChangeFlow Dashboard</h1>
+    <div id="stats"></div>
+    <div id="changes"></div>
+
+    <script>
+        function updateDashboard() {
+            fetch('/api/changes')
+                .then(r => r.json())
+                .then(data => {
+                    const container = document.getElementById('changes');
+                    container.innerHTML = data.map(change => `
+                        <div class="change-card risk-${change.risk_category}">
+                            <h3>${change.title}</h3>
+                            <p>${change.description}</p>
+                            <span class="status status-${change.status}">${change.status}</span>
+                            <span>Risk: ${change.risk_score}/100</span>
+                        </div>
+                    `).join('');
+                });
+        }
+
+        // Update every 2 seconds
+        setInterval(updateDashboard, 2000);
+        updateDashboard();
+    </script>
+</body>
+</html>
+#+end_src
+
+* Dependencies
+
+You need:
+- Core models from Agent 1 for change structure
+- Risk scores from Agent 3 for display
+
+Others need from you: Web endpoints for dashboard and API
+
+* Important Notes
+
+- Simple is better - no fancy frameworks
+- Polling is fine, no need for WebSockets
+- Static files can be served from memory
+- JSON responses for API
+- Focus on visual impact for demo
+
+* API Endpoints
+
+Implement these endpoints:
+- GET /api/changes - List all changes
+- POST /api/changes - Create new change
+- GET /api/changes/:id - Get specific change
+- GET /health - Health check
+- GET / - Serve dashboard
+
+* Timeline
+
+You have 3-4 hours to complete web interface.
+Hour 1: Basic server setup
+Hour 2: API endpoints
+Hour 3: Dashboard HTML/JS
+Hour 4: Integration and polish

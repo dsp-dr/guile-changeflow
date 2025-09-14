@@ -1,0 +1,70 @@
+(define-module (web api)
+  #:use-module (json)
+  #:use-module (web response)
+  #:use-module (srfi srfi-19)
+  #:export (api-changes-handler get-mock-changes))
+
+;; Mock change data for demonstration
+(define mock-changes
+  '(((id . "CHG-001")
+     (title . "Database Schema Update")
+     (description . "Update user table to include new authentication fields")
+     (riskScore . 85)
+     (riskCategory . "high")
+     (status . "submitted")
+     (createdAt . "2025-09-13T10:30:00Z"))
+    ((id . "CHG-002")
+     (title . "Frontend API Integration")
+     (description . "Connect React components to new user management API")
+     (riskScore . 45)
+     (riskCategory . "medium")
+     (status . "approved")
+     (createdAt . "2025-09-13T09:15:00Z"))
+    ((id . "CHG-003")
+     (title . "Configuration File Update")
+     (description . "Update production environment variables for new feature")
+     (riskScore . 25)
+     (riskCategory . "low")
+     (status . "assessing")
+     (createdAt . "2025-09-13T11:45:00Z"))
+    ((id . "CHG-004")
+     (title . "Critical Security Patch")
+     (description . "Apply urgent security patches to authentication system")
+     (riskScore . 95)
+     (riskCategory . "critical")
+     (status . "submitted")
+     (createdAt . "2025-09-13T14:20:00Z"))
+    ((id . "CHG-005")
+     (title . "Documentation Update")
+     (description . "Update API documentation with new endpoints")
+     (riskScore . 15)
+     (riskCategory . "low")
+     (status . "approved")
+     (createdAt . "2025-09-13T08:00:00Z"))))
+
+(define (get-mock-changes)
+  "Return mock changes data - will be replaced by real storage integration"
+  mock-changes)
+
+(define (categorize-risk score)
+  "Categorize risk score into levels"
+  (cond
+    ((>= score 90) "critical")
+    ((>= score 70) "high")
+    ((>= score 40) "medium")
+    (else "low")))
+
+(define (api-changes-handler)
+  "Return all changes as JSON"
+  (let* ((changes (get-mock-changes))
+         (changes-data `((changes . ,changes)
+                        (total . ,(length changes))
+                        (lastUpdated . ,(date->string (current-date) "~Y-~m-~dT~H:~M:~SZ"))
+                        (status . "ok"))))
+
+    (values (build-response
+             #:code 200
+             #:headers '((content-type . (application/json))
+                         (access-control-allow-origin . "*")
+                         (cache-control . "no-cache")))
+            (scm->json-string changes-data))))
