@@ -4,9 +4,19 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'experiments/008-deployment-hosting/cloudflare-demo.js'
+      - 'mcp-server/**'
+      - 'infra/cloudflare/**'
       - '.github/workflows/deploy-cloudflare.yml'
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
 
 jobs:
   deploy:
@@ -34,6 +44,14 @@ jobs:
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       run: |
-        echo "Deploying ChangeFlow MCP to Cloudflare Workers (production)..."
+        ENVIRONMENT="${{ github.event.inputs.environment || 'staging' }}"
+        echo "Deploying ChangeFlow MCP to Cloudflare Workers ($ENVIRONMENT)..."
         cd infra/cloudflare
-        wrangler deploy
+
+        if [ "$ENVIRONMENT" = "production" ]; then
+          echo "Deploying to production..."
+          wrangler deploy
+        else
+          echo "Deploying to staging..."
+          wrangler deploy --env staging
+        fi
