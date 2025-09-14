@@ -220,7 +220,30 @@ export default {
             const body = await request.json();
             const method = body.method;
 
-            if (method === 'tools/list') {
+            if (method === 'initialize') {
+              // MCP initialize handshake
+              return new Response(JSON.stringify({
+                jsonrpc: '2.0',
+                id: body.id,
+                result: {
+                  protocolVersion: '2024-11-05',
+                  capabilities: {
+                    tools: {
+                      listChanged: false
+                    },
+                    resources: {},
+                    prompts: {},
+                    logging: {}
+                  },
+                  serverInfo: {
+                    name: 'guile-changeflow',
+                    version: '1.3.1'
+                  }
+                }
+              }), {
+                headers: { 'Content-Type': 'application/json', ...corsHeaders }
+              });
+            } else if (method === 'tools/list') {
               // Return available tools
               return new Response(JSON.stringify({
                 jsonrpc: '2.0',
@@ -439,7 +462,29 @@ export default {
                 // Send initial connection
                 controller.enqueue(encoder.encode('data: {"type":"connected"}\n\n'));
 
-                if (method === 'tools/list') {
+                if (method === 'initialize') {
+                  // MCP initialize handshake
+                  const initResponse = {
+                    jsonrpc: '2.0',
+                    id: body.id,
+                    result: {
+                      protocolVersion: '2024-11-05',
+                      capabilities: {
+                        tools: {
+                          listChanged: false
+                        },
+                        resources: {},
+                        prompts: {},
+                        logging: {}
+                      },
+                      serverInfo: {
+                        name: 'guile-changeflow',
+                        version: '1.3.1'
+                      }
+                    }
+                  };
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(initResponse)}\n\n`));
+                } else if (method === 'tools/list') {
                   const tools = [
                     {
                       name: 'create_change_request',
