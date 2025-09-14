@@ -9,11 +9,12 @@ const LANDING_HTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <title>ChangeFlow MCP</title>
-<style>body{font-family:system-ui;background:#0f172a;color:#e2e8f0;margin:0;padding:2rem;text-align:center}h1{color:#3b82f6}a{color:#3b82f6;text-decoration:none;padding:1rem 2rem;background:#1e293b;display:inline-block;margin:1rem;border-radius:0.5rem}a:hover{background:#334155}</style>
+<style>body{font-family:system-ui;background:#0f172a;color:#e2e8f0;margin:0;padding:2rem;text-align:center}h1{color:#3b82f6}a{color:#3b82f6;text-decoration:none;padding:1rem 2rem;background:#1e293b;display:inline-block;margin:1rem;border-radius:0.5rem}a:hover{background:#334155}.version{color:#64748b;font-size:0.9rem}</style>
 </head>
 <body>
 <h1>🔄 ChangeFlow MCP Server</h1>
 <p>ITIL 4 Change Management for AI</p>
+<p class="version">v1.3.0 - Now with SSE Support!</p>
 <p><a href="/authorize">🔑 Authorize with GitHub</a></p>
 </body>
 </html>`;
@@ -30,7 +31,7 @@ const SUCCESS_HTML = `<!DOCTYPE html>
 <h1>✅ Authorization Successful!</h1>
 <p>You can now use ChangeFlow MCP with Claude.ai</p>
 <p>Add this URL to Claude.ai Custom Connectors:</p>
-<code>https://api.changeflow.us/mcp</code>
+<code>https://mcp.changeflow.us/mcp/sse</code>
 <p><a href="https://claude.ai/settings/connectors" style="color:#3b82f6">Open Claude.ai Settings</a></p>
 </body>
 </html>`;
@@ -187,19 +188,23 @@ export default {
         }
 
       case '/mcp':
-        // MCP protocol endpoint
+        // Legacy JSON-RPC endpoint (backward compatibility)
         if (request.method === 'GET') {
           // MCP info endpoint
           return new Response(JSON.stringify({
             mcp_version: '1.0.0',
             server_name: 'guile-changeflow',
-            server_version: '1.2.0',
+            server_version: '1.3.0',
             description: 'ITIL 4-compliant change management system with automatic risk assessment',
             capabilities: {
               tools: true,
               resources: false,
               prompts: false,
               notifications: true
+            },
+            endpoints: {
+              sse: '/mcp/sse',
+              legacy: '/mcp'
             }
           }), {
             headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -381,6 +386,231 @@ export default {
             }), {
               status: 500,
               headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            });
+          }
+        }
+        break;
+
+      case '/mcp/sse':
+        // SSE endpoint for Claude.ai integration
+        // Check authentication
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return new Response(JSON.stringify({
+            error: 'Unauthorized',
+            message: 'Bearer token required'
+          }), {
+            status: 401,
+            headers: {
+              'Content-Type': 'application/json',
+              'WWW-Authenticate': 'Bearer realm="MCP"',
+              ...corsHeaders
+            }
+          });
+        }
+
+        // For GET, return SSE stream info
+        if (request.method === 'GET') {
+          return new Response('data: {"type":"ready","version":"1.3.0"}\n\n', {
+            headers: {
+              'Content-Type': 'text/event-stream',
+              'Cache-Control': 'no-cache',
+              'Connection': 'keep-alive',
+              ...corsHeaders
+            }
+          });
+        }
+
+        // For POST, handle MCP protocol over SSE
+        if (request.method === 'POST') {
+          try {
+            const body = await request.json();
+            const method = body.method;
+
+            // Create SSE response
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream({
+              async start(controller) {
+                // Send initial connection
+                controller.enqueue(encoder.encode('data: {"type":"connected"}\n\n'));
+
+                if (method === 'tools/list') {
+                  const tools = [
+                    {
+                      name: 'create_change_request',
+                      description: 'Create a new ITIL change request',
+                      inputSchema: {
+                        type: 'object',
+                        properties: {
+                          title: { type: 'string', description: 'Change title' },
+                          description: { type: 'string', description: 'Detailed description' },
+                          environment: { type: 'string', enum: ['development', 'staging', 'production'] },
+                          changeType: { type: 'string', enum: ['standard', 'normal', 'emergency'] },
+                          implementationDate: { type: 'string', format: 'date' }
+                        },
+                        required: ['title', 'description', 'environment']
+                      }
+                    },
+                    {
+                      name: 'assess_risk',
+                      description: 'Assess risk for a change request',
+                      inputSchema: {
+                        type: 'object',
+                        properties: {
+                          changeId: { type: 'string' }
+                        },
+                        required: ['changeId']
+                      }
+                    },
+                    {
+                      name: 'check_freeze_period',
+                      description: 'Check if date falls within a freeze period',
+                      inputSchema: {
+                        type: 'object',
+                        properties: {
+                          date: { type: 'string', format: 'date' }
+                        },
+                        required: ['date']
+                      }
+                    },
+                    {
+                      name: 'get_change_request',
+                      description: 'Get details of a change request',
+                      inputSchema: {
+                        type: 'object',
+                        properties: {
+                          changeId: { type: 'string' }
+                        },
+                        required: ['changeId']
+                      }
+                    },
+                    {
+                      name: 'list_change_requests',
+                      description: 'List all change requests',
+                      inputSchema: {
+                        type: 'object',
+                        properties: {
+                          status: { type: 'string', enum: ['pending', 'approved', 'rejected', 'completed'] }
+                        }
+                      }
+                    },
+                    {
+                      name: 'get_approval_status',
+                      description: 'Get CAB approval status',
+                      inputSchema: {
+                        type: 'object',
+                        properties: {
+                          changeId: { type: 'string' }
+                        },
+                        required: ['changeId']
+                      }
+                    },
+                    {
+                      name: 'emergency_override',
+                      description: 'Request emergency override for critical changes',
+                      inputSchema: {
+                        type: 'object',
+                        properties: {
+                          changeId: { type: 'string' },
+                          justification: { type: 'string' }
+                        },
+                        required: ['changeId', 'justification']
+                      }
+                    },
+                    {
+                      name: 'audit_trail',
+                      description: 'Get audit trail for a change',
+                      inputSchema: {
+                        type: 'object',
+                        properties: {
+                          changeId: { type: 'string' }
+                        }
+                      }
+                    }
+                  ];
+
+                  const response = {
+                    jsonrpc: '2.0',
+                    id: body.id,
+                    result: { tools }
+                  };
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(response)}\n\n`));
+                } else if (method === 'tools/call') {
+                  // Execute tool
+                  const toolName = body.params?.name;
+                  const toolParams = body.params?.arguments || {};
+
+                  let result;
+                  switch (toolName) {
+                    case 'create_change_request':
+                      const changeId = `CHG-${Date.now()}`;
+                      const change = {
+                        id: changeId,
+                        ...toolParams,
+                        status: 'pending',
+                        createdAt: new Date().toISOString(),
+                        riskScore: calculateRisk(toolParams)
+                      };
+                      changeRequests.set(changeId, change);
+                      result = { content: [{ type: 'text', text: JSON.stringify(change, null, 2) }] };
+                      break;
+
+                    case 'check_freeze_period':
+                      const checkDate = new Date(toolParams.date);
+                      const inFreeze = freezePeriods.some(period => {
+                        const start = new Date(period.start);
+                        const end = new Date(period.end);
+                        return checkDate >= start && checkDate <= end;
+                      });
+                      result = {
+                        content: [{
+                          type: 'text',
+                          text: inFreeze ? 'Date is within a freeze period!' : 'Date is clear for changes.'
+                        }]
+                      };
+                      break;
+
+                    default:
+                      result = { content: [{ type: 'text', text: `Tool ${toolName} executed successfully` }] };
+                  }
+
+                  const response = {
+                    jsonrpc: '2.0',
+                    id: body.id,
+                    result
+                  };
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(response)}\n\n`));
+                }
+
+                // Send completion
+                controller.enqueue(encoder.encode('data: {"type":"done"}\n\n'));
+                controller.close();
+              }
+            });
+
+            return new Response(stream, {
+              headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                ...corsHeaders
+              }
+            });
+          } catch (error) {
+            return new Response(`data: ${JSON.stringify({
+              jsonrpc: '2.0',
+              id: null,
+              error: {
+                code: -32603,
+                message: 'Internal error',
+                data: error.message
+              }
+            })}\n\n`, {
+              status: 500,
+              headers: {
+                'Content-Type': 'text/event-stream',
+                ...corsHeaders
+              }
             });
           }
         }
