@@ -12,6 +12,92 @@
 // MCP Protocol Version
 const PROTOCOL_VERSION = '2024-11-05';
 
+// Available MCP Resources
+const RESOURCES = [
+  {
+    uri: 'changeflow://config/change-types',
+    name: 'Change Type Definitions',
+    description: 'Standard change types and their risk profiles',
+    mimeType: 'application/json'
+  },
+  {
+    uri: 'changeflow://config/approval-matrix',
+    name: 'Approval Matrix',
+    description: 'CAB approval requirements by risk level',
+    mimeType: 'application/json'
+  },
+  {
+    uri: 'changeflow://config/freeze-calendar',
+    name: 'Freeze Period Calendar',
+    description: 'Scheduled maintenance windows and freeze periods',
+    mimeType: 'application/json'
+  },
+  {
+    uri: 'changeflow://templates/emergency-change',
+    name: 'Emergency Change Template',
+    description: 'Template for emergency change requests',
+    mimeType: 'application/json'
+  },
+  {
+    uri: 'changeflow://docs/itil-compliance',
+    name: 'ITIL Compliance Guide',
+    description: 'ITIL 4 compliance requirements and procedures',
+    mimeType: 'text/markdown'
+  }
+];
+
+// Available MCP Prompts
+const PROMPTS = [
+  {
+    name: 'analyze-change-risk',
+    description: 'Analyze the risk factors of a proposed change',
+    arguments: [
+      {
+        name: 'change_description',
+        description: 'Description of the proposed change',
+        required: true
+      },
+      {
+        name: 'environment',
+        description: 'Target environment (dev/test/staging/production)',
+        required: true
+      }
+    ]
+  },
+  {
+    name: 'generate-rollback-plan',
+    description: 'Generate a rollback plan for a change',
+    arguments: [
+      {
+        name: 'change_details',
+        description: 'Detailed change information',
+        required: true
+      },
+      {
+        name: 'system_context',
+        description: 'System and infrastructure context',
+        required: false
+      }
+    ]
+  },
+  {
+    name: 'create-change-summary',
+    description: 'Create executive summary for change approval',
+    arguments: [
+      {
+        name: 'change_request',
+        description: 'Full change request details',
+        required: true
+      },
+      {
+        name: 'audience',
+        description: 'Target audience (technical/executive/operational)',
+        required: true
+      }
+    ]
+  }
+];
+
 // Available ITIL Tools
 const TOOLS = [
   {
@@ -179,6 +265,18 @@ export default {
       case 'tools/call':
         result = await handleToolCall(params);
         break;
+      case 'resources/list':
+        result = handleResourcesList();
+        break;
+      case 'resources/read':
+        result = await handleResourceRead(params);
+        break;
+      case 'prompts/list':
+        result = handlePromptsList();
+        break;
+      case 'prompts/get':
+        result = await handlePromptGet(params);
+        break;
       default:
         result = {
           error: {
@@ -205,6 +303,8 @@ function handleInitialize(params) {
     protocolVersion: PROTOCOL_VERSION,
     capabilities: {
       tools: {},
+      resources: {},
+      prompts: {},
       notifications: {}
     },
     serverInfo: {
@@ -525,6 +625,161 @@ function generateAuditReport(args) {
     details_included: include_details || false,
     compliance_status: 'COMPLIANT',
     next_audit_due: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+  };
+}
+
+/**
+ * Handle resources/list request
+ */
+function handleResourcesList() {
+  return { resources: RESOURCES };
+}
+
+/**
+ * Handle resources/read request
+ */
+async function handleResourceRead(params) {
+  const { uri } = params;
+
+  // Mock resource data - in production would fetch from actual sources
+  const resourceData = {
+    'changeflow://config/change-types': {
+      standard: { risk_base: 10, approval_required: false },
+      normal: { risk_base: 30, approval_required: true },
+      emergency: { risk_base: 80, approval_required: true, expedited: true }
+    },
+    'changeflow://config/approval-matrix': {
+      low: ['tech-lead@company.com'],
+      medium: ['tech-lead@company.com', 'ops-manager@company.com'],
+      high: ['tech-lead@company.com', 'ops-manager@company.com', 'cto@company.com'],
+      critical: ['tech-lead@company.com', 'ops-manager@company.com', 'cto@company.com', 'ceo@company.com']
+    },
+    'changeflow://config/freeze-calendar': {
+      freeze_periods: [
+        { start: '2025-12-20', end: '2025-01-05', reason: 'Holiday freeze' },
+        { start: '2025-11-28', end: '2025-11-29', reason: 'Thanksgiving freeze' }
+      ]
+    },
+    'changeflow://templates/emergency-change': {
+      template: {
+        title: 'Emergency Change: [Brief Description]',
+        justification: 'Business Impact: [Impact Description]\\nRisk if not implemented: [Risk Description]',
+        rollback_plan: 'Step 1: [Rollback step]\\nStep 2: [Verification step]',
+        testing_notes: 'Pre-change validation: [Validation steps]'
+      }
+    },
+    'changeflow://docs/itil-compliance': `# ITIL 4 Compliance Guide
+
+## Change Enablement Practices
+
+### Risk Assessment Requirements
+- All production changes require risk assessment
+- Risk factors: environment, complexity, dependencies, timing
+- Scores: 0-39 (low), 40-59 (medium), 60-79 (high), 80-100 (critical)
+
+### Approval Workflows
+- Low risk: Tech lead approval
+- Medium risk: Tech lead + Ops manager
+- High risk: Tech lead + Ops manager + CTO
+- Critical risk: Full CAB approval including CEO
+
+### Emergency Changes
+- Justification required within 30 minutes
+- Post-implementation review mandatory
+- Auto-rollback enabled by default`
+  };
+
+  const content = resourceData[uri];
+  if (!content) {
+    return { error: `Resource not found: ${uri}` };
+  }
+
+  return {
+    contents: [{
+      uri,
+      mimeType: uri.includes('docs/') ? 'text/markdown' : 'application/json',
+      text: typeof content === 'string' ? content : JSON.stringify(content, null, 2)
+    }]
+  };
+}
+
+/**
+ * Handle prompts/list request
+ */
+function handlePromptsList() {
+  return { prompts: PROMPTS };
+}
+
+/**
+ * Handle prompts/get request
+ */
+async function handlePromptGet(params) {
+  const { name, arguments: args } = params;
+
+  const promptTemplates = {
+    'analyze-change-risk': `Please analyze the risk factors for this proposed change:
+
+**Change Description:** ${args?.change_description || '[Change description needed]'}
+**Target Environment:** ${args?.environment || '[Environment needed]'}
+
+Please provide:
+1. Risk assessment score (0-100)
+2. Key risk factors identified
+3. Mitigation recommendations
+4. Approval workflow recommendation
+
+Consider factors such as:
+- System criticality and dependencies
+- Change complexity and scope
+- Historical success rates
+- Timing and operational windows
+- Rollback complexity`,
+
+    'generate-rollback-plan': `Create a detailed rollback plan for this change:
+
+**Change Details:** ${args?.change_details || '[Change details needed]'}
+**System Context:** ${args?.system_context || '[System context if available]'}
+
+Please provide a step-by-step rollback plan including:
+1. Pre-rollback validation checks
+2. Rollback execution steps (in order)
+3. Post-rollback verification procedures
+4. Communication and notification steps
+5. Estimated rollback time
+6. Risk assessment of rollback procedure
+
+Format as a checklist that operations teams can follow under pressure.`,
+
+    'create-change-summary': `Create an executive summary for this change request:
+
+**Change Request:** ${args?.change_request || '[Change request details needed]'}
+**Target Audience:** ${args?.audience || '[Audience type needed]'}
+
+Please create a concise summary including:
+1. Business justification and value
+2. Risk assessment and mitigation
+3. Implementation timeline
+4. Resource requirements
+5. Success criteria and rollback plan
+6. Approval recommendations
+
+Tailor the language and technical depth for the specified audience.`
+  };
+
+  const template = promptTemplates[name];
+  if (!template) {
+    return { error: `Prompt not found: ${name}` };
+  }
+
+  return {
+    description: PROMPTS.find(p => p.name === name)?.description || 'Prompt description',
+    messages: [{
+      role: 'user',
+      content: {
+        type: 'text',
+        text: template
+      }
+    }]
   };
 }
 
