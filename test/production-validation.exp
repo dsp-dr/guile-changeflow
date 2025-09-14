@@ -1,0 +1,159 @@
+#!/usr/bin/expect -f
+#
+# Production Validation Test Suite using Expect
+# Tests all 8 ITIL tools and validates responses
+#
+# Usage: expect production-validation.exp [environment]
+# Default: production (https://api.changeflow.us)
+
+set timeout 10
+set passed 0
+set failed 0
+set total 0
+
+# Get environment from argument or default to production
+if {[llength $argv] > 0} {
+    set env [lindex $argv 0]
+} else {
+    set env "production"
+}
+
+# Set base URL based on environment
+switch $env {
+    "production" { set base_url "https://api.changeflow.us" }
+    "staging" { set base_url "https://guile-changeflow-staging.jasonwalsh.workers.dev" }
+    "local" { set base_url "http://localhost:8427" }
+    default { set base_url "https://api.changeflow.us" }
+}
+
+puts "======================================"
+puts "Production Validation Test Suite"
+puts "======================================"
+puts "Environment: $env"
+puts "URL: $base_url"
+puts "Time: [clock format [clock seconds]]"
+puts ""
+
+# Helper function to run test
+proc run_test {name command expected_pattern} {
+    global passed failed total base_url
+
+    incr total
+    puts -nonewline "Test $total: $name ... "
+    flush stdout
+
+    spawn bash -c "$command"
+    expect {
+        -re $expected_pattern {
+            puts "✅ PASSED"
+            incr passed
+        }
+        timeout {
+            puts "❌ FAILED (timeout)"
+            incr failed
+        }
+        eof {
+            puts "❌ FAILED (unexpected response)"
+            incr failed
+        }
+    }
+}
+
+# Test 1: Health Check
+run_test "Health Check" \
+    "curl -s $base_url/ | jq -r .status" \
+    "healthy"
+
+# Test 2: MCP Protocol Version
+run_test "MCP Protocol Version" \
+    "curl -s $base_url/ | jq -r .version" \
+    "2024-11-05"
+
+# Test 3: Initialize MCP
+run_test "MCP Initialize" \
+    "curl -s -X POST $base_url/ -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\"},\"id\":1}' | jq -r .result.serverInfo.name" \
+    "guile-changeflow-mcp"
+
+# Test 4: Count ITIL Tools
+run_test "ITIL Tools Count (should be 8)" \
+    "curl -s -X POST $base_url/ -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":2}' | jq '.result.tools | length'" \
+    "8"
+
+# Test 5: Tool - create_change_request exists
+run_test "Tool: create_change_request" \
+    "curl -s -X POST $base_url/ -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":3}' | jq -r '.result.tools[].name' | grep -c create_change_request" \
+    "1"
+
+# Test 6: Tool - assess_change_risk exists
+run_test "Tool: assess_change_risk" \
+    "curl -s -X POST $base_url/ -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":4}' | jq -r '.result.tools[].name' | grep -c assess_change_risk" \
+    "1"
+
+# Test 7: Tool - check_freeze_period exists
+run_test "Tool: check_freeze_period" \
+    "curl -s -X POST $base_url/ -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":5}' | jq -r '.result.tools[].name' | grep -c check_freeze_period" \
+    "1"
+
+# Test 8: Tool - get_cab_members exists
+run_test "Tool: get_cab_members" \
+    "curl -s -X POST $base_url/ -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":6}' | jq -r '.result.tools[].name' | grep -c get_cab_members" \
+    "1"
+
+# Test 9: Tool - schedule_change exists
+run_test "Tool: schedule_change" \
+    "curl -s -X POST $base_url/ -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":7}' | jq -r '.result.tools[].name' | grep -c schedule_change" \
+    "1"
+
+# Test 10: Tool - create_emergency_change exists
+run_test "Tool: create_emergency_change" \
+    "curl -s -X POST $base_url/ -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":8}' | jq -r '.result.tools[].name' | grep -c create_emergency_change" \
+    "1"
+
+# Test 11: Tool - get_change_metrics exists
+run_test "Tool: get_change_metrics" \
+    "curl -s -X POST $base_url/ -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":9}' | jq -r '.result.tools[].name' | grep -c get_change_metrics" \
+    "1"
+
+# Test 12: Tool - generate_audit_report exists
+run_test "Tool: generate_audit_report" \
+    "curl -s -X POST $base_url/ -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":10}' | jq -r '.result.tools[].name' | grep -c generate_audit_report" \
+    "1"
+
+# Test 13: Create Change Request
+run_test "Create Change Request" \
+    "curl -s -X POST $base_url/ -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"create_change_request\",\"arguments\":{\"title\":\"Test\",\"description\":\"Test\",\"risk_level\":\"low\",\"environment\":\"production\"}},\"id\":11}' | jq -r .result.change_id | grep -c CHG" \
+    "1"
+
+# Test 14: Risk Assessment
+run_test "Risk Assessment Calculation" \
+    "curl -s -X POST $base_url/ -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"assess_change_risk\",\"arguments\":{\"change_type\":\"deployment\",\"environment\":\"production\"}},\"id\":12}' | jq -r .result.risk_level | grep -E '(low|medium|high|critical)' | wc -l" \
+    "1"
+
+# Test 15: Emergency Change
+run_test "Emergency Change Creation" \
+    "curl -s -X POST $base_url/ -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"create_emergency_change\",\"arguments\":{\"title\":\"Emergency\",\"description\":\"Test\",\"justification\":\"Critical\",\"impact\":\"Low\",\"environment\":\"production\",\"requester\":\"test@test.com\"}},\"id\":13}' | jq -r .result.change_id | grep -c EMG" \
+    "1"
+
+# Test 16: Response Time < 500ms
+run_test "Response Time Performance" \
+    "curl -w '%{time_total}' -o /dev/null -s $base_url/ | awk '{if (\$1 < 0.5) print \"OK\"; else print \"SLOW\"}'" \
+    "OK"
+
+# Print Summary
+puts ""
+puts "======================================"
+puts "Test Summary"
+puts "======================================"
+puts "Total Tests: $total"
+puts "Passed: $passed"
+puts "Failed: $failed"
+puts "Success Rate: [expr {$passed * 100 / $total}]%"
+puts ""
+
+if {$failed == 0} {
+    puts "✅ ALL TESTS PASSED - PRODUCTION READY!"
+    exit 0
+} else {
+    puts "❌ SOME TESTS FAILED - REVIEW REQUIRED"
+    exit 1
+}

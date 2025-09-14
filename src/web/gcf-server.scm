@@ -1,11 +1,11 @@
-(define-module (web server)
+(define-module (web gcf-server)
   #:use-module (web server)
   #:use-module (web request)
   #:use-module (web response)
   #:use-module (web uri)
-  #:use-module (json)
   #:use-module (web api)
   #:use-module (web dashboard)
+  #:use-module (web executive-dashboard)
   #:export (start-web-server))
 
 (define (handler request request-body)
@@ -14,11 +14,13 @@
          (path (uri-path uri))
          (method (request-method request)))
 
-    (display (format "~a ~a\n" method path))
+    (display (format #f "~a ~a\n" method path))
 
     (cond
       ((string=? path "/")
        (dashboard-handler))
+      ((string=? path "/executive")
+       (executive-dashboard-handler))
       ((string=? path "/health")
        (health-handler))
       ((string=? path "/api/changes")
@@ -56,6 +58,7 @@
   (display "Starting web server on port 8080...\n")
   (display "Available endpoints:\n")
   (display "  GET /           - Dashboard\n")
+  (display "  GET /executive  - Executive Dashboard (ROI & Metrics)\n")
   (display "  GET /health     - Health check\n")
   (display "  GET /api/changes - Changes API\n")
   (display "\n")

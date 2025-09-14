@@ -1,49 +1,31 @@
+;;; Main entry point for Guile ChangeFlow
+;;; Combines Risk Engine and Web Interface functionality
+
 (define-module (main)
   #:use-module (risk calculator)
-  #:use-module (risk factors)
   #:use-module (risk categories)
   #:use-module (risk freeze)
-  #:re-export (;; Main risk calculation functions from calculator
-               calculate-risk
-               calculate-change-risk
-               assess-risk
-               calculate-title-risk
-               calculate-system-risk
-               calculate-time-risk
+  #:use-module (risk factors)
+  #:use-module (web gcf-server)
+  #:export (assess-risk
+            assess-change-request
+            main
 
-               ;; Risk categorization from categories
-               categorize-risk
-               get-risk-color
-               get-approval-requirement
-               risk-category-info
+            ;; Risk exports
+            calculate-base-risk
+            calculate-system-risk
+            calculate-time-risk
+            categorize-risk
+            get-risk-color
+            get-approval-requirement
+            risk-category-info
+            in-freeze-period?
+            get-next-window
+            check-blackout-dates
+            get-freeze-risk-modifier
+            risk-factors))
 
-               ;; Freeze period management from freeze
-               in-freeze-period?
-               get-next-window
-               check-blackout-dates
-               get-freeze-risk-modifier
-
-               ;; Risk factors from factors
-               risk-factors
-               high-risk-keywords
-               get-factor-weight)
-  #:export (;; Convenience functions
-            risk-engine-version
-            risk-engine-info
-            assess-change-request))
-
-(define risk-engine-version "1.0.0")
-
-(define (risk-engine-info)
-  "Get information about the risk engine"
-  `((name . "GCF Risk Engine")
-    (version . ,risk-engine-version)
-    (description . "Risk assessment system for Guile ChangeFlow")
-    (capabilities . ("risk-scoring" "freeze-period-detection" "approval-requirements"))
-    (score-range . (0 . 100))
-    (categories . ("low" "medium" "high" "critical"))
-    (freeze-detection . #t)))
-
+;; Risk Engine functionality
 (define (assess-change-request request-json)
   "Main entry point for risk assessment from MCP server
    Expects: ((title . \"string\") (description . \"string\") (systems . (list)))
@@ -53,3 +35,43 @@
          (systems (or (assoc-ref request-json 'systems) '()))
          (assessment (assess-risk title description systems)))
     assessment))
+
+;; Web Interface functionality
+(add-to-load-path (string-append (getcwd) "/src"))
+
+(define (main args)
+  (cond
+    ;; Run as web server
+    ((member "--web" args)
+     (display "Starting ChangeFlow Web Interface...\n")
+     (display "Server will be available at http://localhost:8080\n")
+     (display "\n=== Available Endpoints ===\n")
+     (display "Dashboard:           http://localhost:8080\n")
+     (display "Executive Dashboard: http://localhost:8080/executive\n")
+     (display "API:                 http://localhost:8080/api/changes\n")
+     (display "Health:              http://localhost:8080/health\n")
+     (display "\nPress Ctrl+C to stop the server.\n\n")
+     ((@ (web gcf-server) start-web-server)))
+
+    ;; Run as risk assessment CLI
+    ((member "--risk" args)
+     (display "Risk Assessment Engine\n")
+     (display "Enter change title: ")
+     (let ((title (read-line)))
+       (display "Enter change description: ")
+       (let ((description (read-line)))
+         (let ((result (assess-risk title description '())))
+           (display (format #f "Risk Score: ~a\n" (assoc-ref result 'score)))
+           (display (format #f "Risk Level: ~a\n" (assoc-ref result 'level)))))))
+
+    ;; Default: show usage
+    (else
+     (display "Guile ChangeFlow - ITIL 4 Change Management System\n")
+     (display "\nUsage:\n")
+     (display "  guile -s src/main.scm --web   # Start web server\n")
+     (display "  guile -s src/main.scm --risk  # Run risk assessment\n")
+     (display "\n"))))
+
+;; Run main if executed directly
+(when (not (null? (command-line)))
+  (main (command-line)))
