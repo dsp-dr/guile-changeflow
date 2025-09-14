@@ -1,0 +1,253 @@
+#+TITLE: Release Process Documentation
+#+AUTHOR: Guile ChangeFlow Team
+#+DATE: 2025-09-14
+
+* Release Process Overview
+
+** Versioning Strategy
+- Semantic versioning: MAJOR.MINOR.PATCH
+- Pre-release tags: -alpha, -beta, -rc, -demo
+- Release branches: release/vX.Y.Z
+- Hotfix branches: hotfix/vX.Y.Z
+
+** Release Types
+- *Major*: Breaking changes, new architecture
+- *Minor*: New features, backward compatible
+- *Patch*: Bug fixes, security updates
+- *Demo*: Special releases for presentations
+
+* Pre-Release Checklist
+
+** Code Quality
+- [ ] All tests passing (Guile modules + integration)
+- [ ] Performance benchmarks met (<150ms response)
+- [ ] Security audit completed
+- [ ] Documentation updated
+- [ ] CHANGELOG.md updated
+
+** Testing Requirements
+- [ ] Unit tests: 100% module coverage
+- [ ] Integration tests: Full MCP protocol
+- [ ] Load tests: 1000+ req/s capacity
+- [ ] Browser compatibility: Modern browsers
+- [ ] Mobile responsiveness verified
+
+** Deployment Validation
+- [ ] Staging deployment successful
+- [ ] Cloudflare Workers optimized
+- [ ] Database migrations tested
+- [ ] Rollback procedures verified
+- [ ] Monitoring alerts configured
+
+* Release Execution
+
+** 1. Version Preparation
+#+BEGIN_SRC bash
+# Create release branch
+git checkout -b release/v0.1.0
+git push -u origin release/v0.1.0
+
+# Update version numbers
+echo "0.1.0" > VERSION
+sed -i 's/version = ".*"/version = "0.1.0"/' infra/cloudflare/wrangler.toml
+
+# Update documentation
+vim CHANGELOG.md
+vim RELEASE-NOTES.md
+#+END_SRC
+
+** 2. Testing and Validation
+#+BEGIN_SRC bash
+# Run comprehensive test suite
+guile3 -s test/module-test-simple.scm
+./scripts/test-endpoints.sh
+
+# Performance validation
+ab -n 1000 -c 10 https://api.changeflow.us/
+
+# Security scan
+npm audit --audit-level moderate
+#+END_SRC
+
+** 3. Release Creation
+#+BEGIN_SRC bash
+# Create and push tag
+git tag -a v0.1.0 -m "Production release v0.1.0"
+git push origin v0.1.0
+
+# Create GitHub release
+gh release create v0.1.0 \
+  --title "v0.1.0: Production Release" \
+  --notes-file RELEASE-NOTES.md \
+  --target main
+
+# Deploy to production
+cd infra/cloudflare
+wrangler publish --env production
+#+END_SRC
+
+** 4. Post-Release
+#+BEGIN_SRC bash
+# Merge to main
+git checkout main
+git merge release/v0.1.0
+git push origin main
+
+# Update development version
+echo "0.2.0-dev" > VERSION
+git add VERSION
+git commit -m "chore: bump version to 0.2.0-dev"
+git push origin main
+
+# Clean up release branch
+git branch -d release/v0.1.0
+git push origin --delete release/v0.1.0
+#+END_SRC
+
+* CI/CD Integration
+
+** GitHub Actions Workflow
+Location: .github/workflows/release.yml
+
+Triggers:
+- Tag push matching v*
+- Manual workflow dispatch
+- Pull request to main
+
+Stages:
+1. Test validation
+2. Build artifacts
+3. Security scanning
+4. Performance testing
+5. Production deployment
+6. Notification dispatch
+
+** Cloudflare Integration
+- Automatic deployment on tag push
+- Environment-specific configurations
+- Rollback capabilities
+- Performance monitoring
+
+** Quality Gates
+- Test coverage >95%
+- Performance <150ms P95
+- Security scan passing
+- Documentation complete
+
+* Hotfix Process
+
+** Emergency Fixes
+#+BEGIN_SRC bash
+# Create hotfix branch from main
+git checkout main
+git checkout -b hotfix/v0.1.1
+
+# Apply critical fix
+# ... make changes ...
+
+# Test and validate
+guile3 -s test/module-test-simple.scm
+
+# Create hotfix release
+git tag -a v0.1.1 -m "Hotfix: Critical security update"
+git push origin v0.1.1
+
+# Deploy immediately
+cd infra/cloudflare
+wrangler publish --env production
+
+# Merge back to main
+git checkout main
+git merge hotfix/v0.1.1
+git push origin main
+#+END_SRC
+
+* Rollback Procedures
+
+** Production Rollback
+#+BEGIN_SRC bash
+# Cloudflare Workers rollback
+wrangler rollback --env production
+
+# Git-based rollback
+git revert v0.1.0
+git push origin main
+
+# Database rollback (if needed)
+# Run reverse migrations
+#+END_SRC
+
+** Monitoring
+- Real-time error rate monitoring
+- Performance degradation alerts
+- User impact assessment
+- Automated rollback triggers
+
+* Communication
+
+** Stakeholder Notification
+- Release announcement email
+- Slack/Teams notifications
+- Status page updates
+- Documentation updates
+
+** Change Management
+- ITIL change request creation
+- Risk assessment documentation
+- Approval workflow completion
+- Post-implementation review
+
+* Metrics and KPIs
+
+** Release Quality
+- Defect escape rate
+- Time to production
+- Rollback frequency
+- User satisfaction scores
+
+** Performance
+- Response time percentiles
+- Error rates by endpoint
+- Uptime measurements
+- Resource utilization
+
+** Business Impact
+- Feature adoption rates
+- User engagement metrics
+- Revenue impact
+- Cost optimization
+
+* Tools and Dependencies
+
+** Required Tools
+- git, gh (GitHub CLI)
+- guile3, node.js
+- wrangler (Cloudflare)
+- ab (Apache Bench)
+- npm audit
+
+** Access Requirements
+- GitHub repository write access
+- Cloudflare Workers deployment rights
+- Production environment access
+- Release management permissions
+
+* Security Considerations
+
+** Code Signing
+- Git commit signing required
+- Release artifacts signed
+- Checksum verification
+- Supply chain validation
+
+** Access Control
+- Multi-factor authentication
+- Role-based permissions
+- Audit logging enabled
+- Separation of duties
+
+** Compliance
+- SOX compliance documentation
+- Change approval records
+- Security scan evidence
+- Performance validation data
