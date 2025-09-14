@@ -1,0 +1,22 @@
+#+TITLE: Cloudflare Workers Cleanup Note
+#+DATE: 2025-09-14
+
+* Workers to Keep
+- guile-changeflow-prod (connected to api.changeflow.us)
+- guile-changeflow-staging (staging environment)
+
+* Workers to Delete
+- gcf-mcp-server (created by mistake, delete this)
+- changeflow-mcp (if exists, delete this)
+
+* Current Configuration
+Production: guile-changeflow-prod
+- URL: https://api.changeflow.us
+- Worker URL: https://guile-changeflow-prod.jasonwalsh.workers.dev
+
+Staging: guile-changeflow-staging
+- URL: https://guile-changeflow-staging.jasonwalsh.workers.dev
+
+* Deployment Commands
+Production: wrangler deploy
+Staging: wrangler deploy --env staging

@@ -21,7 +21,7 @@ jobs:
     - name: Health Check
       run: |
         echo "🔍 Checking production health..."
-        response=$(curl -s -w "\n%{http_code}" https://gcf-mcp-server.jasonwalsh.workers.dev/)
+        response=$(curl -s -w "\n%{http_code}" https://guile-changeflow-prod.jasonwalsh.workers.dev/)
         http_code=$(echo "$response" | tail -n1)
         body=$(echo "$response" | head -n-1)
 
@@ -38,7 +38,7 @@ jobs:
         echo "🔍 Checking both MCP endpoints..."
 
         # Check worker URL
-        worker_response=$(curl -s https://gcf-mcp-server.jasonwalsh.workers.dev/mcp)
+        worker_response=$(curl -s https://guile-changeflow-prod.jasonwalsh.workers.dev/mcp)
         echo "Worker response:"
         echo "$worker_response" | jq '.'
 
@@ -60,7 +60,7 @@ jobs:
     - name: Verify Tools Count
       run: |
         echo "🔍 Verifying MCP tools..."
-        tools_response=$(curl -s https://gcf-mcp-server.jasonwalsh.workers.dev/mcp/tools)
+        tools_response=$(curl -s https://guile-changeflow-prod.jasonwalsh.workers.dev/mcp/tools)
 
         echo "$tools_response" | jq '.'
 
@@ -79,7 +79,7 @@ jobs:
         echo "🔍 Testing critical endpoints..."
 
         # Test risk assessment
-        risk_response=$(curl -s -X POST https://gcf-mcp-server.jasonwalsh.workers.dev/mcp/tools/invoke \
+        risk_response=$(curl -s -X POST https://guile-changeflow-prod.jasonwalsh.workers.dev/mcp/tools/invoke \
           -H "Content-Type: application/json" \
           -d '{
             "tool":"assess_risk",
@@ -99,7 +99,7 @@ jobs:
         fi
 
         # Test change request creation
-        change_response=$(curl -s -X POST https://gcf-mcp-server.jasonwalsh.workers.dev/mcp/tools/invoke \
+        change_response=$(curl -s -X POST https://guile-changeflow-prod.jasonwalsh.workers.dev/mcp/tools/invoke \
           -H "Content-Type: application/json" \
           -d '{
             "tool":"create_change_request",
@@ -125,7 +125,7 @@ jobs:
         total_time=0
         for i in {1..5}; do
           start=$(date +%s%N)
-          curl -s https://gcf-mcp-server.jasonwalsh.workers.dev/ > /dev/null
+          curl -s https://guile-changeflow-prod.jasonwalsh.workers.dev/ > /dev/null
           end=$(date +%s%N)
 
           duration=$((($end - $start) / 1000000))
@@ -207,7 +207,7 @@ jobs:
           4. Check API endpoint health
 
           ### Links
-          - [Production API](https://gcf-mcp-server.jasonwalsh.workers.dev)
+          - [Production API](https://guile-changeflow-prod.jasonwalsh.workers.dev)
           - [Cloudflare Dashboard](https://dash.cloudflare.com)
           - [GitHub Actions](https://github.com/${{ github.repository }}/actions)
           `;

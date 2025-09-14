@@ -32,12 +32,7 @@ enabled = true
 # class_name = "ChangeStorage"
 # script_name = "worker"
 
-# Development settings
-[env.development]
-name = "gcf-mcp-server-dev"
-vars = { ENVIRONMENT = "development", LOG_LEVEL = "debug" }
-
-# Staging settings
+# Staging settings (use with: wrangler deploy --env staging)
 [env.staging]
-name = "gcf-mcp-server-staging"
+name = "guile-changeflow-staging"
 vars = { ENVIRONMENT = "staging", LOG_LEVEL = "info" }
