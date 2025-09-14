@@ -266,7 +266,7 @@ export default {
           response = new Response(JSON.stringify({
             status: 'healthy',
             service: 'Guile ChangeFlow MCP Server',
-            version: '1.0.0',
+            version: '1.1.1',
             timestamp: new Date().toISOString(),
             environment: 'production',
             capabilities: ['mcp', 'change_management', 'risk_assessment']
@@ -278,7 +278,7 @@ export default {
           response = new Response(JSON.stringify({
             mcp_version: '1.0.0',
             server_name: 'guile-changeflow',
-            server_version: '1.0.0',
+            server_version: '1.1.1',
             description: 'ITIL 4-compliant change management system with automatic risk assessment',
             capabilities: {
               tools: true,
