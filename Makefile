@@ -301,8 +301,14 @@ mcp-server-background:
 test: test-guile test-mcp
 	@echo "=== All tests completed ==="
 
-# Deploy to Cloudflare
-deploy:
+# Build target - only copy worker.js, keep wrangler.toml in infra
+infra/cloudflare/worker.js: mcp-server/changeflow-mcp.js
+	@echo "📦 Copying MCP server to infra/cloudflare/worker.js..."
+	@cp mcp-server/changeflow-mcp.js infra/cloudflare/worker.js
+	@echo "✅ Copy complete"
+
+# Deploy to Cloudflare (depends on worker.js being up to date)
+deploy: infra/cloudflare/worker.js
 	@echo "=== Deploying to Cloudflare Workers ==="
 	@cd infra/cloudflare && wrangler publish
 	@echo "✅ Deployment complete"
