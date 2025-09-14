@@ -46,7 +46,7 @@
                       (properties . ((change_type . ((type . "string")
                                                      (description . "Type of change")
                                                      (enum . ("realistic" "chaos" "edge-case"))
-                                                     (default . "realistic"))))
+                                                     (default . "realistic")))))
                       (required . ()))))
 
     ((name . "inject_failure")
