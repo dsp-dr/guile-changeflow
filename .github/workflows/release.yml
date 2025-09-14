@@ -67,6 +67,8 @@ jobs:
             --exclude='.git' \
             --exclude='node_modules' \
             --exclude='.env' \
+            --exclude='*.log' \
+            --warning=no-file-changed \
             .
 
       - name: Upload Release Asset
