@@ -35,15 +35,25 @@ jobs:
 
     - name: Verify MCP Protocol
       run: |
-        echo "🔍 Checking MCP endpoint..."
-        response=$(curl -s https://gcf-mcp-server.jasonwalsh.workers.dev/mcp)
+        echo "🔍 Checking both MCP endpoints..."
 
-        echo "$response" | jq '.'
+        # Check worker URL
+        worker_response=$(curl -s https://gcf-mcp-server.jasonwalsh.workers.dev/mcp)
+        echo "Worker response:"
+        echo "$worker_response" | jq '.'
 
-        if echo "$response" | jq -e '.mcp_version' > /dev/null; then
-          echo "✅ MCP endpoint responding correctly"
+        # Check custom domain
+        domain_response=$(curl -s https://api.changeflow.us/mcp)
+        echo "Domain response:"
+        echo "$domain_response" | jq '.'
+
+        # Verify both are working
+        if echo "$worker_response" | jq -e '.mcp_version' > /dev/null && \
+           echo "$domain_response" | jq -e '.mcp_version' > /dev/null; then
+          echo "✅ Both MCP endpoints responding correctly"
         else
           echo "❌ MCP endpoint check failed"
+          echo "Worker URL may not be linked to custom domain"
           exit 1
         fi
 

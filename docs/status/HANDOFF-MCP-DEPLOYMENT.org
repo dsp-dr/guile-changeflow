@@ -1,0 +1,47 @@
+#+TITLE: MCP Deployment Handoff
+#+DATE: 2025-09-14
+#+AUTHOR: dsp-dr
+
+* Current Status: ✅ DEPLOYMENT WORKING
+
+** Production URLs
+- Worker URL: https://gcf-mcp-server.jasonwalsh.workers.dev
+- Custom Domain: https://api.changeflow.us (needs DNS update to point to worker)
+
+** What's Deployed
+- MCP server with 4 ITIL tools (create_change_request, get_change_request, list_change_requests, assess_risk)
+- Located in: infra/cloudflare/worker.js
+- Source: mcp-server/changeflow-mcp.js
+- Version tracking: .version file with commit SHA
+
+** CI/CD Pipeline
+- ✅ Deployment workflow working
+- ✅ Post-deployment checks updated to verify both URLs
+- ⚠️ Scheme linting hanging (needs investigation)
+
+* Division of Work
+
+** Our Part (COMPLETE)
+- [X] Fixed deployment path from experiments/ to infra/cloudflare/
+- [X] Cleaned up infra directory (only worker.js and wrangler.toml)
+- [X] Fixed wrangler.toml configuration
+- [X] Added version tracking
+- [X] Updated post-deployment checks
+- [X] Created git hooks for agent documentation
+
+** Coordinator & Builder Agent Tasks
+- [ ] Get MCP Inspector working with local server (port 8427)
+- [ ] Validate all 8 ITIL tools through Inspector
+- [ ] Improve mock data generation
+- [ ] Write integration tests
+- [ ] Document the MCP protocol implementation
+
+** Next Steps for DNS
+- Need to update api.changeflow.us to point to gcf-mcp-server.jasonwalsh.workers.dev
+- Or configure custom domain in Cloudflare dashboard
+
+* Key Files
+- Deployment: .github/workflows/deploy-cloudflare.yml
+- Configuration: infra/cloudflare/wrangler.toml
+- MCP Server: mcp-server/changeflow-mcp.js
+- Local Testing: scripts/mcp-local-server.js (port 8427)
