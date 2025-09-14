@@ -1,0 +1,95 @@
+#+TITLE: OAuth Implementation Log
+#+DATE: 2025-09-14
+#+AUTHOR: dsp-dr / jwalsh
+
+* GitHub OAuth App Configuration
+
+** App Details
+- Created: 2025-09-14
+- Name: ChangeFlow MCP Server
+- Owner: @jwalsh
+- Client ID: Ov23lir2JJgJffb51RPs
+- Homepage: https://api.changeflow.us
+- Callback: https://api.changeflow.us/callback
+- Users: 0 (just created)
+
+** Client Secret
+- [X] Generated on: 2025-09-14
+- [ ] Stored in Cloudflare: [DATE]
+- [ ] Stored in GitHub Secrets: [DATE]
+- [X] .env.template created: 2025-09-14
+- ⚠️ NEVER record actual secret values in documentation!
+
+* Cloudflare Configuration
+
+** Production Worker (guile-changeflow-prod)
+URL: https://dash.cloudflare.com/[ACCOUNT_ID]/workers/services/view/guile-changeflow-prod/production/settings
+
+Environment Variables:
+- [X] GITHUB_CLIENT_ID = Ov23lir2JJgJffb51RPs (Plain text) - Added 2025-09-14
+- [X] GITHUB_CLIENT_SECRET = [REDACTED] (Encrypted) - Added 2025-09-14
+
+** Staging Worker (guile-changeflow-staging)
+⚠️ Note: Staging requires separate OAuth app due to different callback URL
+- Callback would be: https://guile-changeflow-staging.jasonwalsh.workers.dev/callback
+- Skipping for now - focusing on production deployment
+
+* GitHub Repository Secrets
+
+URL: https://github.com/dsp-dr/guile-changeflow/settings/secrets/actions
+
+- [ ] GITHUB_OAUTH_CLIENT_ID = Ov23lir2JJgJffb51RPs
+- [ ] GITHUB_OAUTH_CLIENT_SECRET = [REDACTED]
+
+* Testing Checklist
+
+** OAuth Flow Test
+- [ ] Visit: https://api.changeflow.us/authorize
+- [ ] Should redirect to GitHub OAuth
+- [ ] After auth, should redirect to /callback
+- [ ] Token exchange should work
+
+** Claude.ai Integration Test
+- [ ] Go to: https://claude.ai/settings/connectors
+- [ ] Add Custom Connector
+- [ ] URL: https://api.changeflow.us/mcp
+- [ ] Should prompt for GitHub login
+- [ ] After auth, tools should be available
+
+* Deployment Commands
+
+#+BEGIN_SRC bash
+# Build the worker
+gmake build
+
+# Deploy to staging first
+gmake deploy-staging
+
+# Test staging
+curl https://guile-changeflow-staging.jasonwalsh.workers.dev/authorize
+
+# Deploy to production
+gmake deploy-production
+
+# Check production
+curl https://api.changeflow.us/authorize
+#+END_SRC
+
+* Troubleshooting
+
+** If OAuth redirect fails:
+1. Check callback URL exactly matches: https://api.changeflow.us/callback
+2. Verify secrets are in Cloudflare worker environment
+3. Check CORS headers allow claude.ai
+
+** If secrets not working:
+1. In Cloudflare, ensure secret is encrypted (not plain text)
+2. Variable names are case-sensitive
+3. No quotes around values in Cloudflare dashboard
+
+* Notes
+
+- Client ID is public (can be in plain text)
+- Client Secret must always be encrypted/secret
+- Same OAuth app can be used for staging and production
+- Claude.ai will handle the OAuth flow automatically

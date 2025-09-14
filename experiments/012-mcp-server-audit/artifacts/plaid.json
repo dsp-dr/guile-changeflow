@@ -1,0 +1,20 @@
+{
+  "server": "Plaid",
+  "url": "https://api.dashboard.plaid.com/mcp/sse",
+  "timestamp": "2025-09-14T14:50:14-04:00",
+  "get_status": "403",
+  "get_headers": {
+    "date": "Sun, 14 Sep 2025 18:50:14 GMT",
+    "content-type": "text/plain; charset=utf-8",
+    "content-length": "22",
+    "x-envoy-upstream-service-time": "2",
+    "strict-transport-security": "max-age=31536000; includeSubDomains",
+  },
+  "options_status": "403",
+  "cors_headers": null,
+  "post_status": "403",
+  "response_type": "Unknown",
+  "response_preview": "CORS origin disallowed ",
+  "sse_endpoint": "explicit",
+  "complete": true
+}

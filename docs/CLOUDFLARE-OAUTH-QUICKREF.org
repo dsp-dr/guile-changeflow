@@ -1,0 +1,49 @@
+#+TITLE: Cloudflare OAuth Quick Reference
+#+DATE: 2025-09-14
+
+* Quick Setup Steps
+
+** 1. Production Worker
+URL: https://dash.cloudflare.com → Workers & Pages → guile-changeflow-prod → Settings
+
+1. Click "Settings" tab → "Variables and Secrets"
+2. Add GITHUB_CLIENT_ID:
+   - Variable name: GITHUB_CLIENT_ID
+   - Value: [your GitHub OAuth Client ID]
+   - Type: Text (plain text is fine for client ID)
+3. Add GITHUB_CLIENT_SECRET:
+   - Variable name: GITHUB_CLIENT_SECRET
+   - Value: [paste your secret]
+   - Type: Secret (MUST click "Encrypt")
+4. Click "Save and deploy"
+
+** 2. Staging Worker (Optional)
+URL: https://dash.cloudflare.com → Workers & Pages → guile-changeflow-staging → Settings
+
+Repeat same steps as production
+
+** 3. Verify Deployment
+#+BEGIN_SRC bash
+# After adding secrets, deploy from command line:
+gmake deploy-production
+
+# Check OAuth endpoint:
+curl https://api.changeflow.us/authorize
+
+# Should redirect to GitHub OAuth
+#+END_SRC
+
+* Testing with Claude.ai
+
+1. Go to: https://claude.ai/settings/connectors
+2. Click "Add Custom Connector"
+3. Enter URL: https://api.changeflow.us/mcp
+4. Should prompt for GitHub login
+5. After auth, MCP tools become available
+
+* Important Notes
+
+- Client ID can be plain text (it's public)
+- Client Secret MUST be encrypted
+- Same OAuth app works for staging and production
+- No quotes around values in Cloudflare dashboard

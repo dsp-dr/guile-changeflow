@@ -1,0 +1,30 @@
+{
+  "server": "Asana",
+  "url": "https://mcp.asana.com/sse",
+  "timestamp": "2025-09-14T14:50:20-04:00",
+  "get_status": "401",
+  "get_headers": {
+    "date": "Sun, 14 Sep 2025 18:50:20 GMT",
+    "content-type": "application/json",
+    "content-length": "79",
+    "cf-ray": "97f211c4cd8af797-EWR",
+    "access-control-allow-origin": "https://claude.ai",
+    "www-authenticate": "Bearer realm="OAuth", error="invalid_token", error_description="Missing or invalid access token"",
+    "access-control-allow-headers": "Authorization, *",
+    "access-control-allow-methods": "*",
+    "access-control-max-age": "86400",
+    "server": "cloudflare",
+  },
+  "options_status": "204",
+  "cors_headers": {
+    "access-control-allow-origin": "https://claude.ai",
+    "access-control-allow-headers": "Authorization, *",
+    "access-control-allow-methods": "*",
+    "access-control-max-age": "86400",
+  },
+  "post_status": "401",
+  "response_type": "Unknown",
+  "response_preview": "{"error":"invalid_token","error_description":"Missing or invalid access token"} ",
+  "sse_endpoint": "explicit",
+  "complete": true
+}

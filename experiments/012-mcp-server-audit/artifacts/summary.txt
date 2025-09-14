@@ -1,0 +1,69 @@
+MCP Server Audit Summary - Sun Sep 14 14:50:14 EDT 2025
+=================================
+
+Plaid:
+  URL: https://api.dashboard.plaid.com/mcp/sse
+  GET: 403
+  OPTIONS: 403
+  POST: 403
+  CORS: No
+
+Vercel:
+  URL: https://mcp.vercel.com/
+  GET: 401
+  OPTIONS: 204
+  POST: 401
+  CORS: No
+
+Stripe:
+  URL: https://mcp.stripe.com
+  GET: 401
+  OPTIONS: 204
+  POST: 401
+  CORS: No
+
+Linear:
+  URL: https://mcp.linear.app/sse
+  GET: 401
+  OPTIONS: 204
+  POST: 401
+  CORS: Yes
+
+Square:
+  URL: https://mcp.squareup.com/sse
+  GET: 401
+  OPTIONS: 204
+  POST: 401
+  CORS: Yes
+
+Asana:
+  URL: https://mcp.asana.com/sse
+  GET: 401
+  OPTIONS: 204
+  POST: 401
+  CORS: Yes
+
+ChangeFlow:
+  URL: https://mcp.changeflow.us/mcp
+  GET: 200
+  OPTIONS: 204
+  POST: 200
+  CORS: Yes
+
+HubSpot:
+  URL: https://mcp.hubspot.com/anthropic
+  GET: 401
+  OPTIONS: 401
+  POST: 401
+  CORS: Yes
+Key Observations:
+1. Most production MCP servers use SSE (Server-Sent Events)
+2. URLs often end with /sse or /mcp
+3. CORS headers are essential for Claude.ai
+4. Support both GET (info) and POST (protocol) requests
+
+Recommendations for ChangeFlow:
+1. Add CORS headers: Access-Control-Allow-Origin: https://claude.ai
+2. Consider SSE support for real-time communication
+3. Ensure GET /mcp returns server info (not 500)
+4. Handle OPTIONS preflight requests

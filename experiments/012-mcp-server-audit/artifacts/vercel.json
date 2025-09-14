@@ -1,0 +1,26 @@
+{
+  "server": "Vercel",
+  "url": "https://mcp.vercel.com/",
+  "timestamp": "2025-09-14T14:50:15-04:00",
+  "get_status": "401",
+  "get_headers": {
+    "age": "0",
+    "cache-control": "public, max-age=0, must-revalidate",
+    "content-type": "application/json",
+    "date": "Sun, 14 Sep 2025 18:50:15 GMT",
+    "server": "Vercel",
+    "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+    "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch",
+    "www-authenticate": "Bearer error="invalid_token", error_description="No authorization provided", resource_metadata="https://mcp.vercel.com/.well-known/oauth-protected-resource"",
+    "x-matched-path": "/",
+    "x-vercel-cache": "MISS",
+    "x-vercel-id": "iad1::iad1::t4pz9-1757875815599-ca378f5d9cdf",
+  },
+  "options_status": "204",
+  "cors_headers": null,
+  "post_status": "401",
+  "response_type": "Unknown",
+  "response_preview": "{"error":"invalid_token","error_description":"No authorization provided"} ",
+  "sse_support": false,
+  "complete": true
+}

@@ -1,0 +1,31 @@
+{
+  "server": "Square",
+  "url": "https://mcp.squareup.com/sse",
+  "timestamp": "2025-09-14T14:50:18-04:00",
+  "get_status": "401",
+  "get_headers": {
+    "date": "Sun, 14 Sep 2025 18:50:19 GMT",
+    "content-type": "application/json",
+    "content-length": "79",
+    "access-control-allow-origin": "https://claude.ai",
+    "www-authenticate": "Bearer realm="OAuth", error="invalid_token", error_description="Missing or invalid access token"",
+    "access-control-allow-headers": "Authorization, *",
+    "access-control-allow-methods": "*",
+    "access-control-max-age": "86400",
+    "set-cookie": "__cf_bm=C8U38gViZhw5hM0xrR3Yo1ATe88vYk10ATKXS0rO2GY-1757875819-1.0.1.1-JTtPkqxhJUE2v.Z.kaCmchfiR_XCm84EKkF0BbXdVTqy46Cn55KqNe9JsafJxDTPEbajL74houoiI_PmSIklgSiikt9lSDstxbla6ZCjJmc; path=/; expires=Sun, 14-Sep-25 19:20:19 GMT; domain=.mcp.squareup.com; HttpOnly; Secure; SameSite=None",
+    "server": "cloudflare",
+    "cf-ray": "97f211b8cb6b4d0d-BOS",
+  },
+  "options_status": "204",
+  "cors_headers": {
+    "access-control-allow-origin": "https://claude.ai",
+    "access-control-allow-headers": "Authorization, *",
+    "access-control-allow-methods": "*",
+    "access-control-max-age": "86400",
+  },
+  "post_status": "401",
+  "response_type": "Unknown",
+  "response_preview": "{"error":"invalid_token","error_description":"Missing or invalid access token"} ",
+  "sse_endpoint": "explicit",
+  "complete": true
+}

@@ -1,0 +1,80 @@
+#+TITLE: Landing Page and Endpoint Restructuring Plan
+#+DATE: 2025-09-14
+#+AUTHOR: dsp-dr
+
+* Goal
+Transform the production API from a JSON-only service to a user-friendly web interface with proper separation of concerns between UI, OAuth flow, and MCP protocol endpoints.
+
+* Current State
+- Root (/) returns JSON health check
+- No HTML interface for users
+- OAuth endpoints not implemented
+- MCP endpoints mixed with health/status
+
+* Target State
+- Root (/) serves beautiful HTML landing page
+- Health check moved to /health endpoint
+- OAuth flow has proper UI (/authorize, /callback)
+- Clear separation: WE own UI/OAuth, BUILDER owns JSON/MCP
+
+* Acceptance Criteria
+** MUST Have
+- [ ] Root URL serves HTML landing page with marketing content
+- [ ] Health check accessible at /health (returns JSON)
+- [ ] Landing page includes:
+  - [ ] Service description and ITIL 4 value proposition
+  - [ ] OAuth authorization button
+  - [ ] Link to Claude.ai Custom Connectors
+  - [ ] API endpoint documentation
+  - [ ] Status indicator (calls /health)
+- [ ] OAuth flow has proper UI:
+  - [ ] /authorize shows GitHub OAuth prompt
+  - [ ] /callback handles return and shows success/failure
+- [ ] Existing MCP endpoints remain functional at /mcp
+- [ ] CORS headers remain configured for claude.ai
+
+** SHOULD Have
+- [ ] Responsive design for mobile/tablet
+- [ ] Dark mode theme (matches Claude.ai aesthetic)
+- [ ] Loading states during OAuth flow
+- [ ] Error pages for OAuth failures
+- [ ] Version information displayed
+
+** NICE to Have
+- [ ] Live status updates via WebSocket
+- [ ] API playground/tester
+- [ ] Metrics dashboard
+- [ ] Documentation browser
+
+* Technical Approach
+1. Create static HTML landing page
+2. Update worker.js to route:
+   - GET / → HTML landing page
+   - GET /health → JSON health check
+   - GET /authorize → OAuth initiation
+   - GET /callback → OAuth completion
+   - */mcp → MCP protocol (builder owned)
+3. Integrate OAuth wrapper from experiments/011
+4. Deploy via GitHub Actions
+
+* Ownership
+- **WE OWN**: Landing page, OAuth UI, marketing content, /health
+- **BUILDER OWNS**: MCP protocol endpoints, JSON responses, tool implementations
+- **COORDINATOR**: Ensures both parts integrate properly
+
+* Risk Assessment
+- **Low Risk**: Adding HTML doesn't break existing JSON endpoints
+- **Medium Risk**: OAuth integration needs proper testing
+- **Mitigation**: Deploy to staging first, test with MCP inspector
+
+* Timeline
+- Hour 1: Create landing page HTML
+- Hour 2: Update routing in worker.js
+- Hour 3: Integrate OAuth flow
+- Hour 4: Test and deploy
+
+* Success Metrics
+- Users can understand service purpose from landing page
+- OAuth flow completes successfully
+- MCP inspector still connects properly
+- Claude.ai integration remains functional
