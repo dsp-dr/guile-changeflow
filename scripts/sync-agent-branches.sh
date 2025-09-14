@@ -21,11 +21,11 @@ NOT_FOUND=()
 
 # Agent branches to sync
 BRANCHES=(
-  "agent-001-core-system"
-  "agent-002-testing"
-  "agent-003-documentation"
-  "agent-004-integration"
-  "agent-005-deployment"
+  "feat/core-models"
+  "feat/mcp-server"
+  "feat/risk-engine"
+  "feat/web-interface"
+  "feat/integrations"
 )
 
 # Ensure we're in a git repo
