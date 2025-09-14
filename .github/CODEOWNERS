@@ -1,0 +1,36 @@
+# CODEOWNERS file for Guile ChangeFlow
+# Automatic code review assignment
+
+# Global ownership - all files require review from at least one of these users
+* @seanjensengrey @jwalsh @aygp-dr @dsp-dr
+
+# Core Guile modules - require Scheme/Lisp expertise
+/src/ @seanjensengrey @dsp-dr
+
+# MCP protocol implementation - require MCP expertise
+/src/mcp/ @aygp-dr @jwalsh
+
+# Infrastructure and deployment - require DevOps expertise
+/infra/ @aygp-dr @jwalsh
+/.github/ @jwalsh @dsp-dr
+
+# Release management - require senior approval
+/RELEASE-NOTES.md @seanjensengrey @jwalsh @dsp-dr
+/CHANGELOG.md @seanjensengrey @jwalsh @dsp-dr
+/docs/release-process.org @seanjensengrey @jwalsh @dsp-dr
+
+# Security-sensitive files - require security review
+/src/json.scm @seanjensengrey @dsp-dr
+/.env.example @jwalsh @dsp-dr
+
+# Documentation - require technical writing review
+/docs/ @jwalsh @dsp-dr
+/README.org @seanjensengrey @jwalsh @dsp-dr
+
+# Testing infrastructure - require testing expertise
+/test/ @seanjensengrey @aygp-dr @dsp-dr
+/.github/workflows/ @aygp-dr @jwalsh
+
+# Configuration files - require ops review
+/infra/cloudflare/wrangler.toml @aygp-dr @jwalsh
+/Makefile @seanjensengrey @dsp-dr
