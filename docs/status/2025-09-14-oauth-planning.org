@@ -1,0 +1,81 @@
+#+TITLE: OAuth Implementation Planning - Day Summary
+#+DATE: 2025-09-14
+#+AUTHOR: dsp-dr
+
+* Today's Accomplishments
+
+** ✅ CI/CD Pipeline Fixed
+- Deployment working to correct worker (guile-changeflow-prod)
+- Post-deployment checks passing
+- Version tracking implemented
+- Cleaned up duplicate workers
+
+** ✅ Documentation Created
+- Complete architecture overview with diagrams
+- CI/CD sequence diagrams
+- MCP integration flow documentation
+- Claude.ai Custom Connector setup guide
+
+** ✅ Demo Ready
+- Production API fully operational
+- All 4 ITIL tools working
+- Risk scoring functioning correctly
+- Test script verifying all endpoints
+
+** ✅ Repository Organized
+- Clear separation: JS (production) vs Guile (research)
+- Clean directory structure
+- Division of work documented for parallel development
+
+* Next Steps: OAuth Implementation
+
+** Why OAuth Now?
+- Claude.ai Custom Connectors support Remote MCP servers
+- Cloudflare provides OAuth patterns for Workers
+- Enables user-scoped access and permissions
+- Links changes to real GitHub users
+
+** Implementation Strategy
+Following Cloudflare's guide:
+1. Start with public server (✅ DONE)
+2. Add OAuth wrapper
+3. Implement GitHub OAuth flow
+4. Add user context to tools
+
+** Key Resources
+- Issue #21: https://github.com/dsp-dr/guile-changeflow/issues/21
+- Cloudflare Guide: https://developers.cloudflare.com/agents/guides/remote-mcp-server/
+- Anthropic Docs: https://support.anthropic.com/en/articles/11503834
+
+* Production URLs
+
+| Endpoint | Status | Purpose |
+|----------+--------+---------|
+| https://api.changeflow.us/health | ✅ Working | Health check |
+| https://api.changeflow.us/mcp | ✅ Working | Protocol info |
+| https://api.changeflow.us/mcp/tools | ✅ Working | Tool list |
+| https://api.changeflow.us/mcp/tools/invoke | ✅ Working | Tool execution |
+| https://api.changeflow.us/authorize | ❌ TODO | OAuth initiation |
+| https://api.changeflow.us/callback | ❌ TODO | OAuth callback |
+| https://api.changeflow.us/token | ❌ TODO | Token exchange |
+
+* Risk: Production-Only Development
+
+Since we can't run wrangler locally (FreeBSD), we're doing:
+- Direct edits to production
+- No staging environment tests
+- Immediate deployment on push
+- Testing with real Claude.ai
+
+This is acceptable because:
+- It's a demo/prototype
+- No real user data
+- Can rollback quickly
+- Learning experience with new tech
+
+* Timeline
+
+- **Today**: Fixed CI/CD, documented everything, created OAuth plan
+- **Tomorrow**: Implement OAuth endpoints
+- **Monday**: Test with Claude.ai Custom Connectors
+- **This Week**: Complete GitHub integration
