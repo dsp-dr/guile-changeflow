@@ -3,7 +3,7 @@
 
 [[https://github.com/dsp-dr/guile-changeflow/actions/workflows/ci.yml][https://github.com/dsp-dr/guile-changeflow/actions/workflows/ci.yml/badge.svg]]
 [[https://github.com/dsp-dr/guile-changeflow/releases][https://img.shields.io/github/v/release/dsp-dr/guile-changeflow.svg?include_prereleases]]
-[[https://api.changeflow.us][https://img.shields.io/badge/deployed-Cloudflare%20Workers-orange.svg]]
+[[https://mcp.changeflow.us][https://img.shields.io/badge/deployed-Cloudflare%20Workers-orange.svg]]
 [[LICENSE][https://img.shields.io/badge/license-MIT-blue.svg]]
 
 * Overview
@@ -44,7 +44,8 @@ The system exposes 8 ITIL-compliant tools via JSON-RPC 2.0:
 Test the MCP server using the Cloudflare AI Playground:
 
 1. Visit [[https://playground.ai.cloudflare.com/][playground.ai.cloudflare.com]]
-2. In the MCP Server URL field, enter: =https://api.changeflow.us/mcp=
+2. In the MCP Server URL field, enter: =https://mcp.changeflow.us/v1/sse=
+3. Authenticate via GitHub OAuth at =https://mcp.changeflow.us/authorize=
 3. The playground will automatically discover all 8 ITIL tools
 4. Try commands like:
    - "Create a change request for database upgrade"
@@ -55,19 +56,25 @@ Test the MCP server using the Cloudflare AI Playground:
 For detailed testing with the MCP Inspector:
 #+BEGIN_SRC bash
 npx @modelcontextprotocol/inspector@latest
-# Connect to: https://api.changeflow.us/sse
+# Connect to: https://mcp.changeflow.us/v1/sse
 #+END_SRC
 
 * Quick Start
 
+** For Claude.ai Users
+1. *Authorize*: Visit https://mcp.changeflow.us/authorize
+2. *Add to Claude*: Settings → Custom Connectors → Add =https://mcp.changeflow.us/v1/sse=
+3. *Start Using*: Access ITIL 4 change management tools directly in Claude
+
 ** Production API
 #+BEGIN_SRC bash
 # Check system status
-curl https://api.changeflow.us/
+curl https://mcp.changeflow.us/health
 
-# List available MCP tools
-curl -X POST https://api.changeflow.us/ \
+# List available MCP tools (requires OAuth)
+curl -X POST https://mcp.changeflow.us/v1/sse \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
 #+END_SRC
 
