@@ -1,0 +1,175 @@
+#+TITLE: Claude.ai Demo Setup for Guile ChangeFlow
+#+DATE: 2025-09-14
+#+AUTHOR: dsp-dr
+
+* Quick Demo Setup
+
+** 1. Production Endpoint Test
+First verify the API is working:
+
+#+BEGIN_SRC bash
+# Test health
+curl https://api.changeflow.us/health
+
+# List tools
+curl https://api.changeflow.us/mcp/tools
+
+# Create a test change
+curl -X POST https://api.changeflow.us/mcp/tools/invoke \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tool": "create_change_request",
+    "params": {
+      "title": "Demo Test",
+      "description": "Testing MCP integration",
+      "systems": ["test"],
+      "urgency": "low"
+    }
+  }'
+#+END_SRC
+
+** 2. Claude Desktop Configuration
+Add to Claude Desktop settings:
+
+#+BEGIN_SRC json
+{
+  "mcpServers": {
+    "guile-changeflow": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-http",
+        "https://api.changeflow.us"
+      ]
+    }
+  }
+}
+#+END_SRC
+
+** 3. Claude.ai Web Configuration
+For claude.ai web interface, use direct API calls in your prompts:
+
+#+BEGIN_EXAMPLE
+You have access to the Guile ChangeFlow ITIL system at https://api.changeflow.us
+
+Available tools:
+- create_change_request: Create a new change with risk assessment
+- get_change_request: Get details of a specific change
+- list_change_requests: List all changes
+- assess_risk: Calculate risk for a proposed change
+
+To use, make POST requests to https://api.changeflow.us/mcp/tools/invoke
+#+END_EXAMPLE
+
+* Demo Script
+
+** Scenario 1: Create Emergency Database Change
+User: "I need to create an emergency change request for a production database migration tonight"
+
+Expected Claude Response:
+- Creates change with urgency: "emergency"
+- Systems: ["database", "production"]
+- Risk score: 85+ (high)
+- Status: Requires immediate CAB review
+
+** Scenario 2: Low Risk Configuration Update
+User: "Create a change request for updating the development environment configuration files"
+
+Expected Claude Response:
+- Creates change with urgency: "normal"
+- Systems: ["development", "config"]
+- Risk score: <30 (low)
+- Status: Auto-approved
+
+** Scenario 3: Check Change Status
+User: "What's the status of change CHG-2025-001?"
+
+Expected Claude Response:
+- Retrieves change details
+- Shows current status
+- Displays risk assessment
+- Shows approval requirements
+
+* Mock Data Behavior
+
+The production server uses intelligent mock data:
+
+| Keyword in Title/Description | Risk Impact | Points |
+|------------------------------+-------------+--------|
+| "production" or "prod"       | High        | +40    |
+| "security" or "auth"         | High        | +30    |
+| "payment" or "financial"     | High        | +20    |
+| "emergency" urgency          | High        | +25    |
+| Each affected system         | Medium      | +10    |
+| Base score                   | Low         | +10    |
+
+Risk Categories:
+- Low (0-29): Auto-approved
+- Medium (30-69): Single approval required
+- High (70-100): CAB review required
+
+* Testing Workflow
+
+1. **Basic Test**
+   #+BEGIN_SRC bash
+   # Create a change
+   CHANGE_ID=$(curl -s -X POST https://api.changeflow.us/mcp/tools/invoke \
+     -H "Content-Type: application/json" \
+     -d '{"tool":"create_change_request","params":{"title":"Test","description":"Test","systems":["test"]}}' | jq -r '.id')
+
+   echo "Created: $CHANGE_ID"
+
+   # Retrieve it
+   curl -s -X POST https://api.changeflow.us/mcp/tools/invoke \
+     -H "Content-Type: application/json" \
+     -d "{\"tool\":\"get_change_request\",\"params\":{\"id\":\"$CHANGE_ID\"}}" | jq '.'
+   #+END_SRC
+
+2. **Risk Assessment Test**
+   #+BEGIN_SRC bash
+   # Low risk
+   curl -s -X POST https://api.changeflow.us/mcp/tools/invoke \
+     -H "Content-Type: application/json" \
+     -d '{"tool":"assess_risk","params":{"title":"Update README","description":"Documentation change","systems":[]}}' | jq '.'
+
+   # High risk
+   curl -s -X POST https://api.changeflow.us/mcp/tools/invoke \
+     -H "Content-Type: application/json" \
+     -d '{"tool":"assess_risk","params":{"title":"Emergency production security patch","description":"Fix authentication bypass","systems":["auth","production"],"urgency":"emergency"}}' | jq '.'
+   #+END_SRC
+
+* Expected Demo Outcomes
+
+✅ **What Works:**
+- Creating change requests with automatic risk scoring
+- Retrieving change details
+- Listing all changes
+- Risk assessment based on keywords
+- Mock approval workflows
+
+❌ **Not Yet Implemented:**
+- Real GitHub OAuth integration
+- Actual CAB approval workflow
+- Persistent storage (resets on redeploy)
+- Real-time notifications
+- Webhook processing
+
+* Troubleshooting
+
+| Issue | Solution |
+|-------+----------|
+| API returns old version | Check deployment status |
+| Tools not showing | Verify /mcp/tools endpoint |
+| Risk score always same | Check keyword matching |
+| Changes disappear | In-memory storage resets |
+
+* Demo Recording Checklist
+
+- [ ] Show health endpoint working
+- [ ] Display available tools
+- [ ] Create low-risk change (auto-approved)
+- [ ] Create high-risk change (needs CAB)
+- [ ] Retrieve change by ID
+- [ ] List all changes
+- [ ] Show risk assessment calculation
+- [ ] Demonstrate with Claude.ai interface

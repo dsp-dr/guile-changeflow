@@ -1,0 +1,35 @@
+sequenceDiagram
+    participant Dev as Developer
+    participant GH as GitHub
+    participant Actions as GitHub Actions
+    participant CF as Cloudflare
+    participant Prod as api.changeflow.us
+
+    Dev->>GH: git push to main
+    GH->>Actions: Trigger workflows
+
+    par CI Checks
+        Actions->>Actions: Branch Status Check
+        Actions->>Actions: Dependency Check
+        Actions->>Actions: Lint (Org + Scheme)
+    and Deploy
+        Actions->>Actions: Deploy to Cloudflare
+        Note over Actions: Copy changeflow-mcp.js to worker.js
+        Actions->>Actions: Create .version file
+        Actions->>CF: wrangler deploy
+        CF->>Prod: Update guile-changeflow-prod
+    end
+
+    Actions->>Prod: Post-Deployment Sanity Check
+    Prod-->>Actions: Verify /health endpoint
+    Prod-->>Actions: Verify /mcp endpoint
+    Prod-->>Actions: Verify /mcp/tools (4 tools)
+    Prod-->>Actions: Test tool invocation
+    Actions->>GH: Update commit status
+
+    alt Deployment Success
+        Actions->>GH: ✅ All checks passed
+    else Deployment Failure
+        Actions->>GH: ❌ Create issue
+        Actions->>Dev: Notify failure
+    end

@@ -1,0 +1,51 @@
+sequenceDiagram
+    participant User
+    participant Claude as Claude.ai/Desktop
+    participant API as api.changeflow.us
+    participant Worker as CF Worker
+    participant Store as In-Memory Store
+
+    Note over User,Claude: Demo Flow
+
+    User->>Claude: "Create a change request for database upgrade"
+
+    Claude->>API: GET /mcp
+    API->>Worker: Handle MCP info request
+    Worker-->>API: {mcp_version: "1.0.0", capabilities: {...}}
+    API-->>Claude: Protocol capabilities
+
+    Claude->>API: GET /mcp/tools
+    API->>Worker: List available tools
+    Worker-->>API: Array of 4 tool definitions
+    API-->>Claude: [{name: "create_change_request", ...}, ...]
+
+    Claude->>Claude: Select appropriate tool
+    Note over Claude: Maps user intent to create_change_request
+
+    Claude->>API: POST /mcp/tools/invoke
+    Note over API: Body: {tool: "create_change_request",<br/>params: {title: "Database Upgrade",<br/>description: "Upgrade PostgreSQL to v15",<br/>systems: ["database", "backend"],<br/>urgency: "normal"}}
+
+    API->>Worker: Process tool invocation
+    Worker->>Worker: Calculate risk score
+    Note over Worker: Risk factors:<br/>- Production keyword: +40<br/>- Multiple systems: +20<br/>- Base score: +10<br/>Total: 70 (high risk)
+
+    Worker->>Store: Save change request
+    Store->>Store: Assign ID: CHG-2025-002
+
+    Worker-->>API: Change request created
+    API-->>Claude: {id: "CHG-2025-002",<br/>risk_score: 70,<br/>risk_category: "high",<br/>status: "submitted",<br/>recommendation: "CAB review required"}
+
+    Claude-->>User: "I've created change request CHG-2025-002.<br/>Risk assessment: HIGH (score: 70)<br/>This requires CAB review before implementation."
+
+    User->>Claude: "Check the status of that change"
+
+    Claude->>API: POST /mcp/tools/invoke
+    Note over API: {tool: "get_change_request",<br/>params: {id: "CHG-2025-002"}}
+
+    API->>Worker: Retrieve change
+    Worker->>Store: Get CHG-2025-002
+    Store-->>Worker: Change details
+    Worker-->>API: Full change object
+    API-->>Claude: Change details with current status
+
+    Claude-->>User: "Change CHG-2025-002 is currently<br/>in 'submitted' status awaiting CAB review."

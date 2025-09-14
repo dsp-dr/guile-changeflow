@@ -1,0 +1,36 @@
+graph LR
+    subgraph "Development"
+        A[mcp-server/changeflow-mcp.js<br/>Source of Truth]
+        F[src/*.scm<br/>Guile Research]
+    end
+
+    subgraph "Build Process"
+        B[make deploy<br/>Copy to infra/]
+        C[infra/cloudflare/worker.js<br/>Deployment Ready]
+    end
+
+    subgraph "CI/CD Pipeline"
+        D[git push]
+        E[GitHub Actions]
+        G[wrangler deploy]
+    end
+
+    subgraph "Production"
+        H[Cloudflare Workers<br/>guile-changeflow-prod]
+        I[api.changeflow.us<br/>Public API]
+    end
+
+    A -->|Copy| B
+    B --> C
+    C -->|Commit| D
+    D --> E
+    E -->|Deploy| G
+    G --> H
+    H --> I
+
+    F -->|Algorithm Research| J[Manual Port to JS]
+    J --> A
+
+    style A fill:#f9f,stroke:#333,stroke-width:4px
+    style I fill:#9f9,stroke:#333,stroke-width:4px
+    style F fill:#ff9,stroke:#333,stroke-width:2px

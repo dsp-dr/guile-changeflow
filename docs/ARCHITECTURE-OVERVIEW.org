@@ -1,0 +1,220 @@
+#+TITLE: Guile ChangeFlow Architecture Overview
+#+DATE: 2025-09-14
+#+AUTHOR: dsp-dr
+
+* Project Components & Separation of Concerns
+
+** JavaScript Components (Production)
+*** Purpose: MCP Protocol Implementation & API
+*** Location: mcp-server/, infra/cloudflare/
+*** Responsibilities:
+- MCP protocol compliance
+- HTTP/JSON-RPC endpoints
+- Cloudflare Workers runtime
+- Mock ITIL data generation
+- Risk scoring calculations
+
+** Guile/Scheme Components (Research & Algorithms)
+*** Purpose: ITIL 4 Algorithm Research & Prototyping
+*** Location: src/
+*** Responsibilities:
+- ITIL 4 change management algorithms
+- Risk assessment formulas
+- Freeze period calculations
+- CAB workflow logic
+- Algorithm prototyping before JS implementation
+
+** Current State
+- Production runs 100% JavaScript (Cloudflare Workers)
+- Guile components are for research/prototyping
+- Algorithms are ported from Scheme to JS for production
+
+* CI/CD Pipeline Sequence
+
+#+BEGIN_SRC mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant GH as GitHub
+    participant Actions as GitHub Actions
+    participant CF as Cloudflare
+    participant Prod as api.changeflow.us
+
+    Dev->>GH: git push to main
+    GH->>Actions: Trigger workflows
+
+    par CI Checks
+        Actions->>Actions: Branch Status Check
+        Actions->>Actions: Dependency Check
+        Actions->>Actions: Lint (Org + Scheme)
+    and Deploy
+        Actions->>Actions: Deploy to Cloudflare
+        Note over Actions: Copy changeflow-mcp.js to worker.js
+        Actions->>CF: wrangler deploy
+        CF->>Prod: Update guile-changeflow-prod
+    end
+
+    Actions->>Prod: Post-Deployment Sanity Check
+    Prod-->>Actions: Health, MCP, Tools verification
+    Actions->>GH: Update status
+#+END_SRC
+
+* Build Process
+
+#+BEGIN_SRC mermaid
+graph LR
+    A[mcp-server/changeflow-mcp.js] -->|make deploy| B[infra/cloudflare/worker.js]
+    B -->|git push| C[GitHub Actions]
+    C -->|wrangler deploy| D[Cloudflare Workers]
+    D --> E[api.changeflow.us]
+
+    F[src/*.scm] -->|Research Only| G[Algorithm Design]
+    G -->|Manual Port| A
+#+END_SRC
+
+* Deployment Architecture
+
+#+BEGIN_SRC mermaid
+graph TB
+    subgraph "Production Environment"
+        CF[Cloudflare Workers]
+        API[api.changeflow.us]
+        PROD[guile-changeflow-prod]
+        CF --> PROD
+        PROD --> API
+    end
+
+    subgraph "Staging Environment"
+        STG[guile-changeflow-staging]
+        STGURL[*.workers.dev]
+        CF --> STG
+        STG --> STGURL
+    end
+
+    subgraph "Local Development"
+        LOCAL[localhost:8427]
+        MCP[mcp-local-server.js]
+        MCP --> LOCAL
+    end
+#+END_SRC
+
+* MCP Server Integration Flow
+
+#+BEGIN_SRC mermaid
+sequenceDiagram
+    participant Claude as Claude.ai
+    participant API as api.changeflow.us
+    participant Worker as CF Worker
+    participant Memory as In-Memory Store
+
+    Claude->>API: GET /mcp
+    API->>Worker: Handle request
+    Worker-->>API: MCP capabilities
+    API-->>Claude: Protocol info
+
+    Claude->>API: GET /mcp/tools
+    Worker-->>API: List of 4 tools
+    API-->>Claude: Tool definitions
+
+    Claude->>API: POST /mcp/tools/invoke
+    Note over Claude: {tool: "create_change_request", params: {...}}
+    API->>Worker: Process tool call
+    Worker->>Worker: Calculate risk score
+    Worker->>Memory: Store change request
+    Worker-->>API: Change request created
+    API-->>Claude: {id: "CHG-2025-001", risk_score: 60}
+#+END_SRC
+
+* File Structure & Purpose
+
+#+BEGIN_SRC
+guile-changeflow/
+├── mcp-server/                 # MCP Protocol Implementation
+│   ├── changeflow-mcp.js      # Source of truth for MCP server
+│   └── README.org              # MCP documentation
+│
+├── infra/cloudflare/           # Deployment Configuration
+│   ├── worker.js               # Deployed copy (synced from mcp-server)
+│   └── wrangler.toml           # Cloudflare config
+│
+├── src/                        # Guile/Scheme Research
+│   ├── itil/                   # ITIL 4 algorithms
+│   ├── risk/                   # Risk calculation research
+│   └── demo/                   # Scheme demos
+│
+├── scripts/                    # Testing & Utilities
+│   ├── mcp-local-server.js    # Local MCP server (port 8427)
+│   ├── emergency-shutdown.sh  # Kill switch
+│   └── test-*.js              # Test utilities
+│
+├── .github/workflows/          # CI/CD Pipeline
+│   ├── deploy-cloudflare.yml  # Production deployment
+│   ├── post-deploy-check.yml  # Sanity checks
+│   └── ci.yml                 # Linting & checks
+│
+└── docs/                       # Documentation
+    ├── ARCHITECTURE-OVERVIEW.org (this file)
+    ├── AGENT-DIVISION-OF-WORK.org
+    └── status/                 # Daily reports
+#+END_SRC
+
+* Claude.ai Configuration for Demo
+
+** Required Configuration
+#+BEGIN_SRC json
+{
+  "mcpServers": {
+    "changeflow": {
+      "command": "curl",
+      "args": [
+        "-X", "POST",
+        "https://api.changeflow.us/mcp/tools/invoke",
+        "-H", "Content-Type: application/json"
+      ]
+    }
+  }
+}
+#+END_SRC
+
+** Available Tools in Production
+1. create_change_request - Create new change with risk assessment
+2. get_change_request - Retrieve change by ID
+3. list_change_requests - List all changes with filtering
+4. assess_risk - Calculate risk score for proposed change
+
+** Demo Flow
+1. Claude.ai connects to api.changeflow.us
+2. Discovers available MCP tools
+3. User requests: "Create a change request for updating production database"
+4. Claude invokes create_change_request tool
+5. System calculates risk score (mock data)
+6. Returns change ID and risk assessment
+7. User can query status with get_change_request
+
+* Current Production Endpoints
+
+| Endpoint | Method | Purpose | Status |
+|----------+--------+---------+--------|
+| /health | GET | Health check | ✅ Working |
+| /mcp | GET | MCP protocol info | ✅ Working |
+| /mcp/tools | GET | List available tools | ✅ Working |
+| /mcp/tools/invoke | POST | Execute tool | ✅ Working |
+| /api/changes | GET/POST | Direct API | ✅ Working |
+| /webhooks/github | POST | GitHub webhooks | ✅ Working |
+| /oauth/github | * | OAuth flow | ❌ TODO |
+
+* Key Design Decisions
+
+1. **JavaScript for Production**: Cloudflare Workers requires JS/WASM
+2. **Guile for Research**: Algorithm development and prototyping
+3. **Mock Data**: Production uses mock ITIL data for demo
+4. **In-Memory Storage**: No database, changes stored in memory
+5. **Separation of Concerns**: Clear boundary between research and production
+6. **MCP Protocol**: Follows Model Context Protocol for AI integration
+
+* Next Steps for Demo
+
+1. [ ] Configure Claude Desktop with MCP server
+2. [ ] Create demo script showing ITIL workflow
+3. [ ] Add more realistic mock data
+4. [ ] Implement GitHub OAuth (production only)
+5. [ ] Create video demonstration
