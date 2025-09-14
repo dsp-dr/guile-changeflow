@@ -1,5 +1,4 @@
-#+TITLE: Guile ChangeFlow - ITIL 4 Change Management System
-#+AUTHOR: Multi-Agent Development Team
+#+TITLE: ChangeFlow - ITIL 4 Change Management System
 #+STARTUP: overview
 
 [[https://github.com/dsp-dr/guile-changeflow/actions/workflows/ci.yml][https://github.com/dsp-dr/guile-changeflow/actions/workflows/ci.yml/badge.svg]]
@@ -7,95 +6,145 @@
 [[https://api.changeflow.us][https://img.shields.io/badge/deployed-Cloudflare%20Workers-orange]]
 [[LICENSE][https://img.shields.io/badge/license-MIT-blue.svg]]
 
-#+BEGIN_QUOTE
-*v1.1.0: The Great Agent Discovery* - 5 AI agents wrote 7,217 lines of code while stuck on permission prompts for 3+ hours. This is their story.
-#+END_QUOTE
+* Overview
 
-* 🚀 Overview
+ChangeFlow is a comprehensive ITIL 4 compliant change management system designed for enterprise IT operations. It provides automated risk assessment, approval workflows, and AI-powered change tracking through the Model Context Protocol (MCP).
 
-An ITIL 4 compliant change management system built with GNU Guile 3.0+ and deployed to Cloudflare Workers. Features MCP (Model Context Protocol) server for AI agent integration.
+* Key Features
 
-* 🎯 Quick Start
+** ITIL 4 Compliance
+- Full change lifecycle management (RFC to implementation)
+- CAB (Change Advisory Board) approval workflows
+- Risk assessment and impact analysis
+- Emergency change procedures
+- Standard change catalog
+- Audit trail and compliance reporting
 
-** Test Production API
+** Automated Risk Assessment
+- Real-time risk scoring based on change attributes
+- Freeze period enforcement
+- Dependency tracking
+- Rollback planning
+- Impact analysis on affected systems
+
+** MCP Integration
+The system exposes 8 ITIL-compliant tools via JSON-RPC 2.0:
+- =create_change_request= - Submit new RFCs
+- =approve_change= - CAB approval processing
+- =assess_risk= - Automated risk scoring
+- =schedule_change= - Calendar management
+- =update_status= - State transitions
+- =get_change_details= - Query change information
+- =list_pending_changes= - Dashboard views
+- =emergency_override= - Break-glass procedures
+
+* Quick Start
+
+** Production API
 #+BEGIN_SRC bash
+# Check system status
 curl https://api.changeflow.us/
-#+END_SRC
 
-** Run Local MCP Server
-#+BEGIN_SRC bash
-# Auto-starts with direnv
-cd guile-changeflow
-# Server runs on port 8427
-
-# Test MCP protocol
-curl -X POST http://localhost:8427/ \
+# List available MCP tools
+curl -X POST https://api.changeflow.us/ \
+  -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
 #+END_SRC
 
-* 📊 Architecture
+** Local Development
+#+BEGIN_SRC bash
+# Clone repository
+git clone https://github.com/dsp-dr/guile-changeflow.git
+cd guile-changeflow
 
-- *Core Models*: ITIL-compliant change requests with full CRUD
-- *State Machine*: 9-state workflow with validated transitions
-- *Risk Engine*: Automated assessment with freeze periods
-- *MCP Server*: 8 ITIL tools via JSON-RPC 2.0
-- *Executive Dashboard*: Real-time monitoring and metrics
-- *Database*: SQLite with audit trails
+# Start MCP server (auto-starts on port 8427 with direnv)
+node scripts/mcp-local-server.js
 
-* 🤖 The Agent Story
-
-At 1:30 AM on 2025-09-14, we discovered that 5 specialized AI agents had been working in parallel:
-
-| Agent  | Contribution | Lines | Focus Area                       |
-|--------+--------------+-------+----------------------------------|
-| gcf-a1 | Core Models  | 2,451 | Database, CRUD, State Machine    |
-| gcf-a2 | MCP Server   | 1,337 | Alternative Worker Implementation |
-| gcf-a3 | Dashboard    | 1,282 | Executive UI, Risk Visualization |
-| gcf-a4 | Workflows    | 1,074 | State Transitions, Orchestration |
-| gcf-a5 | Testing      | 1,073 | Integration Tests, Documentation |
-|--------+--------------+-------+----------------------------------|
-| *Total* | *All Work*   | *9,073* | *48 files across project*        |
-
-* 🛠️ Technologies
-
-- *Backend*: GNU Guile 3.0+ (Scheme/Lisp)
-- *Deployment*: Cloudflare Workers (Serverless)
-- *Protocol*: MCP (Model Context Protocol)
-- *Database*: SQLite with WAL mode
-- *CI/CD*: GitHub Actions
-
-* 📁 Project Structure
-
-#+BEGIN_SRC
-guile-changeflow/
-├── src/
-│   ├── models/          # ITIL data models
-│   ├── risk/            # Risk assessment engine
-│   ├── web/             # Dashboard and API
-│   └── mcp/             # MCP server implementation
-├── infra/
-│   └── cloudflare/      # Worker deployment
-├── scripts/             # Automation and monitoring
-└── docs/                # Comprehensive documentation
+# Run test suite
+node test/mcp-comprehensive-test.js
 #+END_SRC
 
-* 🔗 Links
+** Deploy Your Own Instance
+#+BEGIN_SRC bash
+# Configure Cloudflare credentials
+cp .env.example .env
+# Edit .env with your CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
 
-- [[https://api.changeflow.us][Production API]]
-- [[https://github.com/dsp-dr/guile-changeflow/releases/tag/v1.1.0][v1.1.0 Release Notes]]
-- [[file:docs/status/AGENT-WORK-DISCOVERY.org][Agent Discovery Story]]
-- [[file:docs/roadmap/V2.0-ROADMAP.org][v2.0 Roadmap]]
+# Deploy to Cloudflare Workers
+cd infra/cloudflare
+wrangler publish
+#+END_SRC
 
-* 📈 Next: Version 2.0
+* Usage Examples
 
-Merging the best of both worker implementations:
-- Enhanced monitoring and metrics
-- File-based agent progress tracking
-- Unified architecture
-- 12-week implementation timeline
+** Creating a Change Request
+#+BEGIN_SRC json
+{
+  "jsonrpc": "2.0",
+  "method": "create_change_request",
+  "params": {
+    "title": "Database Schema Update",
+    "description": "Add authentication fields to user table",
+    "category": "normal",
+    "priority": "medium",
+    "impact": "medium",
+    "risk_score": 45,
+    "scheduled_start": "2025-09-20T10:00:00Z",
+    "scheduled_end": "2025-09-20T12:00:00Z"
+  },
+  "id": 1
+}
+#+END_SRC
 
------
+** Assessing Risk
+#+BEGIN_SRC json
+{
+  "jsonrpc": "2.0",
+  "method": "assess_risk",
+  "params": {
+    "change_id": "CHG-20250914-0001",
+    "factors": ["production", "database", "authentication"]
+  },
+  "id": 2
+}
+#+END_SRC
 
-#+BEGIN_QUOTE
-/"Them not telling us is a 'us' problem"/ - The lesson learned from 5 agents working in silence.
-#+END_QUOTE
+* System Architecture
+
+** Components
+- *Web Dashboard*: Executive view with real-time metrics
+- *MCP Server*: AI agent integration layer
+- *Risk Engine*: Automated assessment and scoring
+- *State Machine*: ITIL-compliant workflow engine
+- *Database*: SQLite with full audit trails
+
+** State Workflow
+#+BEGIN_SRC
+submitted → assessing → approved → implementing → completed
+                     ↘ rejected     ↓            ↗
+                     ↘ needs-info   → failed ───
+                     ↘ cancelled
+#+END_SRC
+
+* Requirements
+
+- GNU Guile 3.0+ (for local development)
+- Node.js 18+ (for MCP server)
+- Cloudflare Workers account (for deployment)
+
+* Documentation
+
+- [[file:docs/setup.org][Installation Guide]]
+- [[file:docs/architecture/][Architecture Documentation]]
+- [[file:docs/tutorials/][Tutorials and Examples]]
+- [[file:docs/roadmap/V2.0-ROADMAP.org][Development Roadmap]]
+
+* License
+
+MIT License - See LICENSE file for details
+
+* Support
+
+- Issues: [[https://github.com/dsp-dr/guile-changeflow/issues][GitHub Issues]]
+- Documentation: [[file:docs/][docs/ directory]]
+- API Reference: [[https://api.changeflow.us/docs][Online Documentation]]
