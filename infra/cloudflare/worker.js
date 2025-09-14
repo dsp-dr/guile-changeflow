@@ -55,7 +55,7 @@ const ERROR_HTML = `<!DOCTYPE html>
 </html>`;
 
 // Server Configuration
-const SERVER_VERSION = '1.3.2';
+const SERVER_VERSION = '1.3.3';
 
 // OAuth URLs
 const GITHUB_OAUTH_URL = 'https://github.com/login/oauth/authorize';
@@ -132,11 +132,39 @@ export default {
         });
 
       case '/authorize':
-        // OAuth Step 1: Redirect to GitHub
+        // OAuth Step 1: Handle authorization request from Claude.ai
+        // Claude.ai will open this in a popup/iframe after getting 401
+
         if (!env.GITHUB_CLIENT_ID) {
           return new Response('OAuth not configured - GITHUB_CLIENT_ID missing', { status: 500 });
         }
 
+        // Check if this is from Claude.ai (they send specific params)
+        const responseType = url.searchParams.get('response_type');
+        const clientId = url.searchParams.get('client_id');
+        const redirectUri = url.searchParams.get('redirect_uri');
+        const state = url.searchParams.get('state');
+
+        // If Claude.ai sent OAuth params, handle them
+        if (responseType || clientId) {
+          // Claude.ai is initiating OAuth - redirect to GitHub
+          const githubParams = new URLSearchParams({
+            client_id: env.GITHUB_CLIENT_ID,
+            redirect_uri: `${url.origin}/callback`,
+            scope: 'read:user',
+            state: state || crypto.randomUUID(),
+            // Store Claude's redirect URI in state
+            ...(redirectUri && { state: btoa(JSON.stringify({
+              claudeRedirect: redirectUri,
+              claudeState: state,
+              timestamp: Date.now()
+            }))})
+          });
+
+          return Response.redirect(`${GITHUB_OAUTH_URL}?${githubParams}`, 302);
+        }
+
+        // Direct browser access - show authorization page
         const authParams = new URLSearchParams({
           client_id: env.GITHUB_CLIENT_ID,
           redirect_uri: `${url.origin}/callback`,
@@ -179,24 +207,48 @@ export default {
             // Success! Set a session cookie so /v1/sse knows user is authenticated
             const sessionId = crypto.randomUUID();
 
-            // For Claude.ai, check if state indicates return to SSE
-            let returnUrl = '/';
+            // Check if we need to redirect back to Claude.ai
+            let isClaudeCallback = false;
+            let claudeRedirectUri = null;
+            let claudeState = null;
+
             try {
               if (state) {
                 const stateData = JSON.parse(atob(state));
-                if (stateData.returnUrl === '/v1/sse') {
-                  // Redirect back to Claude.ai's expected URL
-                  returnUrl = 'https://claude.ai/connect/success';
+                if (stateData.claudeRedirect) {
+                  isClaudeCallback = true;
+                  claudeRedirectUri = stateData.claudeRedirect;
+                  claudeState = stateData.claudeState;
                 }
               }
             } catch (e) {
-              // Ignore state parsing errors
+              // Not from Claude, regular OAuth flow
             }
 
+            // Set session cookie
+            const cookieHeader = `mcp_session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=86400`;
+
+            // If this is Claude.ai callback, redirect with their expected params
+            if (isClaudeCallback && claudeRedirectUri) {
+              const callbackParams = new URLSearchParams({
+                code: sessionId, // Use session ID as authorization code
+                state: claudeState || ''
+              });
+
+              return new Response(null, {
+                status: 302,
+                headers: {
+                  'Location': `${claudeRedirectUri}?${callbackParams}`,
+                  'Set-Cookie': cookieHeader
+                }
+              });
+            }
+
+            // Regular success page for direct browser access
             return new Response(SUCCESS_HTML, {
               headers: {
                 'Content-Type': 'text/html',
-                'Set-Cookie': `mcp_session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=86400`
+                'Set-Cookie': cookieHeader
               }
             });
           } else {
@@ -441,34 +493,28 @@ export default {
 
       case '/v1/sse':
         // SSE endpoint for Claude.ai integration
-        // Claude.ai flow: First request without auth → redirect to OAuth → OAuth completion → SSE works
+        // Claude.ai expects: 401 Unauthorized → initiates OAuth flow → SSE works
 
         // Check for authentication (session cookie or Bearer token)
         const cookies = request.headers.get('cookie') || '';
         const hasSession = cookies.includes('mcp_session=');
         const authHeader = request.headers.get('authorization');
-        const userAgent = request.headers.get('user-agent') || '';
 
-        // If no auth (no session cookie and no Bearer token), redirect to OAuth
+        // If no auth, return 401 with WWW-Authenticate header
+        // This tells Claude.ai to initiate OAuth flow
         if (!hasSession && !authHeader) {
-          // For GET request without auth, redirect to OAuth
-          if (request.method === 'GET') {
-            // Generate state for OAuth that includes return URL
-            const state = btoa(JSON.stringify({
-              returnUrl: '/v1/sse',
-              timestamp: Date.now()
-            }));
-
-            const authParams = new URLSearchParams({
-              client_id: env.GITHUB_CLIENT_ID || '',
-              redirect_uri: `${url.origin}/callback`,
-              scope: 'read:user',
-              state: state
-            });
-
-            // Redirect to GitHub OAuth
-            return Response.redirect(`${GITHUB_OAUTH_URL}?${authParams}`, 302);
-          }
+          return new Response(JSON.stringify({
+            error: 'unauthorized',
+            message: 'Authentication required',
+            auth_url: `${url.origin}/authorize`
+          }), {
+            status: 401,
+            headers: {
+              'Content-Type': 'application/json',
+              'WWW-Authenticate': `Bearer realm="MCP", auth_uri="${url.origin}/authorize"`,
+              ...corsHeaders
+            }
+          });
         }
 
         // For authenticated requests (has session or Bearer token), return SSE stream
@@ -699,6 +745,59 @@ export default {
           }
         }
         break;
+
+      case '/token':
+        // OAuth token endpoint for Claude.ai
+        if (request.method !== 'POST') {
+          return new Response('Method not allowed', { status: 405 });
+        }
+
+        try {
+          const body = await request.json();
+          const grantType = body.grant_type;
+          const code = body.code;
+
+          // Handle authorization_code grant
+          if (grantType === 'authorization_code' && code) {
+            // Code is actually our session ID from callback
+            // Generate an access token
+            const accessToken = crypto.randomUUID();
+
+            return new Response(JSON.stringify({
+              access_token: accessToken,
+              token_type: 'Bearer',
+              expires_in: 3600,
+              scope: 'mcp'
+            }), {
+              headers: {
+                'Content-Type': 'application/json',
+                ...corsHeaders
+              }
+            });
+          }
+
+          return new Response(JSON.stringify({
+            error: 'invalid_grant',
+            error_description: 'Invalid grant type or code'
+          }), {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            error: 'invalid_request',
+            error_description: 'Invalid request format'
+          }), {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
 
       case '/favicon.ico':
         // Return inline favicon (ChangeFlow logo - circular arrow)
