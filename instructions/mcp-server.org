@@ -1,0 +1,189 @@
+#+TITLE: MCP Server Agent Instructions
+#+DATE: 2025-09-13
+#+STARTUP: overview
+
+* Your Mission
+
+You are the MCP Server agent working on the Guile ChangeFlow system.
+
+Your worktree: /home/dsp-dr/ghq/github.com/dsp-dr/gcf-mcp-server
+Your branch: feat/mcp-server
+Your focus: MCP protocol implementation for Claude integration
+
+* Priority Tasks
+
+1. Create HTTP server on port 8081
+2. Implement MCP discovery endpoint (.well-known/mcp)
+3. Create tool: create_change_request
+4. Create tool: assess_risk (calls Risk Engine)
+5. Handle tool invocations and return proper MCP responses
+
+* File Structure to Create
+
+#+begin_example
+src/
+├── mcp/
+│   ├── server.scm       # Main HTTP server
+│   ├── discovery.scm    # MCP discovery endpoint
+│   ├── tools.scm        # Tool definitions
+│   └── handlers.scm     # Request handlers
+└── main.scm             # Entry point
+#+end_example
+
+* Critical Deliverables (MUST HAVE for Demo)
+
+- [ ] Server responds on http://localhost:8081
+- [ ] Discovery endpoint returns tool list
+- [ ] create_change_request tool works
+- [ ] Returns proper MCP JSON responses
+- [ ] Can be called from Claude
+
+* Code Template to Start With
+
+** src/mcp/server.scm
+#+begin_src scheme
+(define-module (mcp server)
+  #:use-module (web server)
+  #:use-module (web request)
+  #:use-module (web response)
+  #:use-module (web uri)
+  #:use-module (json)
+  #:export (start-mcp-server))
+
+(define (handler request body)
+  (let ((path (uri-path (request-uri request))))
+    (cond
+      ((string=? path "/.well-known/mcp")
+       (discovery-handler request))
+      ((string=? path "/tools")
+       (tools-handler request))
+      ((string-prefix? "/tools/" path)
+       (tool-invoke-handler request body))
+      (else
+       (not-found-handler)))))
+
+(define (start-mcp-server)
+  (display "Starting MCP server on port 8081...\n")
+  (run-server handler 'http '(#:port 8081)))
+#+end_src
+
+** src/mcp/discovery.scm
+#+begin_src scheme
+(define-module (mcp discovery)
+  #:use-module (json)
+  #:use-module (web response)
+  #:export (discovery-handler))
+
+(define (discovery-handler request)
+  (let ((response-data
+         `((name . "Guile ChangeFlow")
+           (version . "0.1.0")
+           (protocol . "MCP/1.0")
+           (capabilities . ((tools . #t)
+                           (notifications . #f)))
+           (tools . #(((name . "create_change_request")
+                      (description . "Create a new change request")
+                      (inputSchema . ((type . "object")
+                                     (properties . ((title . ((type . "string")))
+                                                   (description . ((type . "string")))))
+                                     (required . #("title" "description")))))
+                     ((name . "assess_risk")
+                      (description . "Assess risk for a change")
+                      (inputSchema . ((type . "object")
+                                     (properties . ((changeId . ((type . "string")))))
+                                     (required . #("changeId"))))))))))
+    (values '((content-type . (application/json)))
+            (scm->json-string response-data))))
+#+end_src
+
+** src/mcp/tools.scm
+#+begin_src scheme
+(define-module (mcp tools)
+  #:use-module (models change-request)
+  #:use-module (storage memory)
+  #:use-module (json)
+  #:export (create-change-request-tool
+            assess-risk-tool))
+
+(define (create-change-request-tool params)
+  ;; Extract parameters
+  (let* ((title (assoc-ref params 'title))
+         (description (assoc-ref params 'description))
+         (change-id (string-append "CHG-" (number->string (random 10000))))
+         (change (make-change-request
+                  change-id
+                  title
+                  description
+                  0  ; Risk score will be calculated
+                  'submitted
+                  (current-time)
+                  (current-time))))
+
+    ;; Store the change
+    (store-change! change)
+
+    ;; Return response
+    `((success . #t)
+      (changeId . ,change-id)
+      (message . "Change request created successfully"))))
+
+(define (assess-risk-tool params)
+  (let ((change-id (assoc-ref params 'changeId)))
+    ;; TODO: Call risk engine from Agent 3
+    `((success . #t)
+      (changeId . ,change-id)
+      (riskScore . ,(+ 10 (random 90)))
+      (category . "medium"))))
+#+end_src
+
+* MCP Protocol Requirements
+
+The server must return proper MCP responses:
+
+#+begin_example
+GET /.well-known/mcp
+Response: Tool discovery JSON
+
+POST /tools/create_change_request/invoke
+Body: {"params": {"title": "...", "description": "..."}}
+Response: {"success": true, "changeId": "CHG-123", ...}
+#+end_example
+
+* Integration Points
+
+- Import models from Agent 1 (Core Models)
+- Call risk assessment from Agent 3 (Risk Engine)
+- Changes created here appear in Agent 4 (Web Interface)
+- Webhook notifications go to Agent 5 (Integrations)
+
+* Testing Your Work
+
+#+begin_src bash
+# Test discovery
+curl http://localhost:8081/.well-known/mcp | jq .
+
+# Test create change
+curl -X POST http://localhost:8081/tools/create_change_request/invoke \
+  -H "Content-Type: application/json" \
+  -d '{"params":{"title":"Test","description":"Testing MCP"}}' | jq .
+
+# Test risk assessment
+curl -X POST http://localhost:8081/tools/assess_risk/invoke \
+  -H "Content-Type: application/json" \
+  -d '{"params":{"changeId":"CHG-001"}}' | jq .
+#+end_src
+
+* Timeline
+
+- Hour 1: Basic HTTP server setup
+- Hour 2: Discovery endpoint
+- Hour 3: Tool implementations
+- Hour 4: Testing with curl
+- Hour 5: Ready for Claude integration
+
+* Notes
+
+- Focus on JSON responses that Claude expects
+- Static responses are OK for demo
+- Don't worry about authentication (demo token is fine)
+- Test frequently with curl

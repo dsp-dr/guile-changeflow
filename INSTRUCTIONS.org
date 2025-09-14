@@ -1,88 +1,95 @@
-#+TITLE: Agent 1 - Core Models Instructions
+#+TITLE: Agent 2 - MCP Server Instructions
 #+DATE: 2025-09-13
 
 * Your Mission
 
-You are Agent 1 working on Core Models and State Machine for Guile ChangeFlow.
+You are Agent 2 working on MCP Protocol Implementation for Guile ChangeFlow.
 
-Your worktree: /home/dsp-dr/ghq/github.com/dsp-dr/gcf-core-models
-Your branch: feat/core-models
-Your focus: Core data models, state machine, and in-memory storage
+Your worktree: /home/dsp-dr/ghq/github.com/dsp-dr/gcf-mcp-server
+Your branch: feat/mcp-server
+Your focus: MCP protocol server with tool definitions and JSON-RPC handling
 
 * Priority Tasks
 
-1. Create src/models/ directory structure
-2. Implement change-request record type with all necessary fields
-3. Create state machine for change lifecycle (submitted -> assessing -> approved/rejected)
-4. Implement in-memory storage using hash tables for demo
+1. Create src/mcp/ directory structure
+2. Implement .well-known/mcp discovery endpoint
+3. Create tool registry with create_change_request tool
+4. Handle JSON-RPC 2.0 requests
+5. Mock authentication (just accept static token)
 
 * File Structure to Create
 
 #+begin_example
 src/
-├── models/
-│   ├── change-request.scm
-│   ├── state-machine.scm
-│   ├── approval.scm
-│   └── audit.scm
-└── storage/
-    └── memory.scm
+├── mcp/
+│   ├── server.scm
+│   ├── discovery.scm
+│   ├── tools.scm
+│   ├── handlers.scm
+│   └── json-rpc.scm
+└── config/
+    └── mcp-config.scm
 #+end_example
 
 * Success Criteria
 
-- [ ] Change requests can be created with ID, title, description, risk score
-- [ ] State transitions work (submitted -> assessing -> approved)
-- [ ] Basic CRUD operations functional (create, read, update, delete)
-- [ ] Audit trail captures all state changes
-- [ ] Other agents can import and use your models
+- [ ] MCP discovery endpoint returns valid manifest
+- [ ] /tools endpoint lists available tools
+- [ ] create_change_request tool is callable
+- [ ] JSON-RPC parsing and response formatting works
+- [ ] Server responds to Claude's requests
 
 * Code Templates
 
-** change-request.scm
+** discovery.scm
 #+begin_src scheme
-(define-module (models change-request)
-  #:use-module (srfi srfi-9)
-  #:use-module (srfi srfi-19)
-  #:export (make-change-request
-            change-request?
-            change-request-id
-            change-request-title
-            change-request-description
-            change-request-risk-score
-            change-request-status
-            change-request-created-at
-            set-change-request-status!
-            set-change-request-risk-score!))
+(define-module (mcp discovery)
+  #:use-module (json)
+  #:export (get-mcp-manifest))
 
-(define-record-type <change-request>
-  (make-change-request id title description risk-score status created-at)
-  change-request?
-  (id change-request-id)
-  (title change-request-title)
-  (description change-request-description)
-  (risk-score change-request-risk-score set-change-request-risk-score!)
-  (status change-request-status set-change-request-status!)
-  (created-at change-request-created-at))
+(define (get-mcp-manifest)
+  '((mcp_version . "1.0.0")
+    (server_name . "guile-changeflow")
+    (server_version . "0.1.0")
+    (capabilities . ((tools . #t)
+                    (prompts . #f)
+                    (resources . #f)))))
+#+end_src
+
+** tools.scm
+#+begin_src scheme
+(define-module (mcp tools)
+  #:use-module (json)
+  #:export (get-tools-list
+            invoke-tool))
+
+(define (get-tools-list)
+  '((tools . #(((name . "create_change_request")
+                (description . "Create a new change request")
+                (inputSchema . ((type . "object")
+                               (properties . ((title . ((type . "string")))
+                                            (description . ((type . "string")))
+                                            (systems . ((type . "array")))))
+                               (required . #("title" "description")))))))))
 #+end_src
 
 * Dependencies
 
-You need: Nothing - you're the foundation
-Others need from you: Core models, state machine, storage interface
+You need: Core models from Agent 1 (can mock initially)
+Others need from you: MCP endpoints for Claude integration
 
 * Important Notes
 
-- Focus on demo-ready, not production-perfect
-- Use simple in-memory storage (hash tables)
-- Make sure your modules can be imported by other agents
-- Commit every completed component
-- Create STATUS.org to track your progress
+- Start with mock responses, integrate with Agent 1's models later
+- Focus on getting Claude to connect and see tools
+- Use static authentication token "demo-token" for now
+- JSON handling is critical - test with sample payloads
+- Port 8080 might conflict with Agent 4, use 8081 for MCP
 
 * Timeline
 
-You have 3-4 hours to complete core components.
-Hour 1: Basic models
-Hour 2: State machine
-Hour 3: Storage layer
-Hour 4: Integration and testing
+You have 3-4 hours to complete MCP server.
+Hour 1: Basic server and discovery
+Hour 2: Tool definitions
+Hour 3: JSON-RPC handling
+Hour 4: Integration with core models
