@@ -847,10 +847,10 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
         });
 
       case '/oauth/authorize':
-        // Alias for /authorize to match Cloudflare's pattern
-        request = new Request(url.origin + '/authorize' + url.search, request);
+        // Alias for /authorize to match Cloudflare's pattern - fall through to /authorize
+        url = new URL(url.origin + '/authorize' + url.search);
         path = '/authorize';
-        continue;
+        // Fall through to /authorize case
 
       case '/register':
         // OAuth client registration endpoint
@@ -859,12 +859,12 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
           return new Response('Method not allowed', { status: 405 });
         }
 
-        const clientId = crypto.randomUUID();
-        const clientSecret = crypto.randomUUID();
+        const registrationClientId = crypto.randomUUID();
+        const registrationClientSecret = crypto.randomUUID();
 
         return new Response(JSON.stringify({
-          client_id: clientId,
-          client_secret: clientSecret,
+          client_id: registrationClientId,
+          client_secret: registrationClientSecret,
           client_id_issued_at: Math.floor(Date.now() / 1000),
           grant_types: ['authorization_code', 'refresh_token'],
           response_types: ['code'],
