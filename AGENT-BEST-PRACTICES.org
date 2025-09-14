@@ -1,0 +1,436 @@
+#+TITLE: Agent Development Best Practices Protocol
+#+AUTHOR: Coordinator
+#+DATE: 2025-09-13
+#+STARTUP: overview
+
+* Executive Summary
+
+This protocol ensures AI agents follow software engineering best practices for version control, experimentation, documentation, and integration. Agents should commit early and often, use experiments for exploration, and document context thoroughly.
+
+* Git Commit Protocol
+
+** Commit Frequency
+- Commit every 30-60 minutes minimum
+- Commit after each functional milestone
+- Commit before switching to different component
+- Never have more than 200 lines uncommitted
+
+** Commit Message Format
+
+#+begin_src text
+<type>: <subject> (max 50 chars)
+
+<body> (wrap at 72 chars)
+- What was implemented
+- Why this approach was chosen
+- Any trade-offs made
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+#+end_src
+
+*** Types
+- feat: New feature
+- fix: Bug fix
+- test: Adding tests
+- docs: Documentation only
+- refactor: Code restructuring
+- chore: Maintenance tasks
+- experiment: Exploratory code
+
+** Example Commit
+
+#+begin_src bash
+git add src/models/change-request.scm
+git commit -m "feat: implement change request record type
+
+- Added SRFI-9 record definition
+- Included fields for ITIL compliance
+- Used immutable design pattern
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+# Add context with git note
+git notes add -m "Context: This is the foundational data model.
+Other agents depend on this structure.
+Testing: Need integration test with storage module.
+Integration: MCP server will import this module.
+Research: Considered GOOPS but SRFI-9 is simpler."
+#+end_src
+
+* Git Notes Protocol
+
+** When to Add Git Notes
+
+ALWAYS add a git note when:
+1. Making architectural decisions
+2. Creating integration points
+3. Identifying dependencies
+4. Discovering issues for later
+5. Documenting test requirements
+
+** Git Note Template
+
+#+begin_src text
+Context: <Why this change was made>
+Dependencies: <What this needs/provides>
+Testing: <How to test this>
+Integration: <How this connects to other components>
+Research: <What was investigated>
+TODO: <What needs follow-up>
+Questions: <Uncertainties for coordinator>
+#+end_src
+
+** Example Git Note
+
+#+begin_src bash
+git notes add -m "Context: Risk calculation engine core algorithm
+Dependencies: Needs change-request model from Agent 1
+Testing: Unit tests with edge cases (0, 100, negative)
+Integration: Will be called by MCP tools in Agent 2
+Research: Looked at NIST risk frameworks
+TODO: Add freeze period calculation
+Questions: Should risk be integer or float?"
+#+end_src
+
+* Experiment Protocol
+
+** When to Use Experiments
+
+Create an experiment when:
+- Trying multiple approaches
+- Testing integration possibilities
+- Exploring external libraries
+- Building proof of concepts
+- Investigating performance
+
+** Experiment Structure
+
+#+begin_src bash
+# Create experiment directory
+mkdir -p experiments/xxx-<name>/
+
+# Create README
+cat > experiments/xxx-<name>/README.org << EOF
+#+TITLE: Experiment XXX: <Name>
+#+DATE: $(date -I)
+
+* Purpose
+<What question does this answer?>
+
+* Hypothesis
+<What do we expect to find?>
+
+* Method
+<How will we test this?>
+
+* Results
+<What did we discover?>
+
+* Conclusion
+<Should this be used in production?>
+EOF
+
+# Run experiment
+cd experiments/xxx-<name>/
+# ... experimental code ...
+
+# Document results
+git add experiments/xxx-<name>/
+git commit -m "experiment: <name>
+
+Results: <succeeded/failed/partial>
+Conclusion: <use/don't use/modify>"
+
+git notes add -m "Context: Experiment to determine <question>
+Results: <detailed findings>
+Integration: <how to use in main code>
+Performance: <any metrics>
+Decision: <what we decided>"
+#+end_src
+
+* Milestone Protocol
+
+** Milestone Definition
+
+Each agent should work in milestones:
+
+*** Milestone 1: Foundation (Hour 1)
+- Directory structure
+- Basic types/records
+- Module setup
+
+*** Milestone 2: Core Logic (Hour 2-3)
+- Main algorithms
+- Business logic
+- Internal APIs
+
+*** Milestone 3: Integration (Hour 4)
+- Connect to other agents' work
+- External APIs
+- Error handling
+
+*** Milestone 4: Testing (Hour 5)
+- Unit tests
+- Integration tests
+- Documentation
+
+** Milestone Commits
+
+#+begin_src bash
+# At each milestone
+git add -A
+git commit -m "milestone: <name> complete
+
+Completed:
+- <item 1>
+- <item 2>
+
+Next milestone: <name>"
+
+git notes add -m "Milestone: <name>
+Duration: <time taken>
+Blockers: <any issues>
+Dependencies resolved: <what's now available>
+Dependencies needed: <what's still required>
+Integration ready: <yes/no>"
+
+# Tag important milestones
+git tag -a "agent-1-milestone-1" -m "Core models foundation complete"
+#+end_src
+
+* Integration Protocol
+
+** Integration Points Documentation
+
+When creating integration points:
+
+#+begin_src scheme
+;; File: src/models/change-request.scm
+;; Integration Point: Core data model
+;; Consumers: MCP Server (Agent 2), Risk Engine (Agent 3), Web API (Agent 4)
+;; Stability: Stable after Milestone 1
+
+(define-module (models change-request)
+  #:export (make-change-request
+            change-request?
+            ;; ... other exports
+            ))
+
+;; INTEGRATION-NOTE: This record structure is used by all other agents
+;; Changes here will break: mcp/tools.scm, risk/calculator.scm, web/api.scm
+#+end_src
+
+** Integration Testing
+
+#+begin_src bash
+# Create integration test
+cat > tests/integration/test-models-mcp.scm << 'EOF'
+;; Integration test: Models + MCP
+;; Tests that Agent 1 models work with Agent 2 MCP server
+
+(use-modules (models change-request)
+             (mcp tools))
+
+(test-assert "MCP can create change from model"
+  (let ((change (create-change-request-tool
+                  '((title . "Test")
+                    (description . "Test")))))
+    (change-request? change)))
+EOF
+
+git add tests/integration/
+git commit -m "test: add integration test for models+mcp"
+
+git notes add -m "Integration Test: Models + MCP
+Purpose: Ensure Agent 1 and Agent 2 work together
+Status: Passing/Failing
+Issues: <any problems found>"
+#+end_src
+
+* Progress Tracking Protocol
+
+** Status Updates
+
+Every hour, each agent should:
+
+#+begin_src bash
+# Create status update
+cat >> STATUS.md << EOF
+## Hour $(date +%H:%M) Update
+
+### Completed
+- <what's done>
+
+### In Progress
+- <what's being worked on>
+
+### Blocked
+- <any blockers>
+
+### Next Hour
+- <planned work>
+EOF
+
+git add STATUS.md
+git commit -m "status: hour $(date +%H) update"
+
+git notes add -m "Status: Hour $(date +%H)
+Progress: <percentage>
+Confidence: <high/medium/low>
+Help needed: <yes/no - what>
+On track: <yes/no>"
+#+end_src
+
+* Testing Protocol
+
+** Test-Driven Development
+
+1. Write test first (when possible)
+2. Implement to pass test
+3. Refactor if needed
+4. Commit both together
+
+#+begin_src bash
+# Write test
+cat > tests/test-risk-calculator.scm << 'EOF'
+(use-modules (risk calculator)
+             (srfi srfi-64))
+
+(test-begin "risk-calculator")
+
+(test-equal "Low risk for documentation"
+  10
+  (calculate-risk "Update docs" "Fix typos" '()))
+
+(test-end "risk-calculator")
+EOF
+
+# Implement feature
+cat > src/risk/calculator.scm << 'EOF'
+(define-module (risk calculator)
+  #:export (calculate-risk))
+
+(define (calculate-risk title description systems)
+  ;; Implementation
+  10)
+EOF
+
+# Commit together
+git add tests/test-risk-calculator.scm src/risk/calculator.scm
+git commit -m "feat: implement risk calculator with tests
+
+TDD approach for risk calculation
+Tests pass for basic documentation case"
+
+git notes add -m "Testing: TDD approach
+Test coverage: Basic happy path
+TODO: Add edge cases
+TODO: Add integration tests"
+#+end_src
+
+* Communication Protocol
+
+** Inter-Agent Communication
+
+Since agents can't directly communicate, use git commits and file markers:
+
+#+begin_src scheme
+;; File: src/models/API-STABLE
+;; Agent 1 signals API is stable
+;; Created: 2025-09-13 22:00
+;; Version: 1.0
+
+;; Other agents can now safely import
+#+end_src
+
+#+begin_src bash
+git add src/models/API-STABLE
+git commit -m "signal: models API stable v1.0
+
+Other agents can now safely import models"
+
+git notes add -m "Signal: API stable
+Version: 1.0
+Breaking changes after this: None planned
+Safe for integration: Yes"
+#+end_src
+
+* Rollback Protocol
+
+** When Things Go Wrong
+
+#+begin_src bash
+# If something breaks
+git status
+git diff
+
+# Stash or reset
+git stash  # Save for later
+# or
+git reset --hard HEAD  # Discard
+
+# If committed but broken
+git revert HEAD
+git commit -m "revert: broken implementation
+
+Reverting <commit> because <reason>"
+
+git notes add -m "Revert: <commit>
+Reason: <what broke>
+Lesson: <what we learned>
+Next approach: <new plan>"
+#+end_src
+
+* Summary Checklist
+
+** Every 30-60 minutes:
+- [ ] Commit work in progress
+- [ ] Add git note with context
+- [ ] Update STATUS.md if hourly
+- [ ] Check integration points
+
+** At each milestone:
+- [ ] Comprehensive commit
+- [ ] Detailed git note
+- [ ] Tag if important
+- [ ] Test integration points
+- [ ] Signal stability to other agents
+
+** When experimenting:
+- [ ] Use experiments/ directory
+- [ ] Document hypothesis and results
+- [ ] Commit findings
+- [ ] Add note with conclusions
+
+** Before integration:
+- [ ] Document API in comments
+- [ ] Create integration tests
+- [ ] Signal API stability
+- [ ] Check dependencies
+
+* Quick Reference Commands
+
+#+begin_src bash
+# Commit with note
+git add <files>
+git commit -m "type: subject"
+git notes add -m "Context: ..."
+
+# Check your notes
+git log --show-notes
+
+# View specific note
+git notes show <commit>
+
+# Milestone tag
+git tag -a "agent-X-milestone-Y" -m "Description"
+
+# Check integration
+git grep "INTEGRATION-NOTE"
+
+# Signal stability
+touch src/<module>/API-STABLE && git add && git commit
+
+# Status update
+echo "## Update" >> STATUS.md && git add && git commit
+#+end_src
