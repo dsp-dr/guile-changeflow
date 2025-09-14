@@ -21,7 +21,7 @@ jobs:
     - name: Health Check
       run: |
         echo "🔍 Checking production health..."
-        response=$(curl -s -w "\n%{http_code}" https://api.changeflow.us/)
+        response=$(curl -s -w "\n%{http_code}" https://gcf-mcp-server.jasonwalsh.workers.dev/)
         http_code=$(echo "$response" | tail -n1)
         body=$(echo "$response" | head -n-1)
 
@@ -36,7 +36,7 @@ jobs:
     - name: Verify MCP Protocol
       run: |
         echo "🔍 Checking MCP endpoint..."
-        response=$(curl -s https://api.changeflow.us/mcp)
+        response=$(curl -s https://gcf-mcp-server.jasonwalsh.workers.dev/mcp)
 
         echo "$response" | jq '.'
 
@@ -50,7 +50,7 @@ jobs:
     - name: Verify Tools Count
       run: |
         echo "🔍 Verifying MCP tools..."
-        tools_response=$(curl -s https://api.changeflow.us/mcp/tools)
+        tools_response=$(curl -s https://gcf-mcp-server.jasonwalsh.workers.dev/mcp/tools)
 
         echo "$tools_response" | jq '.'
 
@@ -69,7 +69,7 @@ jobs:
         echo "🔍 Testing critical endpoints..."
 
         # Test risk assessment
-        risk_response=$(curl -s -X POST https://api.changeflow.us/mcp/tools/invoke \
+        risk_response=$(curl -s -X POST https://gcf-mcp-server.jasonwalsh.workers.dev/mcp/tools/invoke \
           -H "Content-Type: application/json" \
           -d '{
             "tool":"assess_risk",
@@ -89,7 +89,7 @@ jobs:
         fi
 
         # Test change request creation
-        change_response=$(curl -s -X POST https://api.changeflow.us/mcp/tools/invoke \
+        change_response=$(curl -s -X POST https://gcf-mcp-server.jasonwalsh.workers.dev/mcp/tools/invoke \
           -H "Content-Type: application/json" \
           -d '{
             "tool":"create_change_request",
@@ -115,7 +115,7 @@ jobs:
         total_time=0
         for i in {1..5}; do
           start=$(date +%s%N)
-          curl -s https://api.changeflow.us/ > /dev/null
+          curl -s https://gcf-mcp-server.jasonwalsh.workers.dev/ > /dev/null
           end=$(date +%s%N)
 
           duration=$((($end - $start) / 1000000))
@@ -197,7 +197,7 @@ jobs:
           4. Check API endpoint health
 
           ### Links
-          - [Production API](https://api.changeflow.us)
+          - [Production API](https://gcf-mcp-server.jasonwalsh.workers.dev)
           - [Cloudflare Dashboard](https://dash.cloudflare.com)
           - [GitHub Actions](https://github.com/${{ github.repository }}/actions)
           `;
