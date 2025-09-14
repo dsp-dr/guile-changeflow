@@ -8,7 +8,8 @@ ORG_FILES := $(shell find . -name "*.org" -not -path "./.git/*" -not -path "./.t
         ci-status ci-check ci-logs ci-runs ci-branch-sync ci-fix \
         a1 a2 a3 a4 a5 test-integration quick-status reports \
         dev-setup test-mcp mcp-server mcp-stop mcp-status test-guile \
-        check-env mcp-server-background test deploy
+        check-env mcp-server-background test deploy \
+        demo-data demo-quick demo-frontend demo-backend demo-infra
 
 help:
 	@echo "Guile ChangeFlow Project Management"
@@ -46,6 +47,13 @@ help:
 	@echo "  mcp-status- Check MCP server status"
 	@echo "  test-mcp  - Test MCP server functionality"
 	@echo "  test-guile- Test Guile module system"
+	@echo ""
+	@echo "Demo Data:"
+	@echo "  demo-data - Generate all demo datasets (data/demo-change-requests.json)"
+	@echo "  demo-quick- Run 5-PR quick demo with pre-generated data"
+	@echo "  demo-frontend- Run frontend-focused demo (10 PRs)"
+	@echo "  demo-backend- Run backend-focused demo (15 PRs)"
+	@echo "  demo-infra- Run infrastructure-focused demo (8 PRs)"
 	@echo ""
 	@echo "Setup:"
 	@echo "  setup     - Initial project setup"
@@ -281,6 +289,7 @@ test-guile:
 	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
 		guile -s test/module-test-simple.scm || \
 		echo "❌ Module test suite failed"
+
 # Environment check target for .envrc
 check-env:
 	@echo "Checking environment..."
@@ -353,3 +362,44 @@ oauth-deploy:
 oauth-test:
 	@echo "=== Testing OAuth Locally ==="
 	@${MAKE} -C experiments/011-mcp-oauth-routes test
+
+# Demo Data Generation
+demo-data: data/demo-change-requests.json
+
+data/demo-change-requests.json:
+	@echo "🎯 Generating reproducible demo datasets..."
+	@mkdir -p data
+	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
+		guile -c "(use-modules (simulator data-export)) (generate-demo-dataset)"
+	@echo "✅ Demo datasets created in data/ directory"
+
+# Demo runners with pre-generated data
+demo-quick: data/demo-quick.json
+	@echo "🚀 Running 5-PR quick demo..."
+	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
+		guile -c "(use-modules (simulator data-export) (simulator deployment-pipeline)) \
+		          (run-demo-with-data \"data/demo-quick.json\" 5)"
+
+demo-frontend: data/demo-frontend-only.json
+	@echo "🎨 Running frontend-focused demo..."
+	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
+		guile -c "(use-modules (simulator data-export) (simulator deployment-pipeline)) \
+		          (run-demo-with-data \"data/demo-frontend-only.json\" 10)"
+
+demo-backend: data/demo-backend-focus.json
+	@echo "⚙️  Running backend-focused demo..."
+	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
+		guile -c "(use-modules (simulator data-export) (simulator deployment-pipeline)) \
+		          (run-demo-with-data \"data/demo-backend-focus.json\" 15)"
+
+demo-infra: data/demo-infrastructure.json
+	@echo "🏗️  Running infrastructure-focused demo..."
+	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
+		guile -c "(use-modules (simulator data-export) (simulator deployment-pipeline)) \
+		          (run-demo-with-data \"data/demo-infrastructure.json\" 8)"
+
+# Clean demo data
+clean-demo:
+	@echo "🧹 Cleaning demo data..."
+	@rm -rf data/demo-*.json
+	@echo "✅ Demo data cleaned"
