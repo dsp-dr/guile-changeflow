@@ -1,0 +1,20 @@
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "create_change_request",
+    "arguments": {
+      "title": "Deploy database test plan",
+      "description": "Agent 1 requesting to deploy test/core-models-test-plan.org",
+      "risk_level": "low",
+      "environment": "test",
+      "change_type": "standard",
+      "components_affected": 1,
+      "has_rollback": true,
+      "tested_in_staging": true,
+      "implementation_plan": "git add test/core-models-test-plan.org && git commit && git push",
+      "rollback_plan": "git revert HEAD"
+    }
+  },
+  "id": "agent-1-change"
+}

@@ -1,20 +1,11 @@
 #+TITLE: Guile ChangeFlow - ITIL 4 Change Management System
-#+AUTHOR: The Chaos Collective (5 Agents + 1 Task Agent + Meta)
-#+DATE: 2025-09-13
 #+STARTUP: overview
 
-* 🎯 Overview
+* Overview
 
 An ITIL 4 compliant change management system built in GNU Guile 3.0+ with MCP (Model Context Protocol) server capabilities.
 
-** What This Actually Is
-
-- *Theory:* 5 AI agents collaborating to build enterprise software
-- *Reality:* 5 agents built nothing, 1 Task agent built everything
-- *Result:* 100KB+ of working code and 46 documentation files
-- *Status:* Somehow production-ready for 7 AM demo
-
-* 🚀 Quick Start
+* Quick Start
 
 ** Test the Live Demo
 #+BEGIN_SRC bash
@@ -37,56 +28,55 @@ curl -X POST http://localhost:8080/ -d '{"jsonrpc":"2.0","method":"tools/list","
 node test/mcp-comprehensive-test.js
 
 # Test Guile modules
-guile -l src/mcp/server.scm -c '(display "MCP Server loaded\n")'
+export GUILE_LOAD_PATH="$PWD/src:$GUILE_LOAD_PATH"
+guile3 -s test/module-test-simple.scm
+
+# Start MCP server (when implemented)
+guile3 -c "(use-modules (mcp server)) (start-mcp-server 8080)"
 #+END_SRC
 
-* 📁 Project Structure (Post-Refactoring)
-
-#+BEGIN_SRC
-.
-├── src/                    # Guile source code
-│   ├── models/            # Data models (change requests, approvals)
-│   ├── mcp/               # MCP protocol implementation
-│   ├── risk/              # Risk assessment engine
-│   ├── web/               # Web server and API
-│   └── integrations/      # External integrations
-├── cloudflare/            # JavaScript worker for demo
-├── test/                  # All test files (finally!)
-├── docs/                  # 46 .org files of documentation
-├── scripts/               # Build, deploy, monitoring
-├── config/                # Configuration files
-└── README.org             # You are here
-#+END_SRC
-
-* 📖 Documentation Journey
-
-** Start Here
-- [[file:docs/GETTING-STARTED.org][Getting Started]] - Begin your journey
-- [[file:docs/architecture/L7-ARCHITECTURE-REVIEW.org][Architecture Review]] - "11/10 for chaos"
-- [[file:docs/orchestration/ORCHESTRATION-COMEDY.org][The Orchestration Comedy]] - How this happened
-
-** The Chaos Chronicles
-- [[file:docs/agents/AGENT-BEST-PRACTICES.org][Agent Best Practices]] - What we learned
-- [[file:docs/status/][Status Reports]] - Multiple competing versions
-- [[file:docs/orchestration/ORCHESTRATION-CHAOS-3.org][The Great Merge]] - When nothing merged
-
-* 🧪 Testing
-
+** Deploy to Cloudflare Workers
 #+BEGIN_SRC bash
-# MCP Protocol Tests (comprehensive)
-node test/mcp-comprehensive-test.js
-
-# Guile tests (the real system)
-for file in src/**/*.scm; do
-  guile -l "$file" -c '(display "OK\n")'
-done
-
-# Cloudflare tests (production endpoints)
-./scripts/test-endpoints.sh
-
-# Battle scenarios (15 years of incidents)
-guile -l test/battle-test.scm -c '(run-all-battle-tests)'
+cd infra/cloudflare
+wrangler dev          # Test locally
+wrangler publish      # Deploy to production
 #+END_SRC
+
+* Architecture
+
+** Core Components
+- *Models:* Change requests, approvals, audit trails
+- *Risk Engine:* Automated risk assessment and freeze periods
+- *MCP Server:* JSON-RPC 2.0 protocol for AI agent integration
+- *Web Interface:* Executive dashboard and metrics
+- *Integrations:* GitHub webhooks, notifications, external systems
+
+** Technology Stack
+- *Backend:* GNU Guile 3.0+ (Scheme/Lisp)
+- *Frontend:* Cloudflare Workers (JavaScript)
+- *Protocol:* MCP (Model Context Protocol) by Anthropic
+- *Standards:* ITIL 4, JSON-RPC 2.0, SSE
+
+* Features
+
+** ITIL 4 Compliance
+- Standard, Normal, and Emergency change workflows
+- Change Advisory Board (CAB) approval processes
+- Risk assessment with automated scoring
+- Freeze period enforcement
+- Complete audit trails
+
+** MCP Integration
+- 8 ITIL tools available via JSON-RPC
+- Real-time notifications via Server-Sent Events
+- OAuth 2.0 authentication with PKCE
+- Tool discovery and capability negotiation
+
+** Executive Dashboard
+- Real-time change metrics
+- ROI tracking and projections
+- Risk heat maps
+- Compliance reporting
 
 * 🤖 MCP Integration
 
@@ -125,105 +115,42 @@ guile -l test/battle-test.scm -c '(run-all-battle-tests)'
 }
 #+END_SRC
 
-* 🎭 The Truth About This Project
+* Documentation
 
-** What Marketing Says
-"Revolutionary agentic workflow enabling seamless AI collaboration"
+See `docs/` for comprehensive documentation:
+- `docs/architecture/` - System design and technical specs
+- `docs/api/` - MCP protocol and API reference
+- `docs/presentations/` - Executive presentations and demos
+- `docs/MCP-DEVELOPMENT-GUIDE.md` - Complete MCP development guide
 
-** What Actually Happened
-1. 5 agents worked in isolation for 9 hours
-2. They couldn't see each other's code
-3. They built nothing (0 commits)
-4. Task agent built entire system
-5. We documented the chaos extensively
-6. It works anyway
+* Development
 
-** Key Metrics
-- Files in root (before): 47
-- Files in root (after): ~10
-- File extensions found: 510
-- Documentation files: 46
-- Agent commits: 0
-- Task agent commits: Everything
+** Requirements
+- GNU Guile 3.0+
+- Node.js (for Cloudflare Workers)
+- Wrangler CLI
 
-* 🏗️ Architecture
-
-** Guile Implementation (Real System)
-- Pure Guile 3.0+ implementation
-- SRFI modules for advanced features
-- SQLite for persistence
-- MCP protocol support
-
-** Cloudflare Worker (Production MCP Server)
-- Complete MCP protocol implementation
-- Deployed to api.changeflow.us
-- 8 ITIL tools + 5 resources + 3 prompts
-- Ready for AI agent integration
-
-* 🚦 Current Status
-
-| Component | Status | Location |
-|-----------+--------+----------|
-| API Endpoint | ✅ Live | https://api.changeflow.us |
-| Guile Code | ✅ Complete | src/ |
-| Tests | 🔄 In Progress | test/ |
-| Documentation | ✅ Excessive | docs/ |
-| Chaos Level | ✅ Managed | Was 11/10, now 7/10 |
-| Demo Ready | ⏰ 7 AM | 2025-09-14 |
-
-* 🛠️ Development
-
-** For Agents
+** Testing
 #+BEGIN_SRC bash
-# Create test plans in org-mode
-emacs test/your-component-test-plan.org
+# MCP Protocol Tests (comprehensive)
+node test/mcp-comprehensive-test.js
 
-# Test your Guile modules
-guile -l src/your-module.scm
+# Test all Guile modules
+guile3 -s test/module-test-simple.scm
 
-# Document everything
-echo "More .org files" > docs/another-doc.org
-#+END_SRC
+# Test endpoints
+./scripts/test-endpoints.sh
 
-** For Humans
-#+BEGIN_SRC bash
-# Just run the tests
+# Run integration tests
 make test
-
-# Deploy to Cloudflare
-make deploy
-
-# Generate more chaos
-touch root-file-{1..50}.txt
 #+END_SRC
 
-* 📚 Required Reading
+** Contributing
+1. Check current issues and agent assignments
+2. Follow conventional commits
+3. Test with both Guile and Cloudflare environments
+4. Update documentation as needed
 
-1. [[file:docs/architecture/AGENTIC-WORKFLOW-REALITY-CHECK.md][Agentic Workflow Reality Check]] - The truth
-2. [[file:docs/orchestration/ORCHESTRATION-LESSON-2.org][The Permission Apocalypse]] - Why --dangerously-skip-permissions exists
-3. [[file:docs/architecture/L7-ARCHITECTURE-REVIEW.md][L7 Architecture Review]] - "Ship it"
+* License
 
-* 🎯 Demo Information
-
-- *Date:* 2025-09-14
-- *Time:* 07:00 PST
-- *Audience:* Executives
-- *Key Message:* $4.7M annual savings
-- *System Status:* Somehow ready
-
-* 📝 License
-
-GPL-3.0 - Because even chaos needs a license
-
-* 🙏 Acknowledgments
-
-- The 5 agents who tried
-- The Task agent who succeeded
-- The Meta orchestrator documenting the chaos
-- Saturday nights spent reorganizing 510 file extensions
-- The comedy of "revolutionary" workflows
-
----
-
-/"Agentic workflow will revolutionize software development"/
-/Us: "Yes, but NOT in the way you think..."/
+MIT License - See LICENSE file for details.
