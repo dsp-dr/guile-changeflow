@@ -1,0 +1,104 @@
+#+TITLE: Division of Work - MCP Server Development
+#+DATE: 2025-09-14
+#+AUTHOR: dsp-dr
+
+* Production API Status: ✅ VERIFIED WORKING
+
+Audit completed at 2025-09-14 12:53 UTC:
+- Health endpoint: ✅ Working
+- MCP info: ✅ Working
+- Tool invocation: ✅ Working (created CHG-2025-001)
+- Risk scoring: ✅ Working (calculated risk_score: 60)
+
+* Division of Work
+
+** Coordinator & Builder Agent Focus: LOCAL MCP SERVER
+*** Scope
+- Work with scripts/mcp-local-server.js (port 8427)
+- Can use mock data - doesn't need real ITIL logic
+- Focus on MCP protocol compliance
+- Test with MCP Inspector
+
+*** Tasks
+- [ ] Get MCP Inspector working with localhost:8427
+- [ ] Validate MCP protocol implementation
+- [ ] Create mock responses for all 8 ITIL tools
+- [ ] Write integration tests
+- [ ] Document protocol findings
+
+*** Files to Work With
+- scripts/mcp-local-server.js (main local server)
+- scripts/test-local.js (testing utilities)
+- mcp-server/changeflow-mcp.js (reference implementation)
+
+*** Key Point
+The local server can be completely mock - focus on getting the MCP protocol right, not ITIL logic.
+
+** Main Agent & User Focus: PRODUCTION WITH OAUTH
+*** Scope
+- Work with production deployment (api.changeflow.us)
+- Implement GitHub OAuth flow
+- Real user authentication
+- Production-only (YOLO approach - no staging tests)
+
+*** Tasks
+- [ ] Implement GitHub OAuth endpoints
+- [ ] Add user context to change requests
+- [ ] Link GitHub PRs to change requests
+- [ ] Create webhook handlers for GitHub events
+- [ ] Add authentication middleware
+
+*** Files to Work With
+- mcp-server/changeflow-mcp.js (source)
+- infra/cloudflare/worker.js (deployed version)
+- .github/workflows/deploy-cloudflare.yml (deployment)
+
+*** Deployment Flow
+1. Edit mcp-server/changeflow-mcp.js
+2. Run: make deploy (copies to infra/cloudflare/worker.js)
+3. Git push triggers deployment to production
+
+* Clean Repository State
+
+Current structure:
+#+BEGIN_SRC
+/
+├── mcp-server/           # MCP development
+│   ├── changeflow-mcp.js # Source code
+│   └── README.org        # Documentation
+├── infra/cloudflare/     # Deployment only
+│   ├── worker.js         # Deployed code (synced from mcp-server)
+│   └── wrangler.toml     # Config
+├── scripts/              # Local testing
+│   └── mcp-local-server.js # Port 8427
+└── docs/                 # Documentation
+#+END_SRC
+
+* Important Notes
+
+1. The coordinator/builder agent should NOT worry about:
+   - Production deployment
+   - OAuth implementation
+   - Real ITIL logic
+   - Cloudflare configuration
+
+2. The main agent should NOT worry about:
+   - MCP Inspector validation
+   - Local server testing
+   - Mock data generation
+   - Protocol compliance testing
+
+3. Both tracks can work in parallel without conflicts
+
+* Testing Endpoints
+
+Local (for coordinator/builder):
+- http://localhost:8427/health
+- http://localhost:8427/mcp
+- http://localhost:8427/mcp/tools
+
+Production (for main agent):
+- https://api.changeflow.us/health
+- https://api.changeflow.us/mcp
+- https://api.changeflow.us/mcp/tools
+- https://api.changeflow.us/oauth/github (to be implemented)
