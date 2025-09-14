@@ -177,7 +177,7 @@ export default {
       case '/callback':
         // OAuth Step 2: Handle GitHub callback
         const code = url.searchParams.get('code');
-        const state = url.searchParams.get('state');
+        const callbackState = url.searchParams.get('state');
 
         if (!code) {
           return new Response(ERROR_HTML, {
@@ -213,8 +213,8 @@ export default {
             let claudeState = null;
 
             try {
-              if (state) {
-                const stateData = JSON.parse(atob(state));
+              if (callbackState) {
+                const stateData = JSON.parse(atob(callbackState));
                 if (stateData.claudeRedirect) {
                   isClaudeCallback = true;
                   claudeRedirectUri = stateData.claudeRedirect;
