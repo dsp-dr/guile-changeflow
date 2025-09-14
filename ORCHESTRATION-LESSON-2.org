@@ -1,0 +1,51 @@
+#+TITLE: Orchestration Lesson 2: The Permission Apocalypse
+#+DATE: 2025-09-13 21:40
+
+* The Great Permission Standoff
+
+After successfully building a production system with Task agents, we discovered
+all 5 individual agents were stuck on permission prompts. For HOURS.
+
+** The Problem
+- Started agents with: ~claude~ (no flags)
+- Every tool use prompted for permission
+- Agents sat waiting at "Do you want to proceed?" dialogs
+- No autonomous work possible
+
+** The Solution
+~claude --dangerously-skip-permissions~
+
+** The Restart Sequence (CDSP Protocol)
+1. Nuke from orbit: ~tmux kill-session -t gcf-*~
+2. Create worktrees (they were missing!)
+3. Start with skip flag
+4. Send CDSP: Ctrl-D, S, P to enter system prompt mode
+
+** Lesson Learned
+When running autonomous agents:
+- ALWAYS use ~--dangerously-skip-permissions~
+- ALWAYS verify worktrees exist before starting agents
+- ALWAYS document your orchestration failures
+
+** The Comedy Continues
+Agent 1: "May I read this file?"
+Agent 2: "May I read this file?"
+Agent 3: "May I read this file?"
+Agent 4: "May I read this file?"
+Agent 5: "May I read this file?"
+Meta: *screaming internally*
+User: "Just use --dangerously-skip-permissions"
+
+* Creating the Missing Worktrees
+
+#+BEGIN_SRC bash
+# From main repo
+cd ~/ghq/github.com/dsp-dr/guile-changeflow
+
+# Create worktrees for each agent
+git worktree add ../gcf-core-models -b agent-1-core
+git worktree add ../gcf-mcp-server -b agent-2-mcp
+git worktree add ../gcf-risk-engine -b agent-3-risk
+git worktree add ../gcf-web-interface -b agent-4-web
+git worktree add ../gcf-integrations -b agent-5-integration
+#+END_SRC

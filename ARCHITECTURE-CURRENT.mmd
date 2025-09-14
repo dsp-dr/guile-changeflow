@@ -1,0 +1,47 @@
+graph TB
+    subgraph "Meta Layer (Us)"
+        META[Meta Orchestrator<br/>Main guile-changeflow repo]
+    end
+
+    subgraph "Coordinator Layer"
+        COORD[gcf-coordinator<br/>claude --dangerously-skip-permissions<br/>Monitoring agents]
+    end
+
+    subgraph "Agent Layer (All with --dangerously-skip-permissions)"
+        A1[gcf-a1: Core Models<br/>Branch: feat/core-models<br/>SQLite Schema]
+        A2[gcf-a2: MCP/Cloudflare<br/>Branch: feat/mcp-server<br/>Worker + Logs]
+        A3[gcf-a3: Risk Engine<br/>Branch: feat/risk-engine<br/>Matrices + Scoring]
+        A4[gcf-a4: Web/Dashboard<br/>Branch: feat/web-interface<br/>Executive UI]
+        A5[gcf-a5: Integration<br/>Branch: feat/integrations<br/>Testing + Chaos]
+    end
+
+    subgraph "Production Deployment"
+        CF[Cloudflare Worker<br/>api.changeflow.us<br/>✅ LIVE]
+        DB[(SQLite Database<br/>16 ITIL Tables<br/>✅ SCHEMA EXISTS)]
+        TEST[Battle Tests<br/>15 Years Scenarios<br/>✅ READY]
+    end
+
+    META -->|monitors| COORD
+    META -->|monitors| A1
+    META -->|monitors| A2
+    META -->|monitors| A3
+    META -->|monitors| A4
+    META -->|monitors| A5
+    
+    COORD -.->|should monitor| A1
+    COORD -.->|should monitor| A2
+    COORD -.->|should monitor| A3
+    COORD -.->|should monitor| A4
+    COORD -.->|should monitor| A5
+
+    A1 -->|builds| DB
+    A2 -->|deploys| CF
+    A3 -->|implements| TEST
+    A4 -->|creates| UI[Dashboard<br/>⏳ IN PROGRESS]
+    A5 -->|validates| TEST
+
+    style META fill:#f9f,stroke:#333,stroke-width:4px
+    style CF fill:#9f9,stroke:#333,stroke-width:2px
+    style DB fill:#9f9,stroke:#333,stroke-width:2px
+    style TEST fill:#9f9,stroke:#333,stroke-width:2px
+    style UI fill:#ff9,stroke:#333,stroke-width:2px

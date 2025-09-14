@@ -1,0 +1,56 @@
+name: Render Mermaid Diagrams
+
+on:
+  push:
+    paths:
+      - '**.mmd'
+      - '**.mermaid'
+    branches: [ main, integration, 'agent-*' ]
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install mermaid-cli
+      run: |
+        npm install -g @mermaid-js/mermaid-cli
+        
+    - name: Create output directory
+      run: mkdir -p diagrams
+    
+    - name: Render Mermaid diagrams to PNG
+      run: |
+        for file in $(find . -name '*.mmd' -o -name '*.mermaid' | grep -v node_modules); do
+          echo "Rendering $file..."
+          output="diagrams/$(basename "$file" | sed 's/\.mmd$/.png/;s/\.mermaid$/.png/')"
+          mmdc -i "$file" -o "$output" -t dark -b transparent
+        done
+    
+    - name: List generated diagrams
+      run: |
+        echo "Generated diagrams:"
+        ls -la diagrams/
+    
+    - name: Commit rendered diagrams
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add diagrams/
+        git diff --staged --quiet || git commit -m "[skip ci] Render Mermaid diagrams to PNG"
+    
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
