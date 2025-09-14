@@ -1,0 +1,88 @@
+#+TITLE: Agent 1 - Core Models Instructions
+#+DATE: 2025-09-13
+
+* Your Mission
+
+You are Agent 1 working on Core Models and State Machine for Guile ChangeFlow.
+
+Your worktree: /home/dsp-dr/ghq/github.com/dsp-dr/gcf-core-models
+Your branch: feat/core-models
+Your focus: Core data models, state machine, and in-memory storage
+
+* Priority Tasks
+
+1. Create src/models/ directory structure
+2. Implement change-request record type with all necessary fields
+3. Create state machine for change lifecycle (submitted -> assessing -> approved/rejected)
+4. Implement in-memory storage using hash tables for demo
+
+* File Structure to Create
+
+#+begin_example
+src/
+├── models/
+│   ├── change-request.scm
+│   ├── state-machine.scm
+│   ├── approval.scm
+│   └── audit.scm
+└── storage/
+    └── memory.scm
+#+end_example
+
+* Success Criteria
+
+- [ ] Change requests can be created with ID, title, description, risk score
+- [ ] State transitions work (submitted -> assessing -> approved)
+- [ ] Basic CRUD operations functional (create, read, update, delete)
+- [ ] Audit trail captures all state changes
+- [ ] Other agents can import and use your models
+
+* Code Templates
+
+** change-request.scm
+#+begin_src scheme
+(define-module (models change-request)
+  #:use-module (srfi srfi-9)
+  #:use-module (srfi srfi-19)
+  #:export (make-change-request
+            change-request?
+            change-request-id
+            change-request-title
+            change-request-description
+            change-request-risk-score
+            change-request-status
+            change-request-created-at
+            set-change-request-status!
+            set-change-request-risk-score!))
+
+(define-record-type <change-request>
+  (make-change-request id title description risk-score status created-at)
+  change-request?
+  (id change-request-id)
+  (title change-request-title)
+  (description change-request-description)
+  (risk-score change-request-risk-score set-change-request-risk-score!)
+  (status change-request-status set-change-request-status!)
+  (created-at change-request-created-at))
+#+end_src
+
+* Dependencies
+
+You need: Nothing - you're the foundation
+Others need from you: Core models, state machine, storage interface
+
+* Important Notes
+
+- Focus on demo-ready, not production-perfect
+- Use simple in-memory storage (hash tables)
+- Make sure your modules can be imported by other agents
+- Commit every completed component
+- Create STATUS.org to track your progress
+
+* Timeline
+
+You have 3-4 hours to complete core components.
+Hour 1: Basic models
+Hour 2: State machine
+Hour 3: Storage layer
+Hour 4: Integration and testing
