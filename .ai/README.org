@@ -1,0 +1,34 @@
+#+TITLE: The ACTUAL Project
+#+SUBTITLE: Agent Coordination Meta-Research
+#+DATE: 2025-09-13
+
+* The Truth
+
+This directory contains the REAL project - testing agent coordination.
+
+The ITIL/MCP/Guile stuff? That's just a vehicle for the experiment.
+
+* What's Here
+
+** prompts/
+The instructions given to each agent. These ARE the product.
+- coordinator.org - Coordinator agent prompt
+- core-models.org - Database agent prompt
+- mcp-server.org - Protocol agent prompt
+- risk-engine.org - Risk agent prompt
+- web-interface.org - UI agent prompt
+- integrations.org - Integration agent prompt
+
+** The Findings
+- 5 agents can't coordinate
+- Permission systems kill automation
+- Isolation prevents collaboration
+- 1 agent > 5 agents
+- Documentation > Implementation
+
+* The Irony
+
+The "meta" directory contains the actual project.
+The "src" directory contains the distraction.
+
+Welcome to agent research. 😄
