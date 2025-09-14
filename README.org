@@ -25,13 +25,19 @@ curl https://api.changeflow.us/
 ./scripts/test-endpoints.sh
 #+END_SRC
 
-** Run Locally (Guile)
+** Run Locally (MCP Server)
 #+BEGIN_SRC bash
+# Start local MCP server
+node scripts/mcp-local-server.js
+
+# Test MCP protocol
+curl -X POST http://localhost:8080/ -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
+
+# Run comprehensive test suite
+node test/mcp-comprehensive-test.js
+
 # Test Guile modules
 guile -l src/mcp/server.scm -c '(display "MCP Server loaded\n")'
-
-# Run all tests
-cd test && guile -l demo-validation.scm -c '(run-pre-demo-checklist)'
 #+END_SRC
 
 * 📁 Project Structure (Post-Refactoring)
@@ -67,16 +73,56 @@ cd test && guile -l demo-validation.scm -c '(run-pre-demo-checklist)'
 * 🧪 Testing
 
 #+BEGIN_SRC bash
+# MCP Protocol Tests (comprehensive)
+node test/mcp-comprehensive-test.js
+
 # Guile tests (the real system)
 for file in src/**/*.scm; do
   guile -l "$file" -c '(display "OK\n")'
 done
 
-# Cloudflare tests (the demo)
+# Cloudflare tests (production endpoints)
 ./scripts/test-endpoints.sh
 
 # Battle scenarios (15 years of incidents)
 guile -l test/battle-test.scm -c '(run-all-battle-tests)'
+#+END_SRC
+
+* 🤖 MCP Integration
+
+** Available Tools (8 ITIL Tools)
+1. =create_change_request= - Create standard change requests
+2. =assess_change_risk= - Multi-factor risk assessment
+3. =check_freeze_period= - Validate deployment windows
+4. =get_cab_members= - Change Advisory Board routing
+5. =schedule_change= - Change scheduling with notifications
+6. =create_emergency_change= - Expedited emergency changes
+7. =get_change_metrics= - Performance and success metrics
+8. =generate_audit_report= - ITIL compliance reporting
+
+** Available Resources (5 Configuration Resources)
+- =changeflow://config/change-types= - Standard change definitions
+- =changeflow://config/approval-matrix= - CAB approval requirements
+- =changeflow://config/freeze-calendar= - Scheduled freeze periods
+- =changeflow://templates/emergency-change= - Emergency change template
+- =changeflow://docs/itil-compliance= - ITIL 4 compliance guide
+
+** Available Prompts (3 AI-Assisted Operations)
+- =analyze-change-risk= - Generate comprehensive risk analysis
+- =generate-rollback-plan= - Create detailed rollback procedures
+- =create-change-summary= - Generate executive summaries
+
+** Claude Code Integration
+#+BEGIN_SRC json
+{
+  "mcpServers": {
+    "guile-changeflow": {
+      "command": "node",
+      "args": ["scripts/mcp-local-server.js"],
+      "cwd": "/path/to/guile-changeflow"
+    }
+  }
+}
 #+END_SRC
 
 * 🎭 The Truth About This Project
@@ -108,11 +154,11 @@ guile -l test/battle-test.scm -c '(run-all-battle-tests)'
 - SQLite for persistence
 - MCP protocol support
 
-** Cloudflare Worker (Demo)
-- JavaScript wrapper
+** Cloudflare Worker (Production MCP Server)
+- Complete MCP protocol implementation
 - Deployed to api.changeflow.us
-- Returns mock responses currently
-- Needs real MCP implementation
+- 8 ITIL tools + 5 resources + 3 prompts
+- Ready for AI agent integration
 
 * 🚦 Current Status
 
