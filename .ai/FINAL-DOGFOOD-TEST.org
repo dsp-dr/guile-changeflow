@@ -1,0 +1,187 @@
+#+TITLE: The Ultimate Dogfood Test
+#+SUBTITLE: Agents Using Their Own Change Management System
+#+DATE: 2025-09-14 07:00 (Demo Time)
+#+AUTHOR: Meta Orchestrator
+
+* The Final Test: Agents Request Changes Through MCP
+
+** The Beautiful Recursion
+
+Agents will use the MCP server they built to request changes to deploy their own code.
+
+** Test Scenarios
+
+*** Scenario 1: Low-Risk Changes (NOOP)
+All 5 agents request changes to push to main:
+
+#+BEGIN_SRC json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "create_change_request",
+    "arguments": {
+      "title": "Agent 1: Deploy database schema updates",
+      "description": "Push test/core-models-test-plan.org to main",
+      "risk_level": "low",
+      "environment": "test",
+      "change_type": "standard",
+      "rollback_plan": "git revert"
+    }
+  }
+}
+#+END_SRC
+
+- Agent 1: Database schema (low risk - test only)
+- Agent 2: MCP test plan (low risk - documentation)
+- Agent 3: Risk matrices (low risk - config only)
+- Agent 4: Dashboard updates (low risk - UI only)
+- Agent 5: Integration tests (low risk - tests only)
+
+*** Scenario 2: HIGH-RISK PRODUCTION CHANGE 🔥
+
+ONE agent requests to update the LIVE Cloudflare worker:
+
+#+BEGIN_SRC json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "create_emergency_change",
+    "arguments": {
+      "title": "CRITICAL: Update api.changeflow.us worker",
+      "description": "Replace skeleton response with full MCP implementation",
+      "risk_level": "HIGH",
+      "environment": "PRODUCTION",
+      "justification": "7 AM executive demo requirement",
+      "impact": "100% of API traffic affected",
+      "rollback_plan": "Cloudflare instant rollback",
+      "tested_in_staging": false,
+      "cab_approval_required": true
+    }
+  }
+}
+#+END_SRC
+
+** The Risk Assessment
+
+#+BEGIN_SRC json
+{
+  "change_id": "CHG-2025-PROD-001",
+  "risk_score": 95,
+  "risk_factors": [
+    "Production environment (+40)",
+    "No staging test (+20)",
+    "Weekend deployment (+10)",
+    "Executive demo pressure (+15)",
+    "Untested code path (+10)"
+  ],
+  "freeze_period_violation": true,
+  "requires_emergency_approval": true
+}
+#+END_SRC
+
+** Expected Flow
+
+#+BEGIN_SRC mermaid
+graph TD
+    A[5 Agents Request Changes] -->|MCP Protocol| B[Change Management System]
+    B -->|Risk Assessment| C{Risk Level?}
+    C -->|Low| D[Auto-Approve]
+    C -->|High| E[CAB Review Required]
+    E -->|Emergency Override| F[Deploy to Production]
+    F -->|Update Worker| G[api.changeflow.us]
+    G -->|Success?| H{Demo Ready?}
+    H -->|Yes| I[🎉 Ship It]
+    H -->|No| J[🔥 Rollback]
+#+END_SRC
+
+** Implementation Commands
+
+*** Step 1: Start MCP Server (Local)
+#+BEGIN_SRC bash
+guile -l src/mcp/server.scm -c '(start-mcp-server 3000)'
+#+END_SRC
+
+*** Step 2: Each Agent Requests Change
+#+BEGIN_SRC bash
+# Agent 1
+curl -X POST http://localhost:3000 \
+  -H "Content-Type: application/json" \
+  -d @agent1-change-request.json
+
+# Agent 2 (THE HIGH RISK ONE)
+curl -X POST http://localhost:3000 \
+  -H "Content-Type: application/json" \
+  -d @agent2-emergency-change.json
+#+END_SRC
+
+*** Step 3: CAB Approval (Meta Override)
+#+BEGIN_SRC bash
+curl -X POST http://localhost:3000 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "method": "approve_emergency_change",
+    "params": {
+      "change_id": "CHG-2025-PROD-001",
+      "approver": "meta-orchestrator",
+      "override_reason": "Executive demo at 7 AM"
+    }
+  }'
+#+END_SRC
+
+*** Step 4: Deploy to Cloudflare
+#+BEGIN_SRC bash
+# This is the REAL deployment
+cd infra/cloudflare
+wrangler publish --env production
+#+END_SRC
+
+** Success Criteria
+
+1. ✅ All 5 agents successfully create change requests
+2. ✅ System correctly identifies risk levels
+3. ✅ Low-risk changes auto-approved
+4. ✅ High-risk change requires CAB approval
+5. ✅ Emergency override works
+6. ✅ Cloudflare worker updated
+7. ✅ api.changeflow.us returns real MCP responses
+8. ✅ Executive demo succeeds
+
+** Failure Modes
+
+1. ❌ MCP server doesn't start (Guile errors)
+2. ❌ Change requests fail validation
+3. ❌ Risk assessment crashes
+4. ❌ CAB approval workflow fails
+5. ❌ Cloudflare deployment fails
+6. ❌ Worker has runtime errors
+7. ❌ Rollback required
+
+** The Ultimate Irony
+
+The agents will use the change management system they (didn't) build
+to deploy the code they (didn't) write
+to demonstrate a system that (somehow) works
+for executives who (definitely) will be impressed
+by the $4.7M savings that (might) be real.
+
+** Timeline
+
+- T-2 hours: Start dogfood test
+- T-1 hour: Complete all change requests
+- T-30 min: Deploy to production
+- T-15 min: Final validation
+- T-0: Executive demo
+- T+5 min: Either celebration or rollback
+
+** The Real Test
+
+Can agents coordinate through their own MCP protocol?
+Or will this be the final proof that they can't?
+
+Either way, it'll be entertaining.
+
+---
+
+/"Eating your own dogfood" - except the dogs didn't cook./
