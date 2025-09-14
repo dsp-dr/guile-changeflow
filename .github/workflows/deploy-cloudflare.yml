@@ -29,8 +29,5 @@ jobs:
         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       run: |
         echo "Deploying ChangeFlow MCP to Cloudflare Workers..."
-        cd experiments/008-deployment-hosting
-        wrangler deploy cloudflare-demo.js \
-          --name changeflow-mcp \
-          --compatibility-date 2023-12-01 \
-          --env production
+        cd infra/cloudflare
+        wrangler deploy
