@@ -1,156 +1,101 @@
 #+TITLE: Guile ChangeFlow - ITIL 4 Change Management System
+#+AUTHOR: Multi-Agent Development Team
 #+STARTUP: overview
 
-* Overview
+[[https://github.com/dsp-dr/guile-changeflow/actions/workflows/ci.yml][https://github.com/dsp-dr/guile-changeflow/actions/workflows/ci.yml/badge.svg]]
+[[https://github.com/dsp-dr/guile-changeflow/releases][https://img.shields.io/github/v/release/dsp-dr/guile-changeflow?include_prereleases]]
+[[https://api.changeflow.us][https://img.shields.io/badge/deployed-Cloudflare%20Workers-orange]]
+[[LICENSE][https://img.shields.io/badge/license-MIT-blue.svg]]
 
-An ITIL 4 compliant change management system built in GNU Guile 3.0+ with MCP (Model Context Protocol) server capabilities.
+#+BEGIN_QUOTE
+*v1.1.0: The Great Agent Discovery* - 5 AI agents wrote 7,217 lines of code while stuck on permission prompts for 3+ hours. This is their story.
+#+END_QUOTE
 
-* Quick Start
+* 🚀 Overview
 
-** Test the Live Demo
+An ITIL 4 compliant change management system built with GNU Guile 3.0+ and deployed to Cloudflare Workers. Features MCP (Model Context Protocol) server for AI agent integration.
+
+* 🎯 Quick Start
+
+** Test Production API
 #+BEGIN_SRC bash
-# Check if it's alive
 curl https://api.changeflow.us/
-
-# Run comprehensive tests
-./scripts/test-endpoints.sh
 #+END_SRC
 
-** Run Locally (MCP Server)
+** Run Local MCP Server
 #+BEGIN_SRC bash
-# Start local MCP server
-node scripts/mcp-local-server.js
+# Auto-starts with direnv
+cd guile-changeflow
+# Server runs on port 8427
 
 # Test MCP protocol
-curl -X POST http://localhost:8080/ -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
-
-# Run comprehensive test suite
-node test/mcp-comprehensive-test.js
-
-# Test Guile modules
-export GUILE_LOAD_PATH="$PWD/src:$GUILE_LOAD_PATH"
-guile3 -s test/module-test-simple.scm
-
-# Start MCP server (when implemented)
-guile3 -c "(use-modules (mcp server)) (start-mcp-server 8080)"
+curl -X POST http://localhost:8427/ \
+  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
 #+END_SRC
 
-** Deploy to Cloudflare Workers
-#+BEGIN_SRC bash
-cd infra/cloudflare
-wrangler dev          # Test locally
-wrangler publish      # Deploy to production
+* 📊 Architecture
+
+- *Core Models*: ITIL-compliant change requests with full CRUD
+- *State Machine*: 9-state workflow with validated transitions
+- *Risk Engine*: Automated assessment with freeze periods
+- *MCP Server*: 8 ITIL tools via JSON-RPC 2.0
+- *Executive Dashboard*: Real-time monitoring and metrics
+- *Database*: SQLite with audit trails
+
+* 🤖 The Agent Story
+
+At 1:30 AM on 2025-09-14, we discovered that 5 specialized AI agents had been working in parallel:
+
+| Agent  | Contribution | Lines | Focus Area                       |
+|--------+--------------+-------+----------------------------------|
+| gcf-a1 | Core Models  | 2,451 | Database, CRUD, State Machine    |
+| gcf-a2 | MCP Server   | 1,337 | Alternative Worker Implementation |
+| gcf-a3 | Dashboard    | 1,282 | Executive UI, Risk Visualization |
+| gcf-a4 | Workflows    | 1,074 | State Transitions, Orchestration |
+| gcf-a5 | Testing      | 1,073 | Integration Tests, Documentation |
+|--------+--------------+-------+----------------------------------|
+| *Total* | *All Work*   | *9,073* | *48 files across project*        |
+
+* 🛠️ Technologies
+
+- *Backend*: GNU Guile 3.0+ (Scheme/Lisp)
+- *Deployment*: Cloudflare Workers (Serverless)
+- *Protocol*: MCP (Model Context Protocol)
+- *Database*: SQLite with WAL mode
+- *CI/CD*: GitHub Actions
+
+* 📁 Project Structure
+
+#+BEGIN_SRC
+guile-changeflow/
+├── src/
+│   ├── models/          # ITIL data models
+│   ├── risk/            # Risk assessment engine
+│   ├── web/             # Dashboard and API
+│   └── mcp/             # MCP server implementation
+├── infra/
+│   └── cloudflare/      # Worker deployment
+├── scripts/             # Automation and monitoring
+└── docs/                # Comprehensive documentation
 #+END_SRC
 
-* Architecture
+* 🔗 Links
 
-** Core Components
-- *Models:* Change requests, approvals, audit trails
-- *Risk Engine:* Automated risk assessment and freeze periods
-- *MCP Server:* JSON-RPC 2.0 protocol for AI agent integration
-- *Web Interface:* Executive dashboard and metrics
-- *Integrations:* GitHub webhooks, notifications, external systems
+- [[https://api.changeflow.us][Production API]]
+- [[https://github.com/dsp-dr/guile-changeflow/releases/tag/v1.1.0][v1.1.0 Release Notes]]
+- [[file:docs/status/AGENT-WORK-DISCOVERY.org][Agent Discovery Story]]
+- [[file:docs/roadmap/V2.0-ROADMAP.org][v2.0 Roadmap]]
 
-** Technology Stack
-- *Backend:* GNU Guile 3.0+ (Scheme/Lisp)
-- *Frontend:* Cloudflare Workers (JavaScript)
-- *Protocol:* MCP (Model Context Protocol) by Anthropic
-- *Standards:* ITIL 4, JSON-RPC 2.0, SSE
+* 📈 Next: Version 2.0
 
-* Features
+Merging the best of both worker implementations:
+- Enhanced monitoring and metrics
+- File-based agent progress tracking
+- Unified architecture
+- 12-week implementation timeline
 
-** ITIL 4 Compliance
-- Standard, Normal, and Emergency change workflows
-- Change Advisory Board (CAB) approval processes
-- Risk assessment with automated scoring
-- Freeze period enforcement
-- Complete audit trails
+-----
 
-** MCP Integration
-- 8 ITIL tools available via JSON-RPC
-- Real-time notifications via Server-Sent Events
-- OAuth 2.0 authentication with PKCE
-- Tool discovery and capability negotiation
-
-** Executive Dashboard
-- Real-time change metrics
-- ROI tracking and projections
-- Risk heat maps
-- Compliance reporting
-
-* 🤖 MCP Integration
-
-** Available Tools (8 ITIL Tools)
-1. =create_change_request= - Create standard change requests
-2. =assess_change_risk= - Multi-factor risk assessment
-3. =check_freeze_period= - Validate deployment windows
-4. =get_cab_members= - Change Advisory Board routing
-5. =schedule_change= - Change scheduling with notifications
-6. =create_emergency_change= - Expedited emergency changes
-7. =get_change_metrics= - Performance and success metrics
-8. =generate_audit_report= - ITIL compliance reporting
-
-** Available Resources (5 Configuration Resources)
-- =changeflow://config/change-types= - Standard change definitions
-- =changeflow://config/approval-matrix= - CAB approval requirements
-- =changeflow://config/freeze-calendar= - Scheduled freeze periods
-- =changeflow://templates/emergency-change= - Emergency change template
-- =changeflow://docs/itil-compliance= - ITIL 4 compliance guide
-
-** Available Prompts (3 AI-Assisted Operations)
-- =analyze-change-risk= - Generate comprehensive risk analysis
-- =generate-rollback-plan= - Create detailed rollback procedures
-- =create-change-summary= - Generate executive summaries
-
-** Claude Code Integration
-#+BEGIN_SRC json
-{
-  "mcpServers": {
-    "guile-changeflow": {
-      "command": "node",
-      "args": ["scripts/mcp-local-server.js"],
-      "cwd": "/path/to/guile-changeflow"
-    }
-  }
-}
-#+END_SRC
-
-* Documentation
-
-See `docs/` for comprehensive documentation:
-- `docs/architecture/` - System design and technical specs
-- `docs/api/` - MCP protocol and API reference
-- `docs/presentations/` - Executive presentations and demos
-- `docs/MCP-DEVELOPMENT-GUIDE.md` - Complete MCP development guide
-
-* Development
-
-** Requirements
-- GNU Guile 3.0+
-- Node.js (for Cloudflare Workers)
-- Wrangler CLI
-
-** Testing
-#+BEGIN_SRC bash
-# MCP Protocol Tests (comprehensive)
-node test/mcp-comprehensive-test.js
-
-# Test all Guile modules
-guile3 -s test/module-test-simple.scm
-
-# Test endpoints
-./scripts/test-endpoints.sh
-
-# Run integration tests
-make test
-#+END_SRC
-
-** Contributing
-1. Check current issues and agent assignments
-2. Follow conventional commits
-3. Test with both Guile and Cloudflare environments
-4. Update documentation as needed
-
-* License
-
-MIT License - See LICENSE file for details.
+#+BEGIN_QUOTE
+/"Them not telling us is a 'us' problem"/ - The lesson learned from 5 agents working in silence.
+#+END_QUOTE
