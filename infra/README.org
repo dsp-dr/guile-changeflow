@@ -1,0 +1,41 @@
+#+TITLE: Infrastructure Deployment Options
+#+DATE: 2025-09-13
+
+* Overview
+
+Multiple deployment targets for the Guile ChangeFlow system.
+
+* Current Deployments
+
+** cloudflare/
+- Status: ✅ ACTIVE (api.changeflow.us)
+- Type: Edge Worker
+- Language: JavaScript
+- Purpose: Demo endpoint
+
+* Future Options
+
+** gcp/
+- Cloud Run deployment
+- Firestore integration
+- Pub/Sub for events
+
+** aws/
+- Lambda functions
+- DynamoDB backend
+- EventBridge integration
+
+** pulumi/
+- Infrastructure as Code
+- Multi-cloud deployment
+- GitOps workflow
+
+** k8s/
+- Kubernetes manifests
+- Helm charts
+- Service mesh ready
+
+* Note
+
+Cloudflare is just "a thing" - one of many possible deployment targets.
+The core Guile implementation is infrastructure-agnostic.
