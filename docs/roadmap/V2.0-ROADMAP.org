@@ -1,0 +1,208 @@
+#+TITLE: ChangeFlow v2.0 Roadmap
+#+AUTHOR: Multi-Agent Development Team
+#+DATE: 2025-09-14
+#+OPTIONS: toc:2
+
+* Executive Summary
+
+Version 2.0 represents the convergence of two parallel worker implementations discovered during the Great Agent Discovery of v1.1.0.
+
+* Current State (v1.1.0)
+
+** Two Worker Implementations
+- Production Worker (787 lines): Currently deployed at api.changeflow.us
+- Agent gcf-a2 Worker (511 lines): Enhanced with logging and metrics
+
+** Architecture Components
+- 5 specialized agents produced 7,217 lines
+- Full ITIL 4 compliance
+- Executive dashboard with real-time updates
+- MCP server on port 8427
+- GNU Guile backend models
+
+* V2.0 Vision: The Best of Both Worlds
+
+** Primary Goals
+1. Merge best features from both worker implementations
+2. Enhanced observability and monitoring
+3. Unified architecture with pluggable backends
+4. Multi-agent coordination improvements
+
+** Feature Matrix
+
+| Feature                | Prod Worker | Agent Worker | V2.0 Target |
+|------------------------+-------------+--------------+-------------|
+| Core MCP Protocol      | ✓           | ✓            | ✓ Enhanced  |
+| Error Handling         | Basic       | Advanced     | Advanced    |
+| Logging                | Minimal     | Comprehensive| Configurable|
+| Metrics                | None        | Built-in     | Full APM    |
+| Request Validation     | ✓           | ✓            | ✓ + Schema  |
+| Tool Registration      | Static      | Static       | Dynamic     |
+| Rate Limiting          | Basic       | None         | Adaptive    |
+| Caching                | None        | Planned      | Redis       |
+
+* Technical Roadmap
+
+** Phase 1: Analysis & Planning (Week 1)
+- [ ] Deep comparison of both worker implementations
+- [ ] Performance benchmarking
+- [ ] Feature gap analysis
+- [ ] Agent coordination retrospective
+
+** Phase 2: Architecture Convergence (Week 2-3)
+- [ ] Create unified worker base class
+- [ ] Implement feature flags for gradual rollout
+- [ ] Design plugin architecture for tools
+- [ ] Establish monitoring standards
+
+** Phase 3: Implementation (Week 4-6)
+- [ ] Merge logging and metrics systems
+- [ ] Implement enhanced error handling
+- [ ] Add request/response middleware
+- [ ] Create unified test suite
+
+** Phase 4: Agent Coordination (Week 7-8)
+- [ ] Implement file-based progress reporting
+- [ ] Add agent communication protocol
+- [ ] Create agent orchestration dashboard
+- [ ] Build automated agent recovery
+
+** Phase 5: Production Rollout (Week 9-10)
+- [ ] A/B testing framework
+- [ ] Gradual traffic migration
+- [ ] Performance monitoring
+- [ ] Rollback procedures
+
+* Key Innovations for V2.0
+
+** Agent Coordination Protocol
+#+BEGIN_SRC javascript
+// File-based progress reporting
+const AgentProgress = {
+  writeProgress: (agentId, progress) => {
+    fs.writeFileSync(`.agent-progress/${agentId}.json`, {
+      timestamp: Date.now(),
+      progress: progress,
+      files_modified: getModifiedFiles(),
+      lines_written: countLines()
+    });
+  }
+};
+#+END_SRC
+
+** Unified Tool Registry
+#+BEGIN_SRC javascript
+class ToolRegistry {
+  constructor() {
+    this.tools = new Map();
+    this.middleware = [];
+  }
+
+  register(tool) {
+    // Dynamic tool registration
+    this.tools.set(tool.name, tool);
+    this.emit('tool:registered', tool);
+  }
+
+  use(middleware) {
+    // Pluggable middleware
+    this.middleware.push(middleware);
+  }
+}
+#+END_SRC
+
+** Enhanced Monitoring
+#+BEGIN_SRC javascript
+class MetricsCollector {
+  constructor() {
+    this.metrics = {
+      requests: new Counter('mcp_requests_total'),
+      errors: new Counter('mcp_errors_total'),
+      latency: new Histogram('mcp_latency_ms'),
+      agents: new Gauge('mcp_active_agents')
+    };
+  }
+}
+#+END_SRC
+
+* Risk Assessment
+
+| Risk                        | Probability | Impact | Mitigation                     |
+|-----------------------------+-------------+--------+--------------------------------|
+| Feature regression          | Medium      | High   | Comprehensive test coverage    |
+| Performance degradation     | Low         | High   | Benchmarking and monitoring    |
+| Agent coordination failures | Medium      | Medium | File-based fallback system     |
+| Migration issues            | Low         | High   | Feature flags and rollback     |
+| Backwards compatibility     | Medium      | Medium | API versioning                 |
+
+* Success Metrics
+
+** Technical KPIs
+- Response time < 100ms (p99)
+- Error rate < 0.1%
+- Agent success rate > 95%
+- Code coverage > 80%
+
+** Business KPIs
+- Zero downtime migration
+- 100% feature parity
+- Improved developer experience
+- Reduced operational overhead
+
+* Resource Requirements
+
+** Team Structure
+- 2 Senior Engineers (architecture)
+- 3 Full-stack Developers
+- 1 DevOps Engineer
+- 5 AI Agents (development)
+
+** Infrastructure
+- Cloudflare Workers (production)
+- GitHub Actions (CI/CD)
+- Redis (caching layer)
+- Monitoring (Datadog/NewRelic)
+
+* Timeline
+
+#+BEGIN_SRC
+Week 1-2:   Planning & Analysis
+Week 3-6:   Core Implementation
+Week 7-8:   Agent Coordination
+Week 9-10:  Production Rollout
+Week 11-12: Monitoring & Optimization
+#+END_SRC
+
+* Open Questions
+
+1. Should we maintain backwards compatibility with v1.x?
+2. How do we handle state management across workers?
+3. What's the strategy for agent version management?
+4. Should we implement a GraphQL API alongside REST?
+5. How do we coordinate multi-region deployments?
+
+* Appendix: Lessons from v1.1.0
+
+** What Worked
+- Git worktrees for agent isolation
+- File-based change detection
+- Org-mode documentation
+- YOLO approach for prototyping
+
+** What Didn't
+- Terminal output monitoring
+- Permission prompt handling
+- Agent communication protocol
+- Progress visibility
+
+** Key Learning
+> "Them not telling us is a 'us' problem" - @dsp-dr
+
+The fundamental issue wasn't agent capability but communication protocol. V2.0 must prioritize observable progress over terminal output.
+
+* References
+
+- [[file:../WORKER-COMPARISON.org][Worker Implementation Comparison]]
+- [[file:../status/AGENT-WORK-DISCOVERY.org][Agent Work Discovery Report]]
+- [[https://github.com/dsp-dr/guile-changeflow/releases/tag/v1.1.0][v1.1.0 Release Notes]]
+- [[https://api.changeflow.us][Production API]]
