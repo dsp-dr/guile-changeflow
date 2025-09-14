@@ -1,0 +1,201 @@
+#+TITLE: MCP OAuth Flow Research & Implementation
+#+DATE: 2025-09-14
+#+AUTHOR: ChangeFlow Team
+
+* Executive Summary
+
+This document captures our research into how established MCP servers implement OAuth and our implementation strategy for ChangeFlow MCP server to be compatible with Claude.ai.
+
+* Research Findings: Production MCP Server OAuth Flows
+
+** Cloudflare MCP (bindings.mcp.cloudflare.com)
+*** OAuth Flow
+- Initial request to ~/sse~ returns HTTP 401
+- WWW-Authenticate: ~Bearer realm="OAuth", error="invalid_token", error_description="Missing or invalid access token"~
+- Redirects to: ~https://dash.cloudflare.com/login?login_challenge=...~
+- Uses Cloudflare Access for authentication
+
+*** Key Endpoints
+#+BEGIN_SRC
+GET  /.well-known/oauth-authorization-server - OAuth discovery
+GET  /sse                                    - SSE endpoint (requires auth)
+POST /token                                  - Token exchange
+POST /register                               - Client registration
+GET  /oauth/authorize                        - Authorization endpoint
+#+END_SRC
+
+*** OAuth Discovery Response
+#+BEGIN_SRC json
+{
+  "issuer": "https://bindings.mcp.cloudflare.com",
+  "authorization_endpoint": "https://bindings.mcp.cloudflare.com/oauth/authorize",
+  "token_endpoint": "https://bindings.mcp.cloudflare.com/token",
+  "registration_endpoint": "https://bindings.mcp.cloudflare.com/register",
+  "response_types_supported": ["code"],
+  "response_modes_supported": ["query"],
+  "grant_types_supported": ["authorization_code", "refresh_token"],
+  "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post", "none"],
+  "revocation_endpoint": "https://bindings.mcp.cloudflare.com/token",
+  "code_challenge_methods_supported": ["plain", "S256"]
+}
+#+END_SRC
+
+** Atlassian MCP (mcp.atlassian.com)
+*** OAuth Flow
+- Shows consent page with:
+  - Client name: "Claude"
+  - Redirect URI: ~https://claude.ai/api/mcp/auth_callback~
+  - Products access: Jira, Confluence, Compass
+  - Approve/Cancel buttons
+
+*** Authorization URL Pattern
+#+BEGIN_SRC
+https://mcp.atlassian.com/v1/authorize?
+  response_type=code
+  &client_id=SXAZRZd18WrHPXvI
+  &redirect_uri=https://claude.ai/api/mcp/auth_callback
+  &code_challenge=tS6xFm4xmO4-ejNV2NLE3gh_bLotQS4iH8csr0zaTIg
+  &code_challenge_method=S256
+  &state=He2rNmF-x7ba2oPy7R1D3AC4FBIOp3CITGNauiMqT4o
+  &scope=claudeai
+#+END_SRC
+
+** Hugging Face MCP (huggingface.co)
+*** OAuth Flow
+- Direct OAuth endpoint (no intermediate consent page shown)
+- Extensive scope permissions
+
+*** Authorization URL Pattern
+#+BEGIN_SRC
+https://huggingface.co/oauth/authorize?
+  response_type=code
+  &client_id=7c931930-7856-46b0-8bee-6ba3ff15d7a2
+  &redirect_uri=https://claude.ai/api/mcp/auth_callback
+  &code_challenge=Tw_6ua-vrRFvGqldB-m42qEToa6vtstp-Xw3s3-aqa0
+  &code_challenge_method=S256
+  &state=898L3c2OFjFrMKrydqjj-L6WZAwOh-M7JfS4boc6rwo
+  &scope=openid profile email read-repos write-repos manage-repos read-mcp write-discussions read-billing inference-api webhooks
+  &resource=https://huggingface.co/mcp
+#+END_SRC
+
+* Common Patterns Observed
+
+** 1. Claude.ai Client Registration
+- Claude.ai appears to have pre-registered client IDs with major providers:
+  - Atlassian: ~SXAZRZd18WrHPXvI~
+  - Hugging Face: ~7c931930-7856-46b0-8bee-6ba3ff15d7a2~
+- Always uses redirect URI: ~https://claude.ai/api/mcp/auth_callback~
+
+** 2. PKCE (Proof Key for Code Exchange)
+All providers implement PKCE with:
+- ~code_challenge~ parameter
+- ~code_challenge_method=S256~ (SHA256)
+- This prevents authorization code interception attacks
+
+** 3. OAuth 2.0 Authorization Code Flow
+Standard flow observed:
+1. Client requests resource → 401 Unauthorized
+2. Client redirected to ~/authorize~ with parameters
+3. User consent page (optional, provider-specific)
+4. Redirect to identity provider (GitHub, Cloudflare, etc.)
+5. Callback with authorization code
+6. Code exchange for access token
+7. Access token used for API requests
+
+** 4. Required Endpoints
+Minimum endpoints for Claude.ai compatibility:
+- ~GET /.well-known/oauth-authorization-server~ - OAuth discovery
+- ~GET /authorize~ or ~/oauth/authorize~ - Authorization
+- ~POST /token~ - Token exchange
+- ~POST /register~ - Client registration (optional if pre-registered)
+- ~GET /v1/sse~ or ~/sse~ - SSE endpoint for MCP protocol
+
+* ChangeFlow Implementation Strategy
+
+** Phase 1: Basic OAuth Flow (Completed)
+- [X] Return 401 from ~/v1/sse~ when unauthenticated
+- [X] Implement ~/authorize~ endpoint
+- [X] Handle ~/callback~ from GitHub
+- [X] Implement ~/token~ endpoint
+- [X] Support session cookies
+
+** Phase 2: OAuth Discovery (Completed)
+- [X] Add ~./well-known/oauth-authorization-server~
+- [X] Add ~/register~ endpoint for dynamic client registration
+- [X] Support ~/oauth/authorize~ alias
+
+** Phase 3: Consent Page (Completed)
+- [X] Show consent page matching Atlassian pattern
+- [X] Display client name and redirect URI
+- [X] List permissions being granted
+- [X] Handle approve/cancel actions
+- [X] Support PKCE parameters
+
+** Phase 4: Testing & Refinement (In Progress)
+- [ ] Test with Claude.ai
+- [ ] Handle edge cases
+- [ ] Improve error messages
+- [ ] Add telemetry
+
+* Technical Implementation Details
+
+** OAuth State Management
+We encode multiple parameters in the state during GitHub OAuth:
+#+BEGIN_SRC javascript
+state: btoa(JSON.stringify({
+  claudeRedirect: redirectUri,     // Claude's callback URL
+  claudeState: state,              // Claude's state parameter
+  codeChallenge: codeChallenge,    // PKCE challenge
+  codeChallengeMethod: method,     // PKCE method
+  timestamp: Date.now()            // For expiry
+}))
+#+END_SRC
+
+** Session Management
+- Session cookies with ~SameSite=None~ for cross-origin
+- ~HttpOnly~ and ~Secure~ flags for security
+- 24-hour expiry
+
+** Error Responses
+Following OAuth 2.0 specification:
+- ~invalid_token~ - Missing or invalid access token
+- ~access_denied~ - User cancelled authorization
+- ~invalid_grant~ - Invalid authorization code
+
+* Deployment Configuration
+
+** Environment Variables
+- ~GITHUB_CLIENT_ID~ - GitHub OAuth app client ID
+- ~GITHUB_CLIENT_SECRET~ - GitHub OAuth app secret (stored in Cloudflare dashboard)
+
+** GitHub OAuth App Settings
+- Authorization callback URL: ~https://mcp.changeflow.us/callback~
+- Permissions: Read user profile
+
+** Cloudflare Workers Configuration
+- Routes: ~mcp.changeflow.us/*~
+- Environment: Production
+- Version: 1.4.0
+
+* Lessons Learned
+
+1. **OAuth Discovery is Critical**: Claude.ai uses ~./well-known/oauth-authorization-server~ to discover endpoints
+2. **Consent Page Improves UX**: Shows users what they're authorizing
+3. **PKCE is Required**: All production MCP servers implement PKCE
+4. **Session State Management**: Complex due to multiple OAuth providers in chain
+5. **Provider-Specific Patterns**: Each provider has slight variations but follows OAuth 2.0 spec
+
+* Next Steps
+
+1. Monitor Claude.ai connection attempts in production logs
+2. Implement refresh token support if needed
+3. Consider implementing Cloudflare Access integration as alternative to GitHub OAuth
+4. Add metrics for OAuth flow completion rates
+
+* References
+
+- [[https://docs.anthropic.com/en/docs/agents-and-tools/remote-mcp-servers][Anthropic Remote MCP Servers Documentation]]
+- [[https://datatracker.ietf.org/doc/html/rfc6749][OAuth 2.0 RFC 6749]]
+- [[https://datatracker.ietf.org/doc/html/rfc7636][PKCE RFC 7636]]
+- [[https://developers.cloudflare.com/agents/model-context-protocol/][Cloudflare MCP Documentation]]
+- Experiment 012: MCP Server Audit (~/experiments/012-mcp-server-audit/~)
