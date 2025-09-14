@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "guile-changeflow": {
+      "command": "node",
+      "args": ["scripts/mcp-local-server.js"],
+      "cwd": "/home/jwalsh/ghq/github.com/dsp-dr/guile-changeflow",
+      "env": {
+        "MCP_PORT": "8080"
+      }
+    }
+  }
+}
