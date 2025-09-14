@@ -197,7 +197,7 @@ export default {
           return new Response(JSON.stringify({
             mcp_version: '1.0.0',
             server_name: 'guile-changeflow',
-            server_version: '1.3.0',
+            server_version: '1.3.1',
             description: 'ITIL 4-compliant change management system with automatic risk assessment',
             capabilities: {
               tools: true,
