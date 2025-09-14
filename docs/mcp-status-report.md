@@ -7,17 +7,25 @@
 
 ## Current State
 
-### Production Endpoints
-- **Landing Page**: https://mcp.changeflow.us/ ✅
-- **OAuth Flow**: https://mcp.changeflow.us/authorize ✅
-- **Legacy MCP**: https://mcp.changeflow.us/mcp ✅
-- **SSE Endpoint**: https://mcp.changeflow.us/mcp/sse 🆕
+### Production Endpoints (2025-09-14 19:22 UTC)
+- **Landing Page**: https://mcp.changeflow.us/ ✅ (200)
+- **Health Check**: https://mcp.changeflow.us/health ✅ (200)
+- **OAuth Flow**: https://mcp.changeflow.us/authorize ✅ (302)
+- **Legacy MCP**: https://mcp.changeflow.us/mcp ✅ (200)
+- **SSE Endpoint**: https://mcp.changeflow.us/v1/sse ❌ (404) - **NEEDS UPDATE**
+- **Favicon**: https://mcp.changeflow.us/favicon.ico ❌ (404) - **NEEDS UPDATE**
 
 ### Key Changes (v1.3.0)
-1. **Added SSE Support** - Server-Sent Events for Claude.ai compatibility
-2. **Authentication Required** - Returns 401 without Bearer token
-3. **GitHub Link Added** - Landing page now links to repository
-4. **Cleaned mcp-server/** - Only worker.js remains (monolithic approach)
+1. **Simplified Architecture** - Single worker.js file in infra/cloudflare/
+2. **Removed Build Complexity** - No more cp commands, just deploy wrangler.toml
+3. **Added SSE Support** - Server-Sent Events for Claude.ai (needs deployment)
+4. **Updated to /v1/sse** - Following Atlassian pattern
+5. **GitHub Link Added** - Landing page now links to repository
+
+### Lessons Learned
+- Build systems for single-file deployments create unnecessary complexity
+- Multiple files (mcp-server/, infra/) caused dependency confusion
+- **Final pattern**: One huge worker.js + wrangler.toml = simple deployment
 
 ## Technical Implementation
 
