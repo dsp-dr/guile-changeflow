@@ -126,22 +126,110 @@ submitted → assessing → approved → implementing → completed
                      ↘ cancelled
 #+END_SRC
 
-* Requirements
+* Risk Assessment Model
 
+** Change Types (ITIL 4)
+
+| Type      | Risk Threshold | Approval  | Use Case        |
+|-----------+----------------+-----------+-----------------|
+| Standard  | < 30           | Automatic | Routine updates |
+| Normal    | 30-70          | Required  | Most changes    |
+| Emergency | > 70           | Expedited | Critical fixes  |
+
+** Risk Factors
+
+| Factor                  | Weight | Description                           |
+|-------------------------+--------+---------------------------------------|
+| Production impact       |     30 | Changes affecting production systems  |
+| Data modifications      |     25 | Database schema or data changes      |
+| Security implications   |     20 | Authentication, authorization changes |
+| Multi-system changes    |     15 | Cross-system dependencies             |
+| Historical success rate |     10 | Past performance of similar changes  |
+
+* Development Setup
+
+** Prerequisites
 - GNU Guile 3.0+ (for local development)
 - Node.js 18+ (for MCP server)
 - Cloudflare Workers account (for deployment)
+- Make (for build automation)
 
-* Documentation
+** Quick Start
+#+BEGIN_SRC bash
+# Clone and setup
+git clone https://github.com/dsp-dr/guile-changeflow.git
+cd guile-changeflow
 
-- [[file:docs/setup.org][Installation Guide]]
-- [[file:docs/architecture/][Architecture Documentation]]
-- [[file:docs/tutorials/][Tutorials and Examples]]
-- [[file:docs/roadmap/V2.0-ROADMAP.org][Development Roadmap]]
+# Environment setup (automatic with direnv)
+cp .env.example .env
+direnv allow
+
+# Run tests
+make test
+
+# Start local MCP server
+make mcp-server
+
+# Deploy to Cloudflare
+make deploy
+#+END_SRC
+
+* Project Documentation
+
+** Core Documents
+
+| Document          | Purpose                                 | Location                      |
+|-------------------+-----------------------------------------+-------------------------------|
+| Setup & Build     | Build system and tooling configuration | [[file:docs/setup.org][docs/setup.org]]                |
+| System Design     | Architecture and data models           | [[file:docs/architecture/][docs/architecture/]]            |
+| ITIL Requirements | ITIL 4 mapping and compliance          | [[file:docs/itil-requirements.org][docs/itil-requirements.org]]    |
+| MCP Protocol      | Protocol implementation guide          | [[file:docs/mcp-protocol.org][docs/mcp-protocol.org]]         |
+| Deployment        | Infrastructure and scaling strategy    | [[file:docs/deployment.org][docs/deployment.org]]           |
+| Roadmap v2.0      | Future development plans               | [[file:docs/roadmap/V2.0-ROADMAP.org][docs/roadmap/V2.0-ROADMAP.org]] |
+
+** Testing
+
+*** Test Coverage Areas
+- Unit tests: Models and state machine
+- Integration tests: MCP protocol
+- System tests: End-to-end workflows
+- Performance tests: Bulk operations
+
+*** Running Tests
+#+BEGIN_SRC bash
+# All tests
+make test
+
+# Specific test suites
+guile test/test-core-models.scm
+node test/mcp-comprehensive-test.js
+./scripts/test-endpoints.sh
+#+END_SRC
+
+* Deployment
+
+** Environments
+| Environment | URL                       | Purpose     |
+|-------------+---------------------------+-------------|
+| Production  | https://api.changeflow.us | Live system |
+| Local       | http://localhost:8427     | Development |
+
+** CI/CD Pipeline
+- GitHub Actions for testing
+- Automatic deployment on main branch
+- Release tagging and versioning
+
+* Contributing
+
+See [[file:CONTRIBUTING.org][CONTRIBUTING.org]] for:
+- Code style guidelines
+- Commit message format
+- Pull request process
+- Testing requirements
 
 * License
 
-MIT License - See LICENSE file for details
+MIT License - See [[file:LICENSE][LICENSE]] for details
 
 * Support
 
