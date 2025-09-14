@@ -173,9 +173,28 @@ export default {
           const tokenData = await tokenResponse.json();
 
           if (tokenData.access_token) {
-            // Success!
+            // Success! Set a session cookie so /v1/sse knows user is authenticated
+            const sessionId = crypto.randomUUID();
+
+            // For Claude.ai, check if state indicates return to SSE
+            let returnUrl = '/';
+            try {
+              if (state) {
+                const stateData = JSON.parse(atob(state));
+                if (stateData.returnUrl === '/v1/sse') {
+                  // Redirect back to Claude.ai's expected URL
+                  returnUrl = 'https://claude.ai/connect/success';
+                }
+              }
+            } catch (e) {
+              // Ignore state parsing errors
+            }
+
             return new Response(SUCCESS_HTML, {
-              headers: { 'Content-Type': 'text/html' }
+              headers: {
+                'Content-Type': 'text/html',
+                'Set-Cookie': `mcp_session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=86400`
+              }
             });
           } else {
             return new Response(ERROR_HTML, {
@@ -419,23 +438,37 @@ export default {
 
       case '/v1/sse':
         // SSE endpoint for Claude.ai integration
-        // Check authentication
-        const authHeader = request.headers.get('Authorization');
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-          return new Response(JSON.stringify({
-            error: 'Unauthorized',
-            message: 'Bearer token required'
-          }), {
-            status: 401,
-            headers: {
-              'Content-Type': 'application/json',
-              'WWW-Authenticate': 'Bearer realm="MCP"',
-              ...corsHeaders
-            }
-          });
+        // Claude.ai flow: First request without auth → redirect to OAuth → OAuth completion → SSE works
+
+        // Check for authentication (session cookie or Bearer token)
+        const cookies = request.headers.get('cookie') || '';
+        const hasSession = cookies.includes('mcp_session=');
+        const authHeader = request.headers.get('authorization');
+        const userAgent = request.headers.get('user-agent') || '';
+
+        // If no auth (no session cookie and no Bearer token), redirect to OAuth
+        if (!hasSession && !authHeader) {
+          // For GET request without auth, redirect to OAuth
+          if (request.method === 'GET') {
+            // Generate state for OAuth that includes return URL
+            const state = btoa(JSON.stringify({
+              returnUrl: '/v1/sse',
+              timestamp: Date.now()
+            }));
+
+            const authParams = new URLSearchParams({
+              client_id: env.GITHUB_CLIENT_ID || '',
+              redirect_uri: `${url.origin}/callback`,
+              scope: 'read:user',
+              state: state
+            });
+
+            // Redirect to GitHub OAuth
+            return Response.redirect(`${GITHUB_OAUTH_URL}?${authParams}`, 302);
+          }
         }
 
-        // For GET, return SSE stream info
+        // For authenticated requests (has session or Bearer token), return SSE stream
         if (request.method === 'GET') {
           return new Response('data: {"type":"ready","version":"1.3.0"}\n\n', {
             headers: {
