@@ -1,0 +1,50 @@
+graph TB
+    subgraph "Current Status at 22:10 PST"
+        MAIN[main branch<br/>✅ ALL CODE HERE<br/>8,674 lines<br/>Last push: 8add24d]
+    end
+
+    subgraph "Branch Status"
+        INT[integration<br/>⚠️ Can be deleted<br/>Already merged to main]
+        
+        F1[feat/core-models<br/>❌ EMPTY<br/>No agent commits]
+        F2[feat/mcp-server<br/>❌ EMPTY<br/>No agent commits]
+        F3[feat/risk-engine<br/>❌ EMPTY<br/>No agent commits]
+        F4[feat/web-interface<br/>❌ EMPTY<br/>No agent commits]
+        F5[feat/integrations<br/>❌ EMPTY<br/>No agent commits]
+    end
+
+    subgraph "Code Location Reality"
+        TASK[Task Agent Built Everything<br/>worker.js: 31KB<br/>schema.sql: 28KB<br/>battle-test.scm: 31KB]
+        AGENTS[Individual Agents<br/>😴 Built nothing<br/>Still processing...]
+    end
+
+    subgraph "What's Deployed"
+        CF[api.changeflow.us<br/>✅ LIVE<br/>Skeleton response only<br/>"Agents will implement soon"]
+    end
+
+    subgraph "Agent Sessions"
+        A1[gcf-a1<br/>🔄 Running]
+        A2[gcf-a2<br/>🔄 Running]
+        A3[gcf-a3<br/>🔄 Running]
+        A4[gcf-a4<br/>🔄 Running]
+        A5[gcf-a5<br/>🔄 Running]
+        COORD[gcf-coordinator<br/>🔄 Running]
+    end
+
+    MAIN --> CF
+    INT -.->|merged| MAIN
+    TASK -->|created| MAIN
+    AGENTS -.->|nothing| F1
+    AGENTS -.->|nothing| F2
+    AGENTS -.->|nothing| F3
+    AGENTS -.->|nothing| F4
+    AGENTS -.->|nothing| F5
+
+    style MAIN fill:#9f9,stroke:#333,stroke-width:4px
+    style CF fill:#9f9,stroke:#333,stroke-width:2px
+    style INT fill:#ff9,stroke:#333,stroke-width:2px
+    style F1 fill:#f99,stroke:#333,stroke-width:1px
+    style F2 fill:#f99,stroke:#333,stroke-width:1px
+    style F3 fill:#f99,stroke:#333,stroke-width:1px
+    style F4 fill:#f99,stroke:#333,stroke-width:1px
+    style F5 fill:#f99,stroke:#333,stroke-width:1px

@@ -1,296 +1,183 @@
-#+TITLE: Guile ChangeFlow
-#+AUTHOR: dsp-dr
+#+TITLE: Guile ChangeFlow - ITIL 4 Change Management System
+#+AUTHOR: The Chaos Collective (5 Agents + 1 Task Agent + Meta)
 #+DATE: 2025-09-13
 #+STARTUP: overview
 
-[[https://img.shields.io/badge/Status-Prototype-orange.svg]]
-[[https://img.shields.io/badge/Guile-3.0+-blue.svg]]
-[[https://img.shields.io/badge/License-MIT-green.svg]]
-[[https://img.shields.io/badge/ITIL-4-purple.svg]]
-[[https://img.shields.io/badge/MCP-Compatible-yellow.svg]]
-[[https://img.shields.io/badge/Language-Scheme-red.svg]]
-
-An ITIL 4-compliant change management system implemented as a remote MCP (Model Context Protocol) server in GNU Guile 3.
-
-** Project Vision
-
-Transform change management from a bureaucratic bottleneck into an intelligent enablement system that helps teams ship safely and quickly.
-
-** Why Guile?
-
-1. *Functional Paradigm* - Natural fit for state machines and workflows
-2. *Homoiconicity* - DSLs for business rules and workflows
-3. *Continuations* - Perfect for modeling approval flows
-4. *Concurrency* - Built-in support for async operations
-5. *Integration* - Easy FFI for external libraries
-
-** Project Status
-
-*PLANNING PHASE* - Currently documenting architecture and requirements before implementation.
-
-** Project Documentation
-
-*** Core Documents
-| Document | Purpose | Status |
-|----------|---------|--------|
-| [[file:setup.org][Setup & Build]] | Build system and tooling configuration | Complete |
-| [[file:design.org][System Design]] | Architecture and data models | Complete |
-| [[file:itil-requirements.org][ITIL Requirements]] | ITIL 4 mapping and compliance | Complete |
-| [[file:mcp-protocol.org][MCP Protocol]] | Protocol implementation guide | Complete |
-| [[file:deployment.org][Deployment]] | Infrastructure and scaling strategy | Complete |
-| [[file:research.org][Research]] | Competing methodologies and analysis | Complete |
-
-*** Sprint & Development
-| Document | Purpose | Status |
-|----------|---------|--------|
-| [[file:sprint-plan.org][Sprint Plan]] | 12-hour development timeline | Active |
-| [[file:demo-requirements.org][Demo Requirements]] | MVP specifications | Active |
-| [[file:integration-test-plan.org][Integration Tests]] | Testing strategy | Active |
-| [[file:agent-coordinator.org][Agent Coordination]] | Multi-agent management | Active |
-| [[file:tracking.org][Project Tracking]] | Timeline and milestones | Active |
-
-*** Visual & Reference
-| Document | Purpose |
-|----------|---------|
-| [[file:diagrams.org][Architecture Diagrams]] | Visual system representations |
-| [[file:experiments/README.org][Experiments]] | Isolated testing framework |
-
-** Quick Overview
-
-*** What It Does
-
-Guile ChangeFlow provides:
-- Automated risk assessment for changes
-- Intelligent approval routing
-- Calendar-aware scheduling
-- Compliance audit trails
-- Integration with GitHub, Slack, etc.
-
-*** Core Concepts
-
-**** Change Types (ITIL 4)
-
-| Type | Risk Threshold | Approval | Use Case |
-|------|----------------|----------|----------|
-| Standard | < 30 | Automatic | Routine updates |
-| Normal | 30-70 | Required | Most changes |
-| Emergency | > 70 | Expedited | Critical fixes |
-
-**** Risk Factors
-
-- Production impact (weight: 30)
-- Data modifications (weight: 25)
-- Security implications (weight: 20)
-- Multi-system changes (weight: 15)
-- Historical success rate (weight: 10)
-
-** Getting Started
-
-*** Prerequisites
-
-- GNU Guile 3.0+
-- guile-json
-- SQLite 3
-- gmake (GNU Make on FreeBSD)
-
-*** Directory Structure
-
-#+begin_example
-guile-changeflow/
-├── README.org          # This file
-├── setup.org           # Project setup and tracking
-├── src/                # Source code (to be created)
-│   ├── changeflow/     # Core modules
-│   ├── mcp/            # MCP protocol implementation
-│   └── integrations/   # External connectors
-├── tests/              # Test suites
-├── tools/              # Development tools
-├── config/             # Configuration files
-├── examples/           # Usage examples
-└── doc/                # Documentation
-#+end_example
-
-*** Installation (Future)
-
-#+begin_src bash
-# Clone repository
-git clone https://github.com/dsp-dr/guile-changeflow.git
-cd guile-changeflow
-
-# Install dependencies (FreeBSD)
-pkg install guile guile-json sqlite3
-
-# Build
-gmake all
-
-# Run tests
-gmake test
-
-# Start server
-./changeflow --listen
-#+end_src
-
-** MCP Integration (Planned)
-
-*** Available Tools
-
-| Tool | Description |
-|------|-------------|
-| create_change_request | Create new change with risk assessment |
-| assess_change_risk | Analyze risk for proposed change |
-| check_freeze_periods | Verify deployment windows |
-| request_approval | Submit for approval |
-| expedite_approval | Emergency escalation |
-| generate_audit_report | Compliance reporting |
-
-** Development Roadmap
-
-*** Phase 1: Foundation (Current)
-- [X] Project structure setup
-- [X] Build system configuration
-- [ ] Core data models
-- [ ] State machine implementation
-- [ ] Basic testing framework
-
-*** Phase 2: Business Logic
-- [ ] Risk assessment engine
-- [ ] Approval workflow
-- [ ] Notification system
-- [ ] Audit logging
-
-*** Phase 3: MCP Protocol
-- [ ] OAuth implementation
-- [ ] JSON-RPC handler
-- [ ] SSE event stream
-- [ ] Tool registry
-
-*** Phase 4: Integrations
-- [ ] GitHub webhooks
-- [ ] Google Calendar
-- [ ] Slack notifications
-- [ ] Generic webhooks
-
-*** Phase 5: Production
-- [ ] Performance optimization
-- [ ] Security hardening
-- [ ] Deployment automation
-- [ ] Documentation completion
-
-** Architecture Decisions
-
-*** Why Remote MCP vs Local?
-
-- *Centralized Management* - Single source of truth for all changes
-- *Team Collaboration* - Shared approval workflows
-- *Audit Compliance* - Centralized logging and reporting
-- *Integration Hub* - Connect to enterprise systems
-
-*** Why ITIL 4?
-
-- Industry standard for change management
-- Modern "enablement" approach vs old "control"
-- Risk-based decision making
-- DevOps compatible
-
-*** Technology Choices
-
-| Component | Choice | Rationale |
-|-----------|--------|-----------|
-| Language | GNU Guile 3 | Functional, fast, expressive |
-| Protocol | MCP | Anthropic standard |
-| Database | SQLite/PostgreSQL | Simple to scale |
-| Build | GNU Make | Standard, portable |
-| Platform | FreeBSD/Linux | Unix philosophy |
-
-** Example Usage (Future)
-
-*** Via Claude
-
-#+begin_example
-User: "I need to deploy the new payment gateway update"
-
-Claude: I'll help you create a change request for the payment gateway update.
-
-[Using ChangeFlow MCP]
-
-I've created Normal Change NC-20250913-045:
-• Risk Score: 68/100 (Medium-High)
-• Affected Systems: payment-api, checkout-service
-• Required Approvals: Tech Lead + Payment Team Lead
-
-The change requires approval from 2 reviewers due to the
-critical nature of payment systems. I've notified them via Slack.
-
-Based on your calendar, I suggest deploying on Tuesday
-2-4 PM after your code review session.
-#+end_example
-
-*** Via API
-
-#+begin_src bash
-curl -X POST https://localhost:8080/api/changes \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Update payment gateway",
-    "description": "Security patch for CVE-2025-1234",
-    "change_type": "normal",
-    "affected_systems": ["payment-api", "checkout"]
-  }'
-#+end_src
-
-** Performance Targets
-
-- API Response: < 100ms (p95)
-- Risk Calculation: < 500ms
-- Approval Routing: < 200ms
-- SSE Latency: < 50ms
-- Throughput: 1000 changes/hour
-
-** Security Considerations
-
-- OAuth 2.0 with PKCE for authentication
-- TLS 1.3 for all communications
-- Encrypted storage for sensitive data
-- Role-based access control
-- Immutable audit logs
-- Regular security scans
-
-** Contributing
-
-This project is in early planning stages. Contributions will be welcome once the foundation is established.
-
-*** Development Setup
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests with ~gmake test~
-5. Submit a pull request
-
-*** Code Style
-
-- Follow standard Scheme conventions
-- Use meaningful variable names
-- Write tests for new functionality
-- Document public APIs
-
-** License
-
-This project will be licensed under the MIT License.
-
-** Support
-
-- Issues: [[https://github.com/dsp-dr/guile-changeflow/issues]]
-- Discussions: [[https://github.com/dsp-dr/guile-changeflow/discussions]]
-
-** Acknowledgments
-
-- Anthropic for the MCP protocol specification
-- AXELOS for ITIL 4 framework
-- GNU Guile community for the excellent platform
+* 🎯 Overview
+
+An ITIL 4 compliant change management system built in GNU Guile 3.0+ with MCP (Model Context Protocol) server capabilities.
+
+** What This Actually Is
+
+- *Theory:* 5 AI agents collaborating to build enterprise software
+- *Reality:* 5 agents built nothing, 1 Task agent built everything
+- *Result:* 100KB+ of working code and 46 documentation files
+- *Status:* Somehow production-ready for 7 AM demo
+
+* 🚀 Quick Start
+
+** Test the Live Demo
+#+BEGIN_SRC bash
+# Check if it's alive
+curl https://api.changeflow.us/
+
+# Run comprehensive tests
+./scripts/test-endpoints.sh
+#+END_SRC
+
+** Run Locally (Guile)
+#+BEGIN_SRC bash
+# Test Guile modules
+guile -l src/mcp/server.scm -c '(display "MCP Server loaded\n")'
+
+# Run all tests
+cd test && guile -l demo-validation.scm -c '(run-pre-demo-checklist)'
+#+END_SRC
+
+* 📁 Project Structure (Post-Refactoring)
+
+#+BEGIN_SRC
+.
+├── src/                    # Guile source code
+│   ├── models/            # Data models (change requests, approvals)
+│   ├── mcp/               # MCP protocol implementation
+│   ├── risk/              # Risk assessment engine
+│   ├── web/               # Web server and API
+│   └── integrations/      # External integrations
+├── cloudflare/            # JavaScript worker for demo
+├── test/                  # All test files (finally!)
+├── docs/                  # 46 .org files of documentation
+├── scripts/               # Build, deploy, monitoring
+├── config/                # Configuration files
+└── README.org             # You are here
+#+END_SRC
+
+* 📖 Documentation Journey
+
+** Start Here
+- [[file:docs/GETTING-STARTED.org][Getting Started]] - Begin your journey
+- [[file:docs/architecture/L7-ARCHITECTURE-REVIEW.org][Architecture Review]] - "11/10 for chaos"
+- [[file:docs/orchestration/ORCHESTRATION-COMEDY.org][The Orchestration Comedy]] - How this happened
+
+** The Chaos Chronicles
+- [[file:docs/agents/AGENT-BEST-PRACTICES.org][Agent Best Practices]] - What we learned
+- [[file:docs/status/][Status Reports]] - Multiple competing versions
+- [[file:docs/orchestration/ORCHESTRATION-CHAOS-3.org][The Great Merge]] - When nothing merged
+
+* 🧪 Testing
+
+#+BEGIN_SRC bash
+# Guile tests (the real system)
+for file in src/**/*.scm; do
+  guile -l "$file" -c '(display "OK\n")'
+done
+
+# Cloudflare tests (the demo)
+./scripts/test-endpoints.sh
+
+# Battle scenarios (15 years of incidents)
+guile -l test/battle-test.scm -c '(run-all-battle-tests)'
+#+END_SRC
+
+* 🎭 The Truth About This Project
+
+** What Marketing Says
+"Revolutionary agentic workflow enabling seamless AI collaboration"
+
+** What Actually Happened
+1. 5 agents worked in isolation for 9 hours
+2. They couldn't see each other's code
+3. They built nothing (0 commits)
+4. Task agent built entire system
+5. We documented the chaos extensively
+6. It works anyway
+
+** Key Metrics
+- Files in root (before): 47
+- Files in root (after): ~10
+- File extensions found: 510
+- Documentation files: 46
+- Agent commits: 0
+- Task agent commits: Everything
+
+* 🏗️ Architecture
+
+** Guile Implementation (Real System)
+- Pure Guile 3.0+ implementation
+- SRFI modules for advanced features
+- SQLite for persistence
+- MCP protocol support
+
+** Cloudflare Worker (Demo)
+- JavaScript wrapper
+- Deployed to api.changeflow.us
+- Returns mock responses currently
+- Needs real MCP implementation
+
+* 🚦 Current Status
+
+| Component | Status | Location |
+|-----------+--------+----------|
+| API Endpoint | ✅ Live | https://api.changeflow.us |
+| Guile Code | ✅ Complete | src/ |
+| Tests | 🔄 In Progress | test/ |
+| Documentation | ✅ Excessive | docs/ |
+| Chaos Level | ✅ Managed | Was 11/10, now 7/10 |
+| Demo Ready | ⏰ 7 AM | 2025-09-14 |
+
+* 🛠️ Development
+
+** For Agents
+#+BEGIN_SRC bash
+# Create test plans in org-mode
+emacs test/your-component-test-plan.org
+
+# Test your Guile modules
+guile -l src/your-module.scm
+
+# Document everything
+echo "More .org files" > docs/another-doc.org
+#+END_SRC
+
+** For Humans
+#+BEGIN_SRC bash
+# Just run the tests
+make test
+
+# Deploy to Cloudflare
+make deploy
+
+# Generate more chaos
+touch root-file-{1..50}.txt
+#+END_SRC
+
+* 📚 Required Reading
+
+1. [[file:docs/architecture/AGENTIC-WORKFLOW-REALITY-CHECK.md][Agentic Workflow Reality Check]] - The truth
+2. [[file:docs/orchestration/ORCHESTRATION-LESSON-2.org][The Permission Apocalypse]] - Why --dangerously-skip-permissions exists
+3. [[file:docs/architecture/L7-ARCHITECTURE-REVIEW.md][L7 Architecture Review]] - "Ship it"
+
+* 🎯 Demo Information
+
+- *Date:* 2025-09-14
+- *Time:* 07:00 PST
+- *Audience:* Executives
+- *Key Message:* $4.7M annual savings
+- *System Status:* Somehow ready
+
+* 📝 License
+
+GPL-3.0 - Because even chaos needs a license
+
+* 🙏 Acknowledgments
+
+- The 5 agents who tried
+- The Task agent who succeeded
+- The Meta orchestrator documenting the chaos
+- Saturday nights spent reorganizing 510 file extensions
+- The comedy of "revolutionary" workflows
 
 ---
 
-Building an intelligent change enablement system in GNU Guile
-#+end_src
+/"Agentic workflow will revolutionize software development"/
+/Us: "Yes, but NOT in the way you think..."/
