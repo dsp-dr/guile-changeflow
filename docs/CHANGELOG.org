@@ -1,0 +1,38 @@
+#+TITLE: Guile ChangeFlow Changelog
+#+AUTHOR: Development Team
+
+* Version History
+
+** [1.0.0] - 2024-01-14
+*** Added
+- ITIL Process Simulator with chaos engineering capabilities
+- Deployment pipeline simulator for 100 PRs across 5 components
+- Reproducible demo data generation system (seed 42)
+- Automated demo recording and GIF generation
+- MCP integration for simulator tools
+- Comprehensive stakeholder demo specifications
+
+*** Changed  
+- Migrated all documentation to org-mode
+- Reorganized project structure (docs/, data/, src/)
+- Updated Makefile with demo targets
+
+*** Technical
+- Guile Scheme 2.2.7+ modules
+- JSON export/import for demo data
+- Asciicinema recording support
+- tmux session management
+
+** [0.9.0] - 2024-01-10
+*** Added
+- MCP server implementation
+- ITIL 4 compliance modules
+- Risk assessment calculator
+- State machine for change requests
+
+** [0.8.0] - 2024-01-05  
+*** Added
+- Initial project structure
+- Basic change request models
+- Audit trail system
+- Approval workflows

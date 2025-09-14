@@ -172,3 +172,14 @@ todo-stats.txt
 # Agent status files
 STATUS.org
 STATUS-FINAL.org
+
+# Demo recordings (can be large)
+docs/demos/recordings/*.cast
+docs/demos/gifs/*.gif
+
+# Keep project root clean
+/*.md
+/*.txt
+/*.scm
+!README.org
+!Makefile
