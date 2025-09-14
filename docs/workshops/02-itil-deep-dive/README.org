@@ -1,0 +1,675 @@
+#+TITLE: Workshop 02: ITIL Change Management Deep Dive
+#+SUBTITLE: From Control to Enablement - Modern Change Management with Guile ChangeFlow
+#+DATE: 2025-09-14
+#+AUTHOR: Guile ChangeFlow Team
+#+STARTUP: overview
+
+* Workshop Overview
+
+** Duration: 3 hours
+** Level: Intermediate
+** Prerequisites: Workshop 01 (Guile ChangeFlow Basics)
+
+** Learning Objectives
+By the end of this workshop, participants will:
+1. Understand the evolution from traditional ITIL to modern change enablement
+2. Master the three types of changes and when to use each
+3. Implement risk-based automation using Guile ChangeFlow
+4. Build approval workflows that balance speed and safety
+5. Apply DevOps principles to change management
+
+** What We'll Build
+A complete change management simulation that processes 100 changes through our Guile implementation, demonstrating:
+- Automated standard changes
+- Risk-based routing for normal changes
+- Emergency change escalation
+- Real-time metrics and reporting
+
+* Part 1: The Philosophy of Modern Change Management (30 minutes)
+
+** The Fundamental Challenge
+#+BEGIN_QUOTE
+"Change management exists to solve a core tension: organizations need both stability AND agility."
+#+END_QUOTE
+
+*** Traditional Approach (ITIL v3 Era)
+#+BEGIN_SRC org
+Control → Review → Approval → Implementation → Documentation
+         ↑ SLOW, BUREAUCRATIC, RISK-AVERSE ↑
+#+END_SRC
+
+*** Modern Approach (ITIL 4 & DevOps)
+#+BEGIN_SRC org
+Enablement → Automation → Peer Review → Continuous Delivery → Learning
+            ↑ FAST, COLLABORATIVE, RISK-AWARE ↑
+#+END_SRC
+
+** Key Mindset Shifts
+
+| Traditional Thinking | Modern Reality |
+|---------------------|----------------|
+| "Changes are risky" | "Not changing is riskier" |
+| "CAB must approve everything" | "Teams own their changes" |
+| "Documentation before action" | "Automation as documentation" |
+| "Minimize all changes" | "Maximize safe changes" |
+| "Blame when things fail" | "Learn when things fail" |
+
+** The Atlassian Perspective
+Based on their ITSM guide, modern change management should:
+- **Enable** rather than control
+- **Automate** rather than bureaucratize  
+- **Collaborate** rather than gatekeep
+- **Learn** rather than blame
+
+** Our Implementation Philosophy
+Guile ChangeFlow embodies these principles through:
+#+BEGIN_SRC scheme
+(define change-philosophy
+  '((control . enablement)
+    (bureaucracy . automation)
+    (gatekeeping . collaboration)
+    (blame . learning)))
+#+END_SRC
+
+* Part 2: Understanding Change Types (45 minutes)
+
+** The Three-Tier Model
+
+*** Standard Changes (70% of all changes)
+**Definition**: Low-risk, pre-approved, repeatable changes with known outcomes
+
+**Characteristics**:
+- Pre-authorized by change management
+- Documented standard procedures
+- Minimal risk to services
+- Can be fully automated
+- No CAB approval needed
+
+**Real-World Examples**:
+- Adding user accounts
+- Deploying to development environments
+- Routine patches and updates
+- Database index creation
+- SSL certificate renewal
+
+**In Guile ChangeFlow**:
+#+BEGIN_SRC scheme
+(define (is-standard-change? change)
+  (and (< (change-request-risk-score change) 30)
+       (member (change-request-type change) 
+               *standard-change-catalog*)
+       (has-successful-history? change)))
+
+(define (process-standard-change change)
+  ;; Automatic approval and execution
+  (set-change-request-status! change 'approved)
+  (execute-change change)
+  (audit-log "Standard change auto-approved" change))
+#+END_SRC
+
+*** Normal Changes (25% of all changes)
+**Definition**: Non-emergency changes that require assessment and approval
+
+**Characteristics**:
+- Variable risk levels
+- Require planning and testing
+- Need approval (peer or CAB)
+- Most common in traditional environments
+- Balance between speed and safety
+
+**Real-World Examples**:
+- Application version upgrades
+- Infrastructure modifications  
+- Database schema changes
+- Network topology updates
+- New service deployments
+
+**In Guile ChangeFlow**:
+#+BEGIN_SRC scheme
+(define (process-normal-change change)
+  (let ((risk-score (assess-change-risk change)))
+    (cond
+      ((< risk-score 50) 
+       (request-peer-approval change))
+      ((< risk-score 70)
+       (request-team-lead-approval change))
+      (else
+       (escalate-to-cab change)))))
+#+END_SRC
+
+*** Emergency Changes (5% of all changes)
+**Definition**: Urgent changes required to resolve critical incidents or security threats
+
+**Characteristics**:
+- Immediate action required
+- Truncated approval process
+- Higher failure risk accepted
+- Retrospective review required
+- Documentation can follow implementation
+
+**Real-World Examples**:
+- Critical security patches (0-day exploits)
+- Service outage resolution
+- Data corruption fixes
+- Emergency capacity scaling
+- Compliance violation remediation
+
+**In Guile ChangeFlow**:
+#+BEGIN_SRC scheme
+(define (process-emergency-change change)
+  ;; Fast-track with post-implementation review
+  (notify-emergency-approvers change)
+  (set-change-request-status! change 'emergency-approved)
+  (execute-with-rollback-ready change)
+  (schedule-retrospective change))
+#+END_SRC
+
+** Hands-On Exercise: Classify These Changes
+
+For each scenario, determine the change type and explain why:
+
+1. **Scenario**: Deploy a hotfix for a payment processing bug affecting 10% of transactions
+   - **Type**: ?
+   - **Reasoning**: ?
+
+2. **Scenario**: Add 10GB storage to development database server
+   - **Type**: ?
+   - **Reasoning**: ?
+
+3. **Scenario**: Upgrade Kubernetes cluster from 1.28 to 1.29
+   - **Type**: ?
+   - **Reasoning**: ?
+
+4. **Scenario**: Apply critical Log4j security patch across all systems
+   - **Type**: ?
+   - **Reasoning**: ?
+
+5. **Scenario**: Implement new microservice for user analytics
+   - **Type**: ?
+   - **Reasoning**: ?
+
+* Part 3: Risk Assessment Deep Dive (45 minutes)
+
+** The Risk Equation
+
+#+BEGIN_QUOTE
+Risk = (Probability of Failure) × (Impact of Failure)
+#+END_QUOTE
+
+** Risk Factors in Our Implementation
+
+*** Technical Risk Factors
+#+BEGIN_SRC scheme
+(define technical-risk-factors
+  '((production-environment . 25)    ; Production vs staging/dev
+    (database-changes . 20)          ; Data modification risk
+    (multiple-systems . 15)          ; Integration complexity
+    (untested-code . 20)            ; Lack of testing
+    (manual-process . 10)           ; Human error potential
+    (dependency-updates . 10)))     ; Third-party risks
+#+END_SRC
+
+*** Business Risk Factors
+#+BEGIN_SRC scheme
+(define business-risk-factors
+  '((customer-facing . 30)          ; Direct customer impact
+    (revenue-impact . 25)           ; Financial implications
+    (compliance-related . 20)       ; Regulatory requirements
+    (peak-hours . 15)              ; Timing criticality
+    (data-sensitivity . 10)))       ; Privacy/security concerns
+#+END_SRC
+
+** Calculating Composite Risk Score
+
+#+BEGIN_SRC scheme
+(define (calculate-risk-score change)
+  (let* ((tech-score (calculate-technical-risk change))
+         (biz-score (calculate-business-risk change))
+         (time-modifier (get-time-risk-modifier))
+         (history-modifier (get-historical-success-rate change)))
+    (min 100  ; Cap at 100
+         (* (+ tech-score biz-score)
+            time-modifier
+            history-modifier))))
+
+;; Example calculation:
+;; Production DB change during Black Friday
+;; Tech: 25 (prod) + 20 (DB) = 45
+;; Biz: 30 (customer) + 25 (revenue) + 15 (peak) = 70
+;; Time modifier: 1.5 (holiday shopping)
+;; History: 0.9 (good track record)
+;; Total: (45 + 70) * 1.5 * 0.9 = 155 → 100 (capped)
+#+END_SRC
+
+** Risk Mitigation Strategies
+
+*** For High-Risk Changes
+1. **Canary Deployments**: Test with small user subset
+2. **Blue-Green Deployments**: Instant rollback capability  
+3. **Feature Flags**: Gradual rollout with kill switch
+4. **Automated Testing**: Comprehensive test coverage
+5. **Chaos Engineering**: Proactive failure testing
+
+*** Implementation in Guile
+#+BEGIN_SRC scheme
+(define (apply-risk-mitigation change risk-score)
+  (cond
+    ((> risk-score 80)
+     (list 'canary-deployment
+           'automated-rollback
+           'enhanced-monitoring))
+    ((> risk-score 60)
+     (list 'blue-green-deployment
+           'feature-flags))
+    ((> risk-score 40)
+     (list 'staged-rollout
+           'standard-monitoring))
+    (else
+     (list 'standard-deployment))))
+#+END_SRC
+
+** Workshop Exercise: Risk Assessment Scenarios
+
+Calculate risk scores for these changes:
+
+1. **Database migration** on production system during business hours
+2. **UI color scheme update** on marketing website
+3. **Security patch** for authentication service
+4. **New feature deployment** with feature flag
+5. **Emergency DNS change** to mitigate DDoS attack
+
+* Part 4: Building Approval Workflows (45 minutes)
+
+** Modern Approval Patterns
+
+*** Peer Review (Most Common)
+#+BEGIN_SRC scheme
+(define (peer-review-approval change)
+  ;; Modern: Any team member can approve standard changes
+  (let ((available-peers (get-available-team-members 
+                          (change-request-team change))))
+    (if (null? available-peers)
+        (escalate-to-lead change)
+        (request-approval (car available-peers) change))))
+#+END_SRC
+
+*** Progressive Approval
+#+BEGIN_SRC scheme
+(define (progressive-approval change)
+  ;; Approval requirements scale with risk
+  (let ((risk (change-request-risk-score change)))
+    (cond
+      ((< risk 30) 'auto-approved)           ; No approval needed
+      ((< risk 50) (peer-approval change))   ; 1 peer
+      ((< risk 70) (lead-approval change))   ; Team lead
+      ((< risk 90) (cab-approval change))    ; Full CAB
+      (else (executive-approval change)))))  ; C-level for critical
+#+END_SRC
+
+*** Time-Based Escalation
+#+BEGIN_SRC scheme
+(define (time-based-escalation change)
+  ;; Escalate if not approved within SLA
+  (schedule-task
+   (+ (current-time) (get-approval-sla change))
+   (lambda ()
+     (when (eq? (change-request-status change) 'pending-approval)
+       (escalate-approval change)))))
+#+END_SRC
+
+** Implementing CAB in the Modern Era
+
+Traditional CAB: Weekly meetings, lengthy discussions, political dynamics
+
+Modern CAB: Asynchronous, automated, exception-based
+
+#+BEGIN_SRC scheme
+(define-record-type <modern-cab>
+  (make-modern-cab members quorum-threshold voting-period)
+  modern-cab?
+  (members cab-members set-cab-members!)
+  (quorum-threshold cab-quorum)
+  (voting-period cab-voting-period))
+
+(define (async-cab-approval change cab)
+  ;; Modern async CAB voting
+  (let ((votes (make-hash-table)))
+    (for-each 
+     (lambda (member)
+       (send-approval-request member change
+                            (lambda (vote)
+                              (hash-set! votes member vote)
+                              (check-quorum votes cab change))))
+     (cab-members cab))))
+
+(define (check-quorum votes cab change)
+  (let* ((total-votes (hash-count votes))
+         (approvals (count-approvals votes))
+         (quorum (cab-quorum cab)))
+    (cond
+      ((>= approvals quorum)
+       (approve-change change))
+      ((> (- total-votes approvals) 
+          (- (length (cab-members cab)) quorum))
+       (reject-change change))
+      (else 'waiting-for-votes))))
+#+END_SRC
+
+** Workshop Exercise: Design Your Approval Matrix
+
+Create an approval matrix for your organization:
+
+| Risk Score | Change Type | Approver(s) | SLA | Escalation |
+|------------|-------------|-------------|-----|------------|
+| 0-30 | Standard | Auto | Instant | None |
+| 31-50 | Normal | ? | ? | ? |
+| 51-70 | Normal | ? | ? | ? |
+| 71-90 | High Risk | ? | ? | ? |
+| 91-100 | Critical | ? | ? | ? |
+
+* Part 5: Automation and DevOps Integration (45 minutes)
+
+** The Automation Opportunity
+
+According to Atlassian, up to 70% of changes can be automated as standard changes.
+
+** Building Your Standard Change Catalog
+
+#+BEGIN_SRC scheme
+(define *standard-change-catalog*
+  '((add-user-account 
+     (risk-score . 5)
+     (automation . full)
+     (rollback . delete-user))
+    
+    (deploy-to-dev
+     (risk-score . 10)
+     (automation . full)
+     (rollback . revert-deployment))
+    
+    (ssl-cert-renewal
+     (risk-score . 15)
+     (automation . full)
+     (rollback . restore-previous-cert))
+    
+    (database-index
+     (risk-score . 20)
+     (automation . full)
+     (rollback . drop-index))
+    
+    (dns-record-update
+     (risk-score . 25)
+     (automation . semi)
+     (rollback . restore-dns-record))))
+
+(define (automate-standard-change change-type)
+  (let ((template (assoc change-type *standard-change-catalog*)))
+    (when template
+      (execute-automated-change template))))
+#+END_SRC
+
+** CI/CD Pipeline Integration
+
+*** GitOps Approach
+#+BEGIN_SRC yaml
+# .github/workflows/change-management.yml
+name: Change Management Flow
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  assess-risk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calculate Change Risk
+        run: |
+          curl -X POST https://api.changeflow.us/assess_risk \
+            -d '{"pr_number": "${{ github.event.number }}"}'
+      
+      - name: Request Approval if Needed
+        if: steps.risk.outputs.score > 30
+        run: |
+          curl -X POST https://api.changeflow.us/request_approval
+#+END_SRC
+
+*** Kubernetes Integration
+#+BEGIN_SRC yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: change-management
+data:
+  standard-changes: |
+    - name: scale-replicas
+      max-risk: 20
+      auto-approve: true
+    - name: update-configmap
+      max-risk: 25
+      auto-approve: true
+    - name: rolling-update
+      max-risk: 40
+      auto-approve: false
+#+END_SRC
+
+** Metrics and Continuous Improvement
+
+*** Key Metrics to Track
+#+BEGIN_SRC scheme
+(define change-metrics
+  '((lead-time "Time from request to deployment")
+    (change-failure-rate "Percentage of changes causing incidents")
+    (mttr "Mean time to recovery from failed changes")
+    (change-volume "Number of changes per day/week/month")
+    (automation-percentage "Percentage of automated changes")
+    (approval-time "Average time to get approval")
+    (rollback-frequency "How often changes are rolled back")
+    (emergency-change-ratio "Emergency vs planned changes")))
+
+(define (calculate-change-metrics period)
+  (let ((changes (get-changes-for-period period)))
+    `((total-changes . ,(length changes))
+      (successful . ,(count successful? changes))
+      (failed . ,(count failed? changes))
+      (rolled-back . ,(count rolled-back? changes))
+      (avg-lead-time . ,(average-lead-time changes))
+      (automation-rate . ,(/ (count automated? changes)
+                             (length changes))))))
+#+END_SRC
+
+*** Learning from Failures
+#+BEGIN_SRC scheme
+(define (post-incident-learning change incident)
+  ;; Blameless postmortem process
+  (create-postmortem
+   `((what-happened . ,(incident-description incident))
+     (timeline . ,(incident-timeline incident))
+     (root-cause . ,(analyze-root-cause incident))
+     (contributing-factors . ,(identify-factors incident))
+     (what-went-well . ,(identify-positives incident))
+     (action-items . ,(generate-improvements incident))
+     (risk-model-updates . ,(update-risk-factors incident)))))
+#+END_SRC
+
+* Part 6: Hands-On Lab - Build a Change Simulator (30 minutes)
+
+** Objective
+Build a Scheme program that simulates 100 changes going through our change management system.
+
+** Starter Code
+#+BEGIN_SRC scheme :tangle simulator.scm
+#!/usr/bin/env guile
+!#
+
+(use-modules (srfi srfi-27)    ; Random numbers
+             (srfi srfi-19)    ; Time/date
+             (ice-9 format))   ; Formatted output
+
+;; Load our change management modules
+(add-to-load-path "../../src")
+(use-modules (models change-request)
+             (risk calculator)
+             (models state-machine))
+
+;; Change type distribution (realistic)
+(define (generate-change-type)
+  (let ((rand (random-integer 100)))
+    (cond
+      ((< rand 70) 'standard)   ; 70% standard
+      ((< rand 95) 'normal)     ; 25% normal  
+      (else 'emergency))))      ; 5% emergency
+
+;; Generate realistic change request
+(define (generate-change id)
+  (let* ((type (generate-change-type))
+         (risk (case type
+                 ((standard) (+ 5 (random-integer 25)))
+                 ((normal) (+ 30 (random-integer 40)))
+                 ((emergency) (+ 70 (random-integer 30)))))
+         (title (format #f "~a change #~a" type id)))
+    (make-change-request 
+     id title "Simulated change" risk 'pending
+     (current-time) (current-time))))
+
+;; Process change through workflow
+(define (process-change change)
+  (let ((risk (change-request-risk-score change)))
+    (cond
+      ;; Standard changes - auto approve
+      ((< risk 30)
+       (set-change-request-status! change 'approved)
+       'auto-approved)
+      
+      ;; Normal changes - simulate approval delay
+      ((< risk 70)
+       (set-change-request-status! change 'pending-approval)
+       (if (> (random-real) 0.1)  ; 90% approval rate
+           (begin
+             (set-change-request-status! change 'approved)
+             'approved)
+           (begin
+             (set-change-request-status! change 'rejected)
+             'rejected)))
+      
+      ;; High risk - simulate CAB
+      (else
+       (set-change-request-status! change 'cab-review)
+       (if (> (random-real) 0.3)  ; 70% approval rate
+           (begin
+             (set-change-request-status! change 'approved)
+             'cab-approved)
+           (begin
+             (set-change-request-status! change 'rejected)
+             'cab-rejected))))))
+
+;; Run simulation
+(define (run-simulation num-changes)
+  (let ((results (make-hash-table)))
+    ;; Process all changes
+    (do ((i 1 (+ i 1)))
+        ((> i num-changes))
+      (let* ((change (generate-change i))
+             (result (process-change change)))
+        (hash-set! results result 
+                  (+ 1 (or (hash-ref results result) 0)))))
+    
+    ;; Display results
+    (format #t "\n╔══════════════════════════════════════╗\n")
+    (format #t "║  CHANGE SIMULATION RESULTS (~a)     ║\n" num-changes)
+    (format #t "╠══════════════════════════════════════╣\n")
+    (hash-for-each
+     (lambda (key value)
+       (format #t "║ ~15a: ~5d (~5,1f%)    ║\n" 
+               key value (* 100.0 (/ value num-changes))))
+     results)
+    (format #t "╚══════════════════════════════════════╝\n")))
+
+;; Main
+(when (= (length (command-line)) 2)
+  (let ((num-changes (string->number (cadr (command-line)))))
+    (if num-changes
+        (run-simulation num-changes)
+        (format #t "Usage: ~a <number-of-changes>\n" 
+                (car (command-line))))))
+#+END_SRC
+
+** Expected Output
+#+BEGIN_EXAMPLE
+$ ./simulator.scm 100
+
+╔══════════════════════════════════════╗
+║  CHANGE SIMULATION RESULTS (100)     ║
+╠══════════════════════════════════════╣
+║    auto-approved:    68 ( 68.0%)    ║
+║         approved:    22 ( 22.0%)    ║
+║         rejected:     3 (  3.0%)    ║
+║     cab-approved:     5 (  5.0%)    ║
+║     cab-rejected:     2 (  2.0%)    ║
+╚══════════════════════════════════════╝
+#+END_EXAMPLE
+
+** Extension Challenges
+
+1. **Add failure injection**: Simulate 20% of approved changes failing during deployment
+2. **Add time tracking**: Measure average time from request to deployment
+3. **Add rollback simulation**: Implement rollback for failed changes
+4. **Add freeze periods**: Block changes during simulated freeze windows
+5. **Add learning**: Improve risk assessment based on historical success
+
+* Part 7: Real-World Case Studies (15 minutes)
+
+** Case Study 1: Netflix's Approach
+- **Philosophy**: "Move fast and break things... safely"
+- **Automation**: 100% of standard changes automated
+- **Risk Management**: Chaos engineering (Chaos Monkey)
+- **Approval**: Peer review for everything
+- **Metrics**: Focus on MTTR over change failure rate
+
+** Case Study 2: Traditional Bank
+- **Philosophy**: "Stability over speed"
+- **Automation**: 30% automated (working toward 50%)
+- **Risk Management**: Extensive testing environments
+- **Approval**: CAB for all production changes
+- **Metrics**: Focus on change success rate
+
+** Case Study 3: Our Implementation
+- **Philosophy**: "Enable with intelligence"
+- **Automation**: 70% target for standard changes
+- **Risk Management**: ML-based risk scoring
+- **Approval**: Risk-based progressive approval
+- **Metrics**: Balance of speed and safety
+
+* Workshop Wrap-Up
+
+** Key Takeaways
+
+1. **Change management is about enablement, not control**
+2. **Most changes should be standard and automated**
+3. **Risk assessment should be data-driven**
+4. **Approval workflows should scale with risk**
+5. **Continuous improvement requires metrics and learning**
+
+** Action Items for Your Organization
+
+- [ ] Catalog your standard changes
+- [ ] Measure current change metrics
+- [ ] Identify automation opportunities
+- [ ] Simplify approval workflows
+- [ ] Implement blameless postmortems
+
+** Further Reading
+
+- [[https://www.atlassian.com/itsm/change-management][Atlassian's ITSM Change Management Guide]]
+- [[https://www.axelos.com/certifications/itil-service-management/itil-4-foundation][ITIL 4 Foundation]]
+- [[https://landing.google.com/sre/books/][Google SRE Books]]
+- [[https://www.oreilly.com/library/view/accelerate/9781942788331/][Accelerate by Nicole Forsgren]]
+
+** Next Workshop
+**Workshop 03**: Chaos Engineering with Guile ChangeFlow - Breaking things safely to build resilience
+
+---
+
+#+BEGIN_QUOTE
+"The goal of change management isn't to prevent change—it's to enable change to happen safely, quickly, and continuously." - Modern ITIL Philosophy
+#+END_QUOTE
