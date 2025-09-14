@@ -5,11 +5,8 @@ compatibility_date = "2025-01-13"
 # Account and deployment settings
 account_id = "" # Will be filled in during deployment
 
-# Custom domains
-routes = [
-  { pattern = "api.changeflow.us/*", custom_domain = true },
-  { pattern = "changeflow.us/*", custom_domain = true }
-]
+# Custom domains (configured in Cloudflare dashboard)
+# routes = []
 
 # Environment variables (if needed)
 [vars]

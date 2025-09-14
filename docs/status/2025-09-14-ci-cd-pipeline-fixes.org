@@ -1,0 +1,62 @@
+#+TITLE: CI/CD Pipeline and Deployment Fixes
+#+DATE: 2025-09-14
+#+AUTHOR: dsp-dr
+
+* Summary
+
+Fixed critical deployment and CI/CD pipeline issues after major refactoring of MCP server structure.
+
+* Issues Identified and Fixed
+
+** 1. Deployment Path Mismatch
+- *Problem*: Deploy workflow was using old path (experiments/008-deployment-hosting)
+- *Fix*: Updated to use infra/cloudflare directory
+- *Status*: ✅ Fixed
+
+** 2. Wrangler Configuration Issues
+- *Problem*: Invalid routes configuration in wrangler.toml
+- *Fix*: Removed wildcard routes (custom domains managed in Cloudflare dashboard)
+- *Status*: ✅ Fixed
+
+** 3. Post-Deployment Sanity Check Failures
+- *Problem*: Test endpoints using old JSON-RPC format instead of new MCP endpoints
+- *Fix*: Updated to use /mcp/tools/invoke with correct tool names
+- *Status*: ✅ Fixed
+
+** 4. CI Lint Job Hanging
+- *Problem*: Scheme linting step hanging indefinitely
+- *Status*: ⚠️ Needs investigation (cancelled for now)
+
+** 5. Missing Version Tracking
+- *Problem*: No way to verify which version is deployed
+- *Fix*: Added .version file creation with commit SHA in deployment workflow
+- *Status*: ✅ Implemented
+
+* Infrastructure Changes
+
+** Cleaned up infra/cloudflare directory
+- Moved test files to scripts/
+- Moved package.json to scripts/
+- Moved README to docs/cloudflare-deployment.md
+- Keep only essential deployment files: worker.js and wrangler.toml
+
+** Added Git Hooks
+- Created post-commit hook to remind about git notes for agent-authored commits
+- Ensures proper documentation of AI-assisted changes
+
+* Next Steps
+
+1. Monitor next deployment to ensure all fixes work
+2. Investigate and fix Scheme linting hang issue
+3. Set up MCP Inspector agent for protocol validation
+4. Create better mock data for MCP server demo
+
+* Deployment Configuration
+
+Current deployment target: gcf-mcp-server (Cloudflare Workers)
+Production URL: https://api.changeflow.us
+Staging URL: https://guile-changeflow-staging.jasonwalsh.workers.dev
+
+* Version Tracking
+
+Deployments now create infra/cloudflare/.version with commit SHA for tracking.
