@@ -303,13 +303,9 @@ mcp-server-background:
 test: test-guile test-mcp
 	@echo "=== All tests completed ==="
 
-# Build target - only copy worker.js, keep wrangler.toml in infra
-build: infra/cloudflare/worker.js
-
-infra/cloudflare/worker.js: mcp-server/changeflow-mcp.js
-	@echo "📦 Building MCP server to infra/cloudflare/worker.js..."
-	@cp mcp-server/changeflow-mcp.js infra/cloudflare/worker.js
-	@echo "✅ Build complete"
+# Build target - worker.js already in infra/cloudflare
+build:
+	@echo "✅ Build complete (single file already in place)"
 
 # Deploy to Cloudflare (depends on worker.js being up to date)
 deploy: build
@@ -388,3 +384,21 @@ emergency-status:
 	@echo "📊 CHECK EMERGENCY STATUS"
 	@echo "Current production status:"
 	@gmake check-prod
+
+# Production endpoint checks
+check-prod:
+	@echo "🔍 Checking ChangeFlow MCP Production Endpoints"
+	@echo "Landing Page:"
+	@curl -s -o /dev/null -w "  https://mcp.changeflow.us/: %{http_code}\n" https://mcp.changeflow.us/
+	@echo "Health Check:"
+	@curl -s -o /dev/null -w "  https://mcp.changeflow.us/health: %{http_code}\n" https://mcp.changeflow.us/health
+	@echo "MCP Legacy:"
+	@curl -s -o /dev/null -w "  https://mcp.changeflow.us/mcp: %{http_code}\n" https://mcp.changeflow.us/mcp
+	@echo "MCP SSE (no auth):"
+	@curl -s -o /dev/null -w "  https://mcp.changeflow.us/v1/sse: %{http_code}\n" https://mcp.changeflow.us/v1/sse
+	@echo "Favicon:"
+	@curl -s -o /dev/null -w "  https://mcp.changeflow.us/favicon.ico: %{http_code}\n" https://mcp.changeflow.us/favicon.ico
+	@echo "OAuth:"
+	@curl -s -o /dev/null -w "  https://mcp.changeflow.us/authorize: %{http_code}\n" https://mcp.changeflow.us/authorize
+
+prod-status: check-prod
