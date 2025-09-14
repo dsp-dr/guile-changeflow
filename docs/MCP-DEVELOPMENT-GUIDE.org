@@ -1,0 +1,546 @@
+#+TITLE: MCP Development Guide for Guile ChangeFlow
+#+AUTHOR: Guile ChangeFlow Development Team
+#+DATE: 2025-09-14
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* Overview
+
+Complete guide for developing, testing, integrating, deploying, using, and debugging the MCP protocol implementation.
+
+The Guile ChangeFlow MCP (Model Context Protocol) implementation provides a complete ITIL 4 change management system accessible to AI agents via standardized protocol endpoints.
+
+** Key Features
+
+- *8 ITIL Tools*: Complete change management workflow
+- *5 MCP Resources*: Configuration and documentation access
+- *3 MCP Prompts*: AI-assisted change operations
+- *JSON-RPC 2.0*: Standards-compliant protocol implementation
+- *Dual Runtime*: CloudFlare Worker + Local Node.js server
+
+** Protocol Compliance
+
+- MCP Protocol Version: =2024-11-05=
+- JSON-RPC 2.0 compliant
+- Full tools, resources, prompts support
+- Error handling per MCP specification
+
+* Development Setup
+
+** Prerequisites
+
+#+BEGIN_SRC bash
+# System requirements
+node --version    # v18+ required
+guile --version   # v3.0+ required (for Guile implementation)
+jq --version      # For JSON processing in tests
+
+# Project dependencies
+cd /path/to/guile-changeflow
+npm install       # If package.json exists
+#+END_SRC
+
+** Local Development Environment
+
+1. *Clone and Setup*
+   #+BEGIN_SRC bash
+   git clone https://github.com/dsp-dr/guile-changeflow
+   cd guile-changeflow
+   git checkout feat/cloudflare-mcp-implementation
+   #+END_SRC
+
+2. *Start Local MCP Server*
+   #+BEGIN_SRC bash
+   # Method 1: Direct execution
+   node scripts/mcp-local-server.js
+
+   # Method 2: Background with logs
+   node scripts/mcp-local-server.js > mcp-server.log 2>&1 &
+
+   # Method 3: Development mode (with restart on changes)
+   # Install nodemon: npm install -g nodemon
+   nodemon scripts/mcp-local-server.js
+   #+END_SRC
+
+3. *Verify Server*
+   #+BEGIN_SRC bash
+   # Health check
+   curl http://localhost:8080/
+
+   # MCP protocol test
+   curl -X POST http://localhost:8080/ \
+     -H "Content-Type: application/json" \
+     -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
+   #+END_SRC
+
+** Development Workflow
+
+#+BEGIN_SRC bash
+# 1. Make changes to worker implementation
+vim infra/cloudflare/worker-mcp-poc.js
+
+# 2. Update production worker
+cp infra/cloudflare/worker-mcp-poc.js infra/cloudflare/worker.js
+
+# 3. Test locally
+node test/mcp-comprehensive-test.js
+
+# 4. Test with live server
+node scripts/mcp-local-server.js &
+curl -X POST http://localhost:8080/ -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
+
+# 5. Deploy to CloudFlare (if needed)
+cd infra/cloudflare && wrangler deploy
+#+END_SRC
+
+* Architecture
+
+** System Overview
+
+#+BEGIN_EXAMPLE
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   AI Clients    │    │   MCP Server    │    │  ITIL Backend   │
+│                 │────│                 │────│                 │
+│ Claude Code     │    │ Node.js/CF      │    │ Risk Engine     │
+│ MCP Debugger    │    │ JSON-RPC 2.0    │    │ Change Models   │
+│ Custom Tools    │    │ Tools/Resources │    │ Approval Logic  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+#+END_EXAMPLE
+
+** Component Structure
+
+#+BEGIN_EXAMPLE
+src/
+├── mcp/                      # Guile MCP implementation
+│   ├── server.scm           # HTTP server and routing
+│   ├── handlers.scm         # Request handlers
+│   ├── discovery.scm        # Service discovery
+│   └── tools.scm           # Tool implementations
+├── models/                   # Data models
+├── risk/                    # Risk assessment engine
+└── web/                     # Web API components
+
+infra/cloudflare/
+├── worker.js               # Production CloudFlare Worker
+├── worker-mcp-poc.js       # Development version
+├── wrangler.toml          # CloudFlare configuration
+└── package.json           # Dependencies
+
+scripts/
+├── mcp-local-server.js     # Local development server
+└── test-endpoints.sh       # Integration tests
+
+test/
+└── mcp-comprehensive-test.js # Full test suite
+#+END_EXAMPLE
+
+** MCP Protocol Implementation
+
+*** Capabilities
+
+#+BEGIN_SRC json
+{
+  "tools": {},        // 8 ITIL change management tools
+  "resources": {},    // 5 configuration and documentation resources
+  "prompts": {},      // 3 AI-assisted operation prompts
+  "notifications": {} // Future: Real-time change notifications
+}
+#+END_SRC
+
+*** Tool Categories
+
+1. *Change Creation*
+   - =create_change_request= - Standard change requests
+   - =create_emergency_change= - Expedited emergency changes
+
+2. *Risk Management*
+   - =assess_change_risk= - Multi-factor risk assessment
+   - =check_freeze_period= - Deployment window validation
+
+3. *Workflow Management*
+   - =get_cab_members= - Change Advisory Board routing
+   - =schedule_change= - Change scheduling with notifications
+
+4. *Reporting & Compliance*
+   - =get_change_metrics= - Performance and success metrics
+   - =generate_audit_report= - ITIL compliance reporting
+
+* Testing Guide
+
+** Test Suite Overview
+
+The comprehensive test suite covers all MCP protocol features:
+
+#+BEGIN_SRC bash
+# Run full test suite
+node test/mcp-comprehensive-test.js
+
+# Expected output:
+🧪 Starting Comprehensive MCP Test Suite
+==========================================
+✅ Worker loaded successfully
+✅ Health Check (2ms)
+✅ MCP Initialize (0ms)
+✅ Tools List (1ms)
+✅ Tool Execution (0ms)
+✅ Resources List (0ms)
+✅ Resource Read (0ms)
+✅ Prompts List (0ms)
+✅ Prompt Get (0ms)
+✅ Error Handling (0ms)
+✅ Performance (1ms)
+
+📊 Test Results Summary
+=======================
+✅ Passed: 10
+❌ Failed: 0
+⏭️  Skipped: 0
+📈 Total: 10
+🎉 Test suite PASSED
+#+END_SRC
+
+** Manual Testing
+
+*** Protocol-Level Tests
+
+#+BEGIN_SRC bash
+# Initialize handshake
+curl -X POST http://localhost:8080/ -H "Content-Type: application/json" -d '{
+  "jsonrpc": "2.0",
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2024-11-05",
+    "capabilities": {}
+  },
+  "id": 1
+}'
+
+# List capabilities
+curl -X POST http://localhost:8080/ -H "Content-Type: application/json" -d '{
+  "jsonrpc": "2.0",
+  "method": "tools/list",
+  "params": {},
+  "id": 2
+}'
+#+END_SRC
+
+*** Tool Testing
+
+#+BEGIN_SRC bash
+# Risk Assessment
+curl -X POST http://localhost:8080/ -H "Content-Type: application/json" -d '{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "assess_change_risk",
+    "arguments": {
+      "change_type": "database_schema",
+      "environment": "production",
+      "components_affected": 8,
+      "has_rollback": true,
+      "tested_in_staging": false
+    }
+  },
+  "id": 3
+}'
+#+END_SRC
+
+** Performance Testing
+
+#+BEGIN_SRC bash
+# Load test with Apache Bench
+ab -n 1000 -c 10 -H "Content-Type: application/json" \
+   -p <(echo '{"jsonrpc":"2.0","method":"tools/list","id":1}') \
+   http://localhost:8080/
+
+# Expected results:
+# - Requests per second: >500/s
+# - 99th percentile latency: <10ms
+# - No failed requests
+#+END_SRC
+
+* Integration Guide
+
+** Claude Code Integration
+
+*** MCP Configuration
+
+Create =.claude_code_mcp_config.json= in your project root:
+
+#+BEGIN_SRC json
+{
+  "mcpServers": {
+    "guile-changeflow": {
+      "command": "node",
+      "args": ["scripts/mcp-local-server.js"],
+      "cwd": "/path/to/guile-changeflow",
+      "env": {
+        "MCP_PORT": "8080"
+      }
+    }
+  }
+}
+#+END_SRC
+
+*** Usage in Claude Code
+
+Once configured, Claude Code will automatically discover and use the tools:
+
+#+BEGIN_EXAMPLE
+User: "Please assess the risk of deploying our authentication microservice to production"
+
+Claude: I'll assess the risk of your authentication microservice deployment using the ITIL change management tools.
+
+[Uses assess_change_risk tool automatically]
+
+Based on the risk assessment:
+- Risk Score: 85/100 (Critical)
+- Risk Level: Critical
+- Key Risk Factors:
+  - Production environment (+40 risk)
+  - Authentication service criticality (+25 risk)
+  - Weekend deployment timing (+10 risk)
+  - Multiple dependencies (+10 risk)
+
+Recommendations:
+- Schedule during maintenance window
+- Ensure full rollback plan tested
+- Require C-level approval (critical risk)
+- Have incident response team on standby
+#+END_EXAMPLE
+
+* Deployment Guide
+
+** Local Development Deployment
+
+#+BEGIN_SRC bash
+# Start development server
+node scripts/mcp-local-server.js
+
+# Server will be available at http://localhost:8080
+# Logs show request handling in real-time
+#+END_SRC
+
+** CloudFlare Worker Deployment
+
+*** Prerequisites
+
+#+BEGIN_SRC bash
+# Install Wrangler CLI
+npm install -g wrangler
+
+# Authenticate with CloudFlare
+wrangler auth
+#+END_SRC
+
+*** Configure Deployment
+
+#+BEGIN_SRC bash
+cd infra/cloudflare
+
+# Review wrangler.toml configuration
+cat wrangler.toml
+
+# Update worker.js with latest implementation
+cp worker-mcp-poc.js worker.js
+#+END_SRC
+
+*** Deploy
+
+#+BEGIN_SRC bash
+# Development deployment
+wrangler deploy --env dev
+
+# Production deployment
+wrangler deploy --env production
+
+# View deployment
+wrangler tail  # Live logs
+#+END_SRC
+
+* Usage Guide
+
+** Available Tools
+
+*** create_change_request
+
+Create standard ITIL change requests.
+
+#+BEGIN_SRC json
+{
+  "name": "create_change_request",
+  "arguments": {
+    "title": "Deploy user authentication service v2.1",
+    "description": "Update authentication microservice with OAuth 2.1 support",
+    "risk_level": "medium",
+    "environment": "production"
+  }
+}
+#+END_SRC
+
+*Response:*
+#+BEGIN_SRC json
+{
+  "change_id": "CHG-1757819511107",
+  "status": "pending",
+  "risk_score": 45,
+  "created_at": "2025-09-14T03:15:00.000Z"
+}
+#+END_SRC
+
+** Available Resources
+
+*** Configuration Resources
+
+#+BEGIN_SRC json
+// changeflow://config/change-types
+{
+  "standard": {"risk_base": 10, "approval_required": false},
+  "normal": {"risk_base": 30, "approval_required": true},
+  "emergency": {"risk_base": 80, "approval_required": true, "expedited": true}
+}
+
+// changeflow://config/approval-matrix
+{
+  "low": ["tech-lead@company.com"],
+  "medium": ["tech-lead@company.com", "ops-manager@company.com"],
+  "high": ["tech-lead@company.com", "ops-manager@company.com", "cto@company.com"],
+  "critical": ["tech-lead@company.com", "ops-manager@company.com", "cto@company.com", "ceo@company.com"]
+}
+#+END_SRC
+
+* Debugging Guide
+
+** Common Issues and Solutions
+
+*** Server Won't Start
+
+*Problem:* =Error: Failed to load worker=
+
+#+BEGIN_SRC bash
+# Check Node.js version
+node --version  # Should be v18+
+
+# Check file permissions
+ls -la scripts/mcp-local-server.js
+chmod +x scripts/mcp-local-server.js
+
+# Check syntax
+node --check scripts/mcp-local-server.js
+node --check infra/cloudflare/worker.js
+#+END_SRC
+
+*** MCP Protocol Errors
+
+*Problem:* =Method not found= errors
+
+#+BEGIN_SRC bash
+# Verify JSON-RPC format
+curl -X POST http://localhost:8080/ -d '{
+  "jsonrpc": "2.0",
+  "method": "tools/list",
+  "params": {},
+  "id": 1
+}' | jq .
+
+# Check available methods
+grep -n "case.*:" infra/cloudflare/worker.js
+#+END_SRC
+
+** Debugging Tools
+
+*** Server Logs
+
+#+BEGIN_SRC bash
+# Real-time logging
+node scripts/mcp-local-server.js | tee mcp-debug.log
+
+# Enhanced debug logging
+MCP_DEBUG=true node scripts/mcp-local-server.js
+#+END_SRC
+
+*** Protocol Inspector
+
+#+BEGIN_SRC bash
+# Install and use MCP Inspector
+npm install -g @anthropic/mcp-inspector
+mcp-inspector http://localhost:8080
+
+# Or inspect the command directly
+mcp-inspector --command node --args scripts/mcp-local-server.js
+#+END_SRC
+
+* API Reference
+
+** MCP Protocol Methods
+
+| Method | Description | Parameters | Response |
+|--------|-------------|------------|----------|
+| =initialize= | Protocol handshake | =protocolVersion=, =capabilities= | Server info and capabilities |
+| =tools/list= | List available tools | None | Array of tool definitions |
+| =tools/call= | Execute a tool | =name=, =arguments= | Tool execution result |
+| =resources/list= | List available resources | None | Array of resource definitions |
+| =resources/read= | Read resource content | =uri= | Resource contents |
+| =prompts/list= | List available prompts | None | Array of prompt definitions |
+| =prompts/get= | Get prompt template | =name=, =arguments= | Formatted prompt |
+
+** Resource URIs
+
+| URI | Content Type | Description |
+|-----|-------------|-------------|
+| =changeflow://config/change-types= | JSON | Standard change type definitions |
+| =changeflow://config/approval-matrix= | JSON | CAB approval requirements by risk |
+| =changeflow://config/freeze-calendar= | JSON | Scheduled freeze periods |
+| =changeflow://templates/emergency-change= | JSON | Emergency change request template |
+| =changeflow://docs/itil-compliance= | Markdown | ITIL 4 compliance guidelines |
+
+** Error Codes
+
+| Code | Meaning | Description |
+|------|---------|-------------|
+| =-32601= | Method not found | Invalid MCP method |
+| =-32602= | Invalid params | Missing or invalid parameters |
+| =-32603= | Internal error | Server-side error |
+| =-32700= | Parse error | Invalid JSON-RPC format |
+
+* Troubleshooting
+
+** FAQ
+
+*Q: Why is the server returning "Method not found" for valid methods?*
+
+A: Check the JSON-RPC format. Ensure you're sending:
+#+BEGIN_SRC json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/list",
+  "params": {},
+  "id": 1
+}
+#+END_SRC
+
+*Q: Tools are listed but execution fails?*
+
+A: Verify the tool arguments match the expected schema. Use =tools/list= to see required parameters.
+
+*Q: Resources return empty or error responses?*
+
+A: Check the exact URI format. Resources use the =changeflow://= scheme.
+
+*Q: Performance is slower than expected?*
+
+A: For production, ensure you're using the CloudFlare Worker deployment, not the local Node.js server.
+
+** Health Monitoring
+
+#+BEGIN_SRC bash
+# Basic health check
+curl -f http://localhost:8080/ || echo "Server down"
+
+# Advanced health monitoring
+curl -s http://localhost:8080/ | jq -r '.status' | grep -q "healthy" && echo "OK" || echo "FAIL"
+#+END_SRC
+
+---
+
+*Generated: 2025-09-14 | Version: 1.0.0 | Protocol: MCP 2024-11-05*
