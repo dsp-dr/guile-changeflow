@@ -55,7 +55,7 @@ const ERROR_HTML = `<!DOCTYPE html>
 </html>`;
 
 // Server Configuration
-const SERVER_VERSION = '1.3.3';
+const SERVER_VERSION = '1.3.4';
 
 // OAuth URLs
 const GITHUB_OAUTH_URL = 'https://github.com/login/oauth/authorize';
@@ -504,14 +504,13 @@ export default {
         // This tells Claude.ai to initiate OAuth flow
         if (!hasSession && !authHeader) {
           return new Response(JSON.stringify({
-            error: 'unauthorized',
-            message: 'Authentication required',
-            auth_url: `${url.origin}/authorize`
+            error: 'invalid_token',
+            error_description: 'Missing or invalid access token'
           }), {
             status: 401,
             headers: {
               'Content-Type': 'application/json',
-              'WWW-Authenticate': `Bearer realm="MCP", auth_uri="${url.origin}/authorize"`,
+              'WWW-Authenticate': 'Bearer realm="OAuth", error="invalid_token", error_description="Missing or invalid access token"',
               ...corsHeaders
             }
           });
