@@ -1,0 +1,61 @@
+{
+  "name": "guile-changeflow-worker",
+  "version": "1.0.0",
+  "description": "Production Cloudflare Worker for Guile ChangeFlow ITIL Change Management",
+  "main": "worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production",
+    "test": "jest",
+    "lint": "eslint worker.js",
+    "tail:prod": "wrangler tail --env production",
+    "tail:staging": "wrangler tail --env staging",
+    "metrics": "wrangler kv:namespace list",
+    "backup": "node scripts/backup-data.js"
+  },
+  "keywords": [
+    "cloudflare",
+    "worker",
+    "itil",
+    "change-management",
+    "mcp",
+    "claude",
+    "enterprise"
+  ],
+  "author": "Guile ChangeFlow Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/guile-changeflow"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240909.0",
+    "@types/jest": "^29.5.5",
+    "eslint": "^8.50.0",
+    "jest": "^29.7.0",
+    "wrangler": "^3.70.0"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "jest": {
+    "testEnvironment": "miniflare",
+    "testMatch": [
+      "**/test/**/*.test.js"
+    ]
+  },
+  "eslintConfig": {
+    "env": {
+      "browser": true,
+      "es2022": true
+    },
+    "extends": "eslint:recommended",
+    "rules": {
+      "no-unused-vars": "warn",
+      "no-console": "off"
+    }
+  }
+}

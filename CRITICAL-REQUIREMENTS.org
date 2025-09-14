@@ -1,0 +1,248 @@
+#+TITLE: CRITICAL REQUIREMENTS - MUST IMPLEMENT NOW
+#+DATE: 2025-09-13 21:10 UTC
+#+PRIORITY: URGENT
+
+* NON-NEGOTIABLE REQUIREMENTS FOR DEMO
+
+** ITIL 4 COMPLETE COVERAGE
+*** Change Types
+- [ ] Normal Changes - Full CAB approval workflow
+- [ ] Standard Changes - Pre-approved templates
+- [ ] Emergency Changes - Expedited approval paths
+- [ ] Major Changes - Multiple approval stages
+
+*** Change States (FULL State Machine)
+- [ ] Draft → Submitted → Under Review → Approved → Scheduled → In Progress → Completed → Closed
+- [ ] Rejected paths from any state
+- [ ] Rollback states
+- [ ] Failed states with recovery
+
+*** CAB (Change Advisory Board)
+- [ ] Multiple approver roles
+- [ ] Voting mechanisms
+- [ ] Quorum requirements
+- [ ] Escalation paths
+- [ ] Approval delegation
+
+*** Risk Management
+- [ ] Risk matrices (probability × impact)
+- [ ] Automated risk scoring
+- [ ] Risk mitigation plans
+- [ ] Rollback triggers
+- [ ] Success criteria definition
+
+** DATABASE PERSISTENCE
+- [ ] SQLite implementation (not just memory)
+- [ ] Schema migrations
+- [ ] Transaction support
+- [ ] Backup/restore capability
+- [ ] Audit trail storage
+
+** TELEMETRY & OBSERVABILITY
+- [ ] Metrics collection (Prometheus format)
+- [ ] Change success/failure rates
+- [ ] Approval time metrics
+- [ ] Risk score distributions
+- [ ] System health indicators
+- [ ] Performance metrics (latency, throughput)
+
+** FAILURE & RECOVERY
+- [ ] Graceful degradation
+- [ ] Circuit breakers
+- [ ] Retry logic with exponential backoff
+- [ ] Dead letter queues
+- [ ] Rollback procedures
+- [ ] Data consistency checks
+- [ ] Recovery playbooks
+
+** VISUALIZATION REQUIREMENTS
+- [ ] Real-time dashboard
+- [ ] Change pipeline visualization
+- [ ] Risk heat maps
+- [ ] Approval workflow diagrams
+- [ ] Gantt charts for scheduling
+- [ ] Metrics graphs (time series)
+- [ ] Change calendar view
+
+** NOTIFICATION SYSTEM
+- [ ] Email notifications (SMTP)
+- [ ] Slack integration
+- [ ] Teams integration
+- [ ] SMS alerts for critical
+- [ ] Escalation chains
+- [ ] Notification templates
+- [ ] Delivery tracking
+
+** API COMPLETENESS
+- [ ] RESTful API
+- [ ] GraphQL endpoint
+- [ ] WebSocket for real-time
+- [ ] Batch operations
+- [ ] Pagination
+- [ ] Filtering/sorting
+- [ ] API versioning
+
+** SECURITY
+- [ ] Authentication (JWT)
+- [ ] Authorization (RBAC)
+- [ ] API rate limiting
+- [ ] Input validation
+- [ ] SQL injection prevention
+- [ ] XSS protection
+- [ ] Audit logging
+
+** TESTING COVERAGE
+- [ ] Unit tests (>80% coverage)
+- [ ] Integration tests
+- [ ] End-to-end tests
+- [ ] Performance tests
+- [ ] Load tests
+- [ ] Chaos engineering tests
+- [ ] Security tests
+
+** SIMULATOR REQUIREMENTS
+- [ ] Generate realistic change requests
+- [ ] Simulate approval workflows
+- [ ] Create failure scenarios
+- [ ] Load generation
+- [ ] Time manipulation (speed up/slow down)
+- [ ] Multi-user simulation
+- [ ] Network failure simulation
+
+** CLOUDFLARE DEMO
+- [ ] Worker implementation
+- [ ] Edge caching
+- [ ] KV storage
+- [ ] Durable Objects
+- [ ] Workers Analytics
+- [ ] Custom domain
+- [ ] SSL/TLS
+
+** DOCUMENTATION
+- [ ] API documentation (OpenAPI)
+- [ ] User guide
+- [ ] Admin guide
+- [ ] Deployment guide
+- [ ] Troubleshooting guide
+- [ ] Architecture diagrams
+- [ ] Sequence diagrams
+
+* SCENARIO COVERAGE
+
+** Success Scenarios
+1. Simple documentation change (low risk, auto-approved)
+2. Standard OS patching (medium risk, single approval)
+3. Database migration (high risk, CAB approval)
+4. Emergency security patch (critical, expedited)
+5. Multi-system deployment (complex approval chain)
+
+** Failure Scenarios
+1. Change fails validation
+2. Approval timeout
+3. Deployment failure → rollback
+4. Conflicting changes detected
+5. System outage during change
+6. Data corruption → recovery
+7. Network partition
+8. Database connection loss
+9. External service failure
+10. Rate limit exceeded
+
+** Edge Cases
+1. Simultaneous conflicting changes
+2. Circular approval dependencies
+3. Approver unavailable
+4. Freeze period override
+5. Bulk change processing
+6. Retroactive change logging
+7. Change template corruption
+8. Time zone issues
+9. Leap year/DST handling
+10. Unicode in change descriptions
+
+* IMPLEMENTATION PRIORITIES
+
+** IMMEDIATE (Next 2 Hours)
+1. SQLite database implementation
+2. Complete test suites
+3. Basic telemetry
+4. Cloudflare worker
+5. Simulator UI
+
+** TONIGHT (Next 6 Hours)
+1. Full ITIL state machine
+2. CAB approval workflow
+3. Risk scoring refinement
+4. Notification system
+5. API completeness
+
+** BEFORE DEMO
+1. Load testing
+2. Failure recovery
+3. Documentation
+4. Demo scripts
+5. Backup plans
+
+* AGENT ASSIGNMENTS
+
+** Agent 1 (Core Models)
+- Complete state machine
+- Database schema
+- Audit trail
+- Data validation
+
+** Agent 2 (MCP Server)
+- Cloudflare worker
+- API completeness
+- Authentication
+- Rate limiting
+
+** Agent 3 (Risk Engine)
+- Risk matrices
+- Freeze periods
+- Success criteria
+- Mitigation plans
+
+** Agent 4 (Web Interface)
+- Full simulator
+- Real-time dashboard
+- Visualization suite
+- Demo UI
+
+** Agent 5 (Integrations)
+- Notification system
+- External webhooks
+- Telemetry export
+- Integration tests
+
+* SUCCESS CRITERIA
+
+The demo is successful when:
+1. [ ] Can create 100 changes without failure
+2. [ ] Risk scoring is accurate and explainable
+3. [ ] Approval workflow completes in <30 seconds
+4. [ ] System recovers from any failure
+5. [ ] Cloudflare demo works with Claude
+6. [ ] Local simulator impresses audience
+7. [ ] All ITIL requirements met
+8. [ ] Zero critical bugs
+9. [ ] Performance meets SLA (<100ms response)
+10. [ ] Documentation is complete
+
+* THIS IS JUST THE BEGINNING
+
+We're building a PRODUCTION-GRADE system, not a toy. Every component must be:
+- Reliable
+- Scalable
+- Maintainable
+- Observable
+- Recoverable
+- Secure
+- Tested
+- Documented
+
+NO SHORTCUTS. NO EXCUSES. BUILD IT RIGHT.
+
+The demo tomorrow will showcase a REAL enterprise change management system that could be deployed to production. This is our chance to prove multi-agent development can build serious software.
+
+AGENTS: READ THIS AND IMPLEMENT EVERYTHING. The clock is ticking.
