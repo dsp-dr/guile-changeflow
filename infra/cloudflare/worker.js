@@ -619,6 +619,42 @@ export default {
         }
         break;
 
+      case '/favicon.ico':
+        // Return inline favicon (ChangeFlow logo - circular arrow)
+        const favicon = 'AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAA' +
+          'AAAAAAAA7+/vAP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///' +
+          'wD///8A7+/vAP///wAzrO8AiNj/AO/v7wD///8A////AP///wD///8A////AP///wD///8A7+/vAGXE' +
+          '/wBQvv8AM6zvAP///wD///8AM6zvAIjY/wDU8/8AZcT/AP///wD///8A////AP///wD///8A////AP///' +
+          'wD///8AZcT/AIHY/wAzrO8A////AP///wBQvv8A1PP/ANTZ/wDU2f8AZcT/AP///wD///8A////AP///' +
+          'wD///8A////ANTz/wDU2f8AULT/AP///wD///8AZcT/ANTZ/wDU2f8A1Nn/ANTZ/wBQvv8A////AP///' +
+          'wD///8A////AFDC/wDU2f8A1Nn/ANTZ/wBQvv8A////AFDz/wDU2f8A1Nn/ANTZ/wDU2f8A1Nn/AGnE' +
+          '/wD///8A////AGnE/wDU2f8A1Nn/ANTZ/wDU2f8AUML/AP///wBpxP8A1Nn/ANTZ/wDU2f8A1Nn/ANTZ' +
+          '/wDU2f8AacT/AGnE/wDU2f8A1Nn/ANTZ/wDU2f8A1Nn/AGnE/wD///8A////AGnE/wDU2f8A1Nn/ANTZ' +
+          '/wDU2f8A1Nn/ANTZ/wDU2f8A1Nn/ANTZ/wDU2f8A1Nn/ANTZ/wBpxP8A////AP///wD///8AacT/ANTZ' +
+          '/wDU2f8A1Nn/ANTZ/wDU2f8A1Nn/ANTZ/wDU2f8A1Nn/ANTZ/wBpxP8A////AP///wD///8A////AGnE' +
+          '/wDU2f8A1Nn/ANTZ/wDU2f8A1Nn/ANTZ/wDU2f8A1Nn/AGnE/wD///8A////AP///wD///8A////AP///' +
+          'wBpxP8A1Nn/ANTZ/wDU2f8A1Nn/ANTZ/wDU2f8AacT/AP///wD///8A////AP///wD///8A////AP///' +
+          'wD///8AacT/ANTZ/wDU2f8A1Nn/ANTZ/wBpxP8A////AP///wD///8A////AP///wD///8A////AP///' +
+          'wD///8A////AGnE/wDU2f8A1Nn/AGnE/wD///8A////AP///wD///8A////AP///wD///8A////AP///' +
+          'wD///8A////AP///wBpxP8AacT/AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///' +
+          'wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wDwDwAA4AcAAMAD' +
+          'AACAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAACAAQAAYAMEAMADAAA=';
+
+        // Convert base64 to bytes
+        const binaryString = atob(favicon);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        return new Response(bytes, {
+          headers: {
+            'Content-Type': 'image/x-icon',
+            'Cache-Control': 'public, max-age=86400',
+            ...corsHeaders
+          }
+        });
+
       default:
         return new Response('Not Found', { status: 404 });
     }
