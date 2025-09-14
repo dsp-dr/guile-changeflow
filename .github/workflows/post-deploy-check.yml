@@ -71,19 +71,19 @@ jobs:
         echo "🔍 Testing critical endpoints..."
 
         # Test risk assessment
-        risk_response=$(curl -s -X POST https://api.changeflow.us/ \
+        risk_response=$(curl -s -X POST https://api.changeflow.us/mcp/tools/invoke \
           -H "Content-Type: application/json" \
           -d '{
-            "jsonrpc":"2.0",
-            "method":"assess_change_risk",
+            "tool":"assess_risk",
             "params":{
-              "change_type":"configuration",
-              "environment":"production"
-            },
-            "id":1
+              "title":"Test Configuration Change",
+              "description":"Testing risk assessment endpoint",
+              "systems":["test"],
+              "urgency":"normal"
+            }
           }')
 
-        if echo "$risk_response" | jq -e '.result.risk_score' > /dev/null; then
+        if echo "$risk_response" | jq -e '.risk_score' > /dev/null; then
           echo "✅ Risk assessment working"
         else
           echo "❌ Risk assessment failed"
