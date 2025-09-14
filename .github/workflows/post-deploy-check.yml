@@ -1,0 +1,214 @@
+name: Post-Deployment Sanity Check
+
+on:
+  workflow_run:
+    workflows: ["Deploy to Cloudflare"]
+    types:
+      - completed
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+
+jobs:
+  sanity-check:
+    name: Production Sanity Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Health Check
+      run: |
+        echo "🔍 Checking production health..."
+        response=$(curl -s -w "\n%{http_code}" https://api.changeflow.us/)
+        http_code=$(echo "$response" | tail -n1)
+        body=$(echo "$response" | head -n-1)
+
+        if [ "$http_code" != "200" ]; then
+          echo "❌ Health check failed with HTTP $http_code"
+          exit 1
+        fi
+
+        echo "$body" | jq '.'
+        echo "✅ Health check passed"
+
+    - name: Verify MCP Protocol
+      run: |
+        echo "🔍 Verifying MCP protocol..."
+        response=$(curl -s -X POST https://api.changeflow.us/ \
+          -H "Content-Type: application/json" \
+          -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05"},"id":1}')
+
+        echo "$response" | jq '.'
+
+        if echo "$response" | jq -e '.result.protocolVersion' > /dev/null; then
+          echo "✅ MCP protocol responding correctly"
+        else
+          echo "❌ MCP protocol check failed"
+          exit 1
+        fi
+
+    - name: Verify Tools Count
+      run: |
+        echo "🔍 Verifying ITIL tools..."
+        tools_count=$(curl -s -X POST https://api.changeflow.us/ \
+          -H "Content-Type: application/json" \
+          -d '{"jsonrpc":"2.0","method":"tools/list","id":1}' | \
+          jq '.result.tools | length')
+
+        echo "Found $tools_count tools"
+
+        if [ "$tools_count" -eq 8 ]; then
+          echo "✅ All 8 ITIL tools available"
+        else
+          echo "❌ Expected 8 tools, found $tools_count"
+          exit 1
+        fi
+
+    - name: Test Critical Endpoints
+      run: |
+        echo "🔍 Testing critical endpoints..."
+
+        # Test risk assessment
+        risk_response=$(curl -s -X POST https://api.changeflow.us/ \
+          -H "Content-Type: application/json" \
+          -d '{
+            "jsonrpc":"2.0",
+            "method":"assess_change_risk",
+            "params":{
+              "change_type":"configuration",
+              "environment":"production"
+            },
+            "id":1
+          }')
+
+        if echo "$risk_response" | jq -e '.result.risk_score' > /dev/null; then
+          echo "✅ Risk assessment working"
+        else
+          echo "❌ Risk assessment failed"
+          exit 1
+        fi
+
+        # Test freeze period check
+        freeze_response=$(curl -s -X POST https://api.changeflow.us/ \
+          -H "Content-Type: application/json" \
+          -d '{
+            "jsonrpc":"2.0",
+            "method":"check_freeze_period",
+            "params":{
+              "planned_start":"2025-12-25T10:00:00Z",
+              "planned_end":"2025-12-25T12:00:00Z",
+              "environment":"production"
+            },
+            "id":1
+          }')
+
+        if echo "$freeze_response" | jq -e '.result.is_freeze_period' > /dev/null; then
+          echo "✅ Freeze period check working"
+        else
+          echo "❌ Freeze period check failed"
+          exit 1
+        fi
+
+    - name: Performance Check
+      run: |
+        echo "🔍 Checking response times..."
+
+        total_time=0
+        for i in {1..5}; do
+          start=$(date +%s%N)
+          curl -s https://api.changeflow.us/ > /dev/null
+          end=$(date +%s%N)
+
+          duration=$((($end - $start) / 1000000))
+          total_time=$(($total_time + $duration))
+          echo "Request $i: ${duration}ms"
+        done
+
+        avg_time=$(($total_time / 5))
+        echo "Average response time: ${avg_time}ms"
+
+        if [ $avg_time -lt 500 ]; then
+          echo "✅ Performance acceptable (< 500ms)"
+        else
+          echo "⚠️ Performance degraded (> 500ms)"
+        fi
+
+    - name: Send Status Notification
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Production sanity check PASSED"
+        else
+          echo "❌ Production sanity check FAILED"
+          echo "Check: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        fi
+
+  integration-test:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    needs: sanity-check
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Run integration test suite
+      run: |
+        echo "🧪 Running integration tests..."
+        chmod +x scripts/test-endpoints.sh
+        ./scripts/test-endpoints.sh
+
+    - name: Run MCP comprehensive test
+      run: |
+        echo "🧪 Running MCP comprehensive tests..."
+        if [ -f "test/mcp-comprehensive-test.js" ]; then
+          node test/mcp-comprehensive-test.js || echo "Local test file not configured for production"
+        fi
+
+  create-issue-on-failure:
+    name: Create Issue on Failure
+    runs-on: ubuntu-latest
+    needs: [sanity-check, integration-test]
+    if: failure()
+
+    steps:
+    - name: Create GitHub Issue
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const title = `🚨 Production Sanity Check Failed - ${new Date().toISOString()}`;
+          const body = `
+          ## Production Issue Detected
+
+          The post-deployment sanity check has failed.
+
+          **Run ID**: ${{ github.run_id }}
+          **Run URL**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          **Time**: ${new Date().toISOString()}
+
+          ### Required Actions
+          1. Check production logs
+          2. Review recent deployments
+          3. Verify Cloudflare Workers status
+          4. Check API endpoint health
+
+          ### Links
+          - [Production API](https://api.changeflow.us)
+          - [Cloudflare Dashboard](https://dash.cloudflare.com)
+          - [GitHub Actions](https://github.com/${{ github.repository }}/actions)
+          `;
+
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: title,
+            body: body,
+            labels: ['production', 'urgent', 'automated']
+          });

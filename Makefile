@@ -7,7 +7,8 @@ ORG_FILES := $(shell find . -name "*.org" -not -path "./.git/*" -not -path "./.t
 .PHONY: help status agenda agents monitor issues setup clean lint lint-org lint-scheme \
         ci-status ci-check ci-logs ci-runs ci-branch-sync ci-fix \
         a1 a2 a3 a4 a5 test-integration quick-status reports \
-        dev-setup test-mcp mcp-server mcp-stop mcp-status test-guile
+        dev-setup test-mcp mcp-server mcp-stop mcp-status test-guile \
+        check-env mcp-server-background test deploy
 
 help:
 	@echo "Guile ChangeFlow Project Management"
@@ -280,3 +281,28 @@ test-guile:
 	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
 		guile -s test/module-test-simple.scm || \
 		echo "❌ Module test suite failed"
+# Environment check target for .envrc
+check-env:
+	@echo "Checking environment..."
+	@command -v guile > /dev/null && echo "✅ Guile installed" || (echo "❌ Guile missing" && exit 1)
+	@command -v node > /dev/null && echo "✅ Node.js installed" || (echo "❌ Node.js missing" && exit 1)
+	@command -v npm > /dev/null && echo "✅ npm installed" || (echo "❌ npm missing" && exit 1)
+	@[ -d src ] && echo "✅ src/ directory exists" || (echo "❌ src/ missing" && exit 1)
+	@[ -d test ] && echo "✅ test/ directory exists" || (echo "❌ test/ missing" && exit 1)
+	@[ -f scripts/mcp-local-server.js ] && echo "✅ MCP server script exists" || (echo "❌ MCP script missing" && exit 1)
+
+# Background MCP server for .envrc
+mcp-server-background:
+	@mkdir -p logs
+	@nohup node scripts/mcp-local-server.js $(MCP_SERVER_PORT) > logs/mcp-server.log 2>&1 &
+	@echo "MCP server started in background (PID: $$\!)"
+
+# Main test target
+test: test-guile test-mcp
+	@echo "=== All tests completed ==="
+
+# Deploy to Cloudflare
+deploy:
+	@echo "=== Deploying to Cloudflare Workers ==="
+	@cd infra/cloudflare && wrangler publish
+	@echo "✅ Deployment complete"
