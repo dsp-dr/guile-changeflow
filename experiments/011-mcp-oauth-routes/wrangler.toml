@@ -1,0 +1,15 @@
+name = "mcp-oauth-experiment"
+main = "worker.js"
+compatibility_date = "2025-01-13"
+
+[vars]
+ENVIRONMENT = "development"
+
+# GitHub OAuth (add these as secrets)
+# wrangler secret put GITHUB_CLIENT_ID
+# wrangler secret put GITHUB_CLIENT_SECRET
+
+# Future: KV namespace for sessions
+# [[kv_namespaces]]
+# binding = "SESSIONS"
+# id = "your-kv-namespace-id"

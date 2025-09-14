@@ -1,0 +1,44 @@
+#+TITLE: Experiment 011 - MCP OAuth Routes
+#+DATE: 2025-09-14
+#+AUTHOR: dsp-dr
+
+* Purpose
+
+Implement the OAuth routes and workflow for Remote MCP server using Cloudflare's example, while keeping MCP internals simple.
+
+* Division of Work
+
+** Our Focus (Main Agent + User)
+- OAuth routes (/authorize, /callback, /token)
+- GitHub OAuth integration
+- Session management
+- Build infrastructure for worker.js
+- Deployment pipeline
+
+** Agent Focus (Coordinator + Builder)
+- MCP server internals
+- Tool implementations
+- Local testing with MCP Inspector
+- Integration with mcp.el for Emacs
+- Protocol compliance
+
+* Architecture
+
+#+BEGIN_SRC
+experiments/011-mcp-oauth-routes/
+├── oauth-wrapper.js      # OAuth provider (our focus)
+├── mcp-server.js         # Simple MCP server (agents' focus)
+├── worker.js             # Cloudflare Worker entry
+├── package.json          # Dependencies
+└── wrangler.toml         # Deployment config
+#+END_SRC
+
+* References
+
+- Cloudflare Example: https://github.com/cloudflare/ai/tree/main/demos/remote-mcp-authless
+- OAuth Example: https://github.com/cloudflare/ai/tree/main/demos/remote-mcp-github-oauth
+- MCP Inspector: https://modelcontextprotocol.io/docs/tools/inspector
+
+* Key Insight
+
+We handle the HTTP/OAuth layer, agents handle the MCP protocol layer. Clean separation!

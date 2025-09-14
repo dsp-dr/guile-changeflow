@@ -1,0 +1,14 @@
+{
+  "name": "mcp-oauth-experiment",
+  "version": "1.0.0",
+  "description": "OAuth routes for Remote MCP server",
+  "main": "worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node test-local.js"
+  },
+  "devDependencies": {
+    "wrangler": "^3.70.0"
+  }
+}

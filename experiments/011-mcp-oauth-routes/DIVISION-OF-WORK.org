@@ -1,0 +1,91 @@
+#+TITLE: Division of Work - Experiment 011
+#+DATE: 2025-09-14
+#+AUTHOR: dsp-dr
+
+* Clear Separation of Concerns
+
+** Our Work (Main Agent + User)
+Focus: OAuth flow and infrastructure
+
+Files we own:
+- oauth-wrapper.js - OAuth provider implementation
+- worker.js - Cloudflare Worker entry point
+- wrangler.toml - Deployment configuration
+- Build/deployment pipeline
+
+What we're building:
+1. GitHub OAuth integration
+2. Session management
+3. Token validation
+4. Authorization checks
+5. Deployment to production
+
+What we DON'T care about:
+- MCP protocol details
+- Tool implementations
+- Risk scoring logic
+- ITIL workflows
+
+** Agent Work (Coordinator + Builder)
+Focus: MCP server implementation
+
+Files they own:
+- mcp-server.js - Replace with full implementation
+- scripts/mcp-local-server.js - Local testing version
+
+What they're building:
+1. Full MCP protocol compliance
+2. All 8 ITIL tools
+3. Risk assessment logic
+4. Local testing with MCP Inspector
+5. Integration with mcp.el for Emacs
+
+What they DON'T care about:
+- OAuth flow
+- GitHub authentication
+- Cloudflare deployment
+- Session management
+
+* Integration Point
+
+The integration is simple:
+#+BEGIN_SRC javascript
+// In worker.js
+const provider = new OAuthProvider({
+  apiHandler: MCPRouter  // <-- This is the only connection
+});
+#+END_SRC
+
+The OAuth wrapper calls the MCP server's router function. That's it!
+
+* Testing Strategy
+
+** Our Testing (OAuth)
+1. Deploy to Cloudflare Workers
+2. Test OAuth flow with real GitHub
+3. Verify token generation
+4. Check session persistence
+
+** Their Testing (MCP)
+1. Run locally on port 8427
+2. Use MCP Inspector
+3. Test with mcp.el in Emacs
+4. Validate protocol compliance
+
+* Success Criteria
+
+** Our Success
+- [ ] User can authenticate with GitHub
+- [ ] OAuth tokens are generated
+- [ ] Sessions persist across requests
+- [ ] Unauthorized access is blocked
+
+** Their Success
+- [ ] MCP Inspector connects successfully
+- [ ] All tools discoverable
+- [ ] Tool invocation works
+- [ ] Protocol fully compliant
+
+* Key Benefit
+
+By separating OAuth from MCP, both teams can work in parallel without conflicts. The OAuth layer doesn't need to know about MCP internals, and the MCP server doesn't need to know about authentication!
