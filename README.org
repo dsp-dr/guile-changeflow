@@ -2,8 +2,8 @@
 #+STARTUP: overview
 
 [[https://github.com/dsp-dr/guile-changeflow/actions/workflows/ci.yml][https://github.com/dsp-dr/guile-changeflow/actions/workflows/ci.yml/badge.svg]]
-[[https://github.com/dsp-dr/guile-changeflow/releases][https://img.shields.io/github/v/release/dsp-dr/guile-changeflow?include_prereleases]]
-[[https://api.changeflow.us][https://img.shields.io/badge/deployed-Cloudflare%20Workers-orange]]
+[[https://github.com/dsp-dr/guile-changeflow/releases][https://img.shields.io/github/v/release/dsp-dr/guile-changeflow.svg?include_prereleases]]
+[[https://api.changeflow.us][https://img.shields.io/badge/deployed-Cloudflare%20Workers-orange.svg]]
 [[LICENSE][https://img.shields.io/badge/license-MIT-blue.svg]]
 
 * Overview

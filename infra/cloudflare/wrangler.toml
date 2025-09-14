@@ -1,48 +1,46 @@
-# Simplified Wrangler Configuration for Guile ChangeFlow
-# Production-Ready Cloudflare Worker Deployment
-
-name = "guile-changeflow-prod"
+name = "gcf-mcp-server"
 main = "worker.js"
-compatibility_date = "2024-09-13"
-compatibility_flags = ["nodejs_compat"]
+compatibility_date = "2025-01-13"
 
-# Production Environment
-[env.production]
-name = "guile-changeflow-prod"
+# Account and deployment settings
+account_id = "" # Will be filled in during deployment
 
-# Staging Environment
-[env.staging]
-name = "guile-changeflow-staging"
+# Custom domains
+routes = [
+  { pattern = "api.changeflow.us/*", custom_domain = true },
+  { pattern = "changeflow.us/*", custom_domain = true }
+]
 
-# Development Environment
-[env.development]
-name = "guile-changeflow-dev"
-
-# Global Variables
+# Environment variables (if needed)
 [vars]
-WORKER_VERSION = "1.0.0"
-MCP_PROTOCOL_VERSION = "2024-11-05"
 ENVIRONMENT = "production"
 LOG_LEVEL = "info"
 
-# Production Variables
-[env.production.vars]
-ENVIRONMENT = "production"
-CORS_ORIGINS = "*"
-RATE_LIMIT_PER_MINUTE = "1000"
+# Workers Logs configuration
+[observability]
+enabled = true
 
-# Staging Variables
-[env.staging.vars]
-ENVIRONMENT = "staging"
-CORS_ORIGINS = "*"
-RATE_LIMIT_PER_MINUTE = "500"
+# Sampling configuration for logs
+[[analytics_engine_datasets]]
+binding = "AE"
 
-# Development Variables
-[env.development.vars]
-ENVIRONMENT = "development"
-CORS_ORIGINS = "*"
-RATE_LIMIT_PER_MINUTE = "100"
+# For future KV storage
+# [[kv_namespaces]]
+# binding = "CHANGES"
+# id = "your-kv-namespace-id"
 
-# Build configuration
-[build]
-command = "echo 'No build step required for production worker'"
+# For future Durable Objects
+# [[durable_objects.bindings]]
+# name = "CHANGE_STORAGE"
+# class_name = "ChangeStorage"
+# script_name = "worker"
+
+# Development settings
+[env.development]
+name = "gcf-mcp-server-dev"
+vars = { ENVIRONMENT = "development", LOG_LEVEL = "debug" }
+
+# Staging settings
+[env.staging]
+name = "gcf-mcp-server-staging"
+vars = { ENVIRONMENT = "staging", LOG_LEVEL = "info" }
