@@ -38,10 +38,10 @@ jobs:
     - name: Check Guile Libraries
       run: |
         echo "=== Checking Guile module availability ==="
-        guile -c "(use-modules (ice-9 match)) (display 'ice-9 match: OK\n')"
-        guile -c "(use-modules (ice-9 threads)) (display 'ice-9 threads: OK\n')"
-        guile -c "(use-modules (srfi srfi-1)) (display 'srfi-1: OK\n')"
-        guile -c "(use-modules (srfi srfi-9)) (display 'srfi-9 records: OK\n')"
+        guile -c '(use-modules (ice-9 match)) (display "ice-9 match: OK\n")'
+        guile -c '(use-modules (ice-9 threads)) (display "ice-9 threads: OK\n")'
+        guile -c '(use-modules (srfi srfi-1)) (display "srfi-1: OK\n")'
+        guile -c '(use-modules (srfi srfi-9)) (display "srfi-9 records: OK\n")'
 
     - name: Check Additional Dependencies
       run: |
