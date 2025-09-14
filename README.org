@@ -209,11 +209,11 @@ node test/mcp-comprehensive-test.js
 * Deployment
 
 ** Environments
-| Environment | URL                                          | Purpose     |
-|-------------+----------------------------------------------+-------------|
-| Production  | https://api.changeflow.us                   | Live system |
-| Staging     | https://changeflow-mcp.dsp-dr.workers.dev   | Testing env |
-| Local       | http://localhost:8427                        | Development |
+| Environment | URL                                                       | Purpose     |
+|-------------+-----------------------------------------------------------+-------------|
+| Production  | https://api.changeflow.us                                | Live system |
+| Staging     | https://guile-changeflow-staging.jasonwalsh.workers.dev  | Testing env |
+| Local       | http://localhost:8427                                     | Development |
 
 ** CI/CD Pipeline
 - GitHub Actions for testing
