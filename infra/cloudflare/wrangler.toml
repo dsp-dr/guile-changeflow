@@ -1,4 +1,4 @@
-name = "gcf-mcp-server"
+name = "guile-changeflow-prod"
 main = "worker.js"
 compatibility_date = "2025-01-13"
 
