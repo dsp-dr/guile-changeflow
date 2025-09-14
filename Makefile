@@ -6,7 +6,8 @@ ORG_FILES := $(shell find . -name "*.org" -not -path "./.git/*" -not -path "./.t
 
 .PHONY: help status agenda agents monitor issues setup clean lint lint-org lint-scheme \
         ci-status ci-check ci-logs ci-runs ci-branch-sync ci-fix \
-        a1 a2 a3 a4 a5 test-integration quick-status reports
+        a1 a2 a3 a4 a5 test-integration quick-status reports \
+        dev-setup test-mcp mcp-server mcp-stop mcp-status test-guile
 
 help:
 	@echo "Guile ChangeFlow Project Management"
@@ -36,6 +37,14 @@ help:
 	@echo "GitHub:"
 	@echo "  issues    - List GitHub issues"
 	@echo "  issue     - Create new issue (TITLE=... BODY=...)"
+	@echo ""
+	@echo "Development:"
+	@echo "  dev-setup - Setup local development environment"
+	@echo "  mcp-server- Start local MCP server on port 8088"
+	@echo "  mcp-stop  - Stop local MCP server"
+	@echo "  mcp-status- Check MCP server status"
+	@echo "  test-mcp  - Test MCP server functionality"
+	@echo "  test-guile- Test Guile module system"
 	@echo ""
 	@echo "Setup:"
 	@echo "  setup     - Initial project setup"
@@ -198,3 +207,76 @@ reports: status
 	@emacs --batch -l guile-changeflow.el \
 		--eval "(guile-changeflow-export-todo-stats)" 2>/dev/null
 	@echo "All reports generated"
+
+# Development environment setup and MCP server management
+dev-setup:
+	@echo "=== Setting up development environment ==="
+	@echo "1. Checking dependencies..."
+	@command -v guile || echo "   Install Guile 3.0+: apt-get install guile-3.0 guile-3.0-dev"
+	@command -v node || echo "   Install Node.js: https://nodejs.org/"
+	@command -v jq || echo "   Install jq: apt-get install jq"
+	@echo "2. Setting up directories..."
+	@mkdir -p .claude logs
+	@echo "3. Verifying project structure..."
+	@[ -f scripts/mcp-local-server.js ] && echo "   ✅ MCP server script found" || echo "   ❌ MCP server script missing"
+	@[ -f .claude/mcp_config.json ] && echo "   ✅ MCP config found" || echo "   ❌ MCP config missing"
+	@echo "4. Testing environment (use 'direnv allow' for auto-setup)"
+
+# MCP Server Management (using port 8427 - "8 24/7" watching everything!)
+mcp-server:
+	@echo "Starting local MCP server on port 8427..."
+	@if curl -s http://localhost:8427/ >/dev/null 2>&1; then \
+		echo "⚠️  Port 8427 already in use"; \
+	else \
+		nohup node scripts/mcp-local-server.js 8427 > logs/mcp-server.log 2>&1 & \
+		echo "📡 MCP server starting (PID: $$!)"; \
+		sleep 2; \
+		curl -s http://localhost:8427/ | jq . || echo "Server startup may need more time"; \
+	fi
+
+mcp-stop:
+	@echo "Stopping MCP server..."
+	@pkill -f "mcp-local-server.js" || echo "No MCP server process found"
+	@echo "✅ MCP server stopped"
+
+mcp-status:
+	@echo "=== MCP Server Status ==="
+	@if curl -s http://localhost:8427/ >/dev/null 2>&1; then \
+		echo "✅ MCP server running on port 8427"; \
+		curl -s http://localhost:8427/ | jq '.status, .version' 2>/dev/null || echo "Response received"; \
+	else \
+		echo "❌ MCP server not responding on port 8427"; \
+	fi
+
+# MCP Testing
+test-mcp:
+	@echo "=== Testing MCP Server ==="
+	@echo "1. Health check..."
+	@curl -s http://localhost:8427/ | jq . || echo "❌ Health check failed"
+	@echo ""
+	@echo "2. Tools list..."
+	@curl -s -X POST http://localhost:8427/ \
+		-H "Content-Type: application/json" \
+		-d '{"jsonrpc":"2.0","method":"tools/list","id":1}' \
+		| jq '.result.tools | length' 2>/dev/null \
+		&& echo "✅ Tools endpoint working" \
+		|| echo "❌ Tools endpoint failed"
+	@echo ""
+	@echo "3. Running comprehensive test suite..."
+	@node test/mcp-comprehensive-test.js 2>/dev/null || echo "❌ Test suite failed (check dependencies)"
+
+# Guile Testing
+test-guile:
+	@echo "=== Testing Guile Environment ==="
+	@echo "1. Guile version..."
+	@guile --version | head -1
+	@echo ""
+	@echo "2. Module loading test..."
+	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
+		guile -c "(use-modules (ice-9 format)) (display \"Guile modules: OK\\n\")" || \
+		echo "❌ Guile module loading failed"
+	@echo ""
+	@echo "3. Running module test suite..."
+	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
+		guile -s test/module-test-simple.scm || \
+		echo "❌ Module test suite failed"
