@@ -1,5 +1,6 @@
 (define-module (mcp server)
   #:use-module (web server)
+  #:use-module (web server http)
   #:use-module (web request)
   #:use-module (web response)
   #:use-module (web uri)
