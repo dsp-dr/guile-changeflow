@@ -1,0 +1,46 @@
+name = "gcf-mcp-server"
+main = "worker.js"
+compatibility_date = "2025-01-13"
+
+# Account and deployment settings
+account_id = "" # Will be filled in during deployment
+
+# Custom domains
+routes = [
+  { pattern = "api.changeflow.us/*", custom_domain = true },
+  { pattern = "changeflow.us/*", custom_domain = true }
+]
+
+# Environment variables (if needed)
+[vars]
+ENVIRONMENT = "production"
+LOG_LEVEL = "info"
+
+# Workers Logs configuration
+[observability]
+enabled = true
+
+# Sampling configuration for logs
+[[analytics_engine_datasets]]
+binding = "AE"
+
+# For future KV storage
+# [[kv_namespaces]]
+# binding = "CHANGES"
+# id = "your-kv-namespace-id"
+
+# For future Durable Objects
+# [[durable_objects.bindings]]
+# name = "CHANGE_STORAGE"
+# class_name = "ChangeStorage"
+# script_name = "worker"
+
+# Development settings
+[env.development]
+name = "gcf-mcp-server-dev"
+vars = { ENVIRONMENT = "development", LOG_LEVEL = "debug" }
+
+# Staging settings
+[env.staging]
+name = "gcf-mcp-server-staging"
+vars = { ENVIRONMENT = "staging", LOG_LEVEL = "info" }

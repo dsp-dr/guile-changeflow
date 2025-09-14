@@ -429,6 +429,5 @@
 
     (values (build-response
              #:code 200
-             #:headers '((content-type . (text/html))
-                         (cache-control . "no-cache")))
+             #:headers '((content-type . (text/html))))
             html-content)))

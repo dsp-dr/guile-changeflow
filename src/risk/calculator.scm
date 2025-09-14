@@ -4,11 +4,13 @@
   #:use-module (risk categories)
   #:use-module (srfi srfi-13)  ; string operations
   #:use-module (srfi srfi-1)   ; list operations
+  #:use-module (srfi srfi-19)  ; time operations
   #:export (calculate-risk
             calculate-change-risk
             calculate-title-risk
             calculate-system-risk
             calculate-time-risk
+            calculate-keyword-risk
             assess-risk))
 
 (define (calculate-risk title description systems)
@@ -37,6 +39,17 @@
   (if (not (string? title))
       0
       (calculate-keyword-risk title high-risk-keywords)))
+
+(define (calculate-keyword-risk text keywords)
+  "Calculate risk based on presence of keywords in text"
+  (if (not (string? text))
+      0
+      (fold (lambda (keyword score)
+              (if (string-contains-ci text keyword)
+                  (+ score (get-factor-weight (string->symbol keyword)))
+                  score))
+            0
+            keywords)))
 
 (define (calculate-system-risk systems)
   "More systems = higher risk"
