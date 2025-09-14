@@ -1,0 +1,228 @@
+#+TITLE: AI Agent Context Preservation Strategy
+#+AUTHOR: Guile ChangeFlow Team
+#+DATE: 2025-09-14
+#+OPTIONS: toc:2 num:t
+
+* Why Preserve AI Agent Context?
+
+** The Problem
+AI agents make thousands of micro-decisions during development that are lost after the session ends:
+- Why specific implementation patterns were chosen
+- Trade-offs considered but not taken
+- Context about external constraints or requirements
+- Reasoning behind architectural decisions
+- Failed approaches that shouldn't be retried
+
+** The Solution: Git Notes as Agent Memory
+Git notes provide a parallel metadata system that travels with commits but doesn't pollute the commit history itself.
+
+* Implementation Strategy
+
+** 1. Post-Commit Hook Reminder
+#+BEGIN_SRC bash
+#!/bin/sh
+# .git/hooks/post-commit
+echo "📝 REMINDER: Update git notes with agent context"
+echo "  git notes add -m \"Agent reasoning and context\""
+#+END_SRC
+
+** 2. What to Document in Git Notes
+*** Decision Context
+- Why this approach over alternatives
+- Constraints that influenced the decision
+- External factors (user preferences, system limitations)
+
+*** Agent Reasoning
+- Problem decomposition strategy
+- Order of operations and why
+- Assumptions made during implementation
+
+*** Failed Attempts
+- What didn't work and why
+- Error patterns to avoid
+- Dead ends already explored
+
+*** External References
+- Documentation consulted
+- Patterns borrowed from other projects
+- User instructions that shaped the implementation
+
+** 3. Example Git Note Format
+#+BEGIN_EXAMPLE
+Agent: Claude
+Session: 2025-09-14-13:45
+Task: Implement ITIL chaos simulator
+
+Context:
+- User wanted reproducible demos for stakeholders
+- Chose seed-based generation over random for consistency
+- Implemented 100 PRs as reasonable enterprise scale
+
+Decisions:
+- Used Guile Scheme for consistency with existing codebase
+- Separated data generation from simulation logic
+- Created multiple dataset sizes for different demo scenarios
+
+Failed Attempts:
+- Initially tried SQLite3 integration (missing dependency)
+- First attempt had module loading issues (syntax errors)
+
+Trade-offs:
+- Simplified state machine for demo purposes
+- Used JSON for data format despite Scheme preference (interop)
+
+References:
+- ITIL 4 change management processes
+- Chaos engineering principles
+- Previous simulator implementations in experiments/
+#+END_EXAMPLE
+
+* Best Practices for AI Development
+
+** 1. Semantic Commit Messages
+- Use conventional commits (feat:, fix:, refactor:, etc.)
+- Include the "why" not just the "what"
+- Reference issue numbers and discussions
+
+** 2. Git Notes for Agent Context
+#+BEGIN_SRC bash
+# After each significant commit
+git notes add -m "Agent context and reasoning"
+
+# For detailed context
+git notes edit
+
+# View notes in log
+git log --show-notes
+
+# Push notes to remote
+git push origin refs/notes/commits
+#+END_SRC
+
+** 3. Session Boundaries
+Mark clear boundaries between agent sessions:
+- Document handoff points
+- Summarize session achievements
+- List pending tasks and blockers
+
+** 4. Reproducibility
+Include enough context to reproduce the agent's work:
+- Environment details
+- External dependencies
+- Configuration assumptions
+- Test data and seeds
+
+* Tools and Automation
+
+** Git Hooks
+*** post-commit
+Reminds to add context notes after each commit
+
+*** prepare-commit-msg
+Could inject agent metadata automatically:
+- Agent model (Claude, GPT-4, etc.)
+- Session ID
+- Timestamp
+- Task description
+
+** Helper Scripts
+#+BEGIN_SRC bash
+#!/bin/bash
+# scripts/agent-context.sh
+
+# Add agent context to last commit
+agent_context() {
+    local context="$1"
+    git notes add -m "Agent: $AGENT_MODEL
+Session: $(date +%Y%m%d-%H%M%S)
+Context: $context"
+}
+
+# Bulk export notes for analysis
+export_agent_notes() {
+    git log --pretty=format:"%H %s" --show-notes=refs/notes/commits > agent-decisions.log
+}
+#+END_SRC
+
+* Why This Matters
+
+** 1. Knowledge Transfer
+Future agents (or humans) can understand:
+- Why decisions were made
+- What's already been tried
+- Where the complexity lies
+
+** 2. Debugging
+When something breaks:
+- Understand the original intent
+- Know what assumptions were made
+- Identify where logic might have failed
+
+** 3. Learning and Improvement
+- Analyze patterns across agent sessions
+- Identify common failure modes
+- Build better prompts and constraints
+
+** 4. Compliance and Audit
+- Track AI involvement in code
+- Document decision rationale
+- Maintain development lineage
+
+* References
+
+** External Resources
+- [[https://www.youtube.com/watch?v=IS_y40zY-hc][YouTube: Git Notes for AI Context]] - Overview of using git notes for preserving AI agent decisions
+- [[https://hn.algolia.com/?dateRange=all&page=0&prefix=false&query=agentic%20&sort=byDate&type=story][HN: Agentic Development Discussions]] - Community insights on agent-driven development
+- [[https://git-scm.com/docs/git-notes][Git Notes Documentation]] - Official git notes reference
+
+** Related Concepts
+- Event Sourcing - Treating decisions as events
+- Audit Logging - Regulatory compliance needs
+- Knowledge Graphs - Connecting decisions across time
+- Semantic Versioning - Communicating change impact
+
+** Industry Practices
+*** Microsoft's AI Pair Programming
+- Documents agent suggestions accepted/rejected
+- Tracks context for learning model improvement
+
+*** Google's AI Code Review
+- Preserves reviewer reasoning
+- Links to documentation and standards
+
+*** Open Source Projects
+- TensorFlow: Documents model decision paths
+- Kubernetes: Tracks operator decision logs
+
+* Implementation Checklist
+
+- [ ] Install post-commit hook
+- [ ] Document git notes workflow in README
+- [ ] Create agent-context helper script
+- [ ] Set up remote notes syncing
+- [ ] Train team on context preservation
+- [ ] Regular context review sessions
+- [ ] Automated context analysis tools
+
+* Future Enhancements
+
+** Automated Context Extraction
+- Parse agent conversations
+- Extract key decisions automatically
+- Generate structured notes
+
+** Context Visualization
+- Graph decision dependencies
+- Timeline of agent sessions
+- Impact analysis tools
+
+** Integration with AI Tools
+- IDE plugins for context viewing
+- CI/CD context validation
+- Automated context quality checks
+
+* Conclusion
+
+Preserving AI agent context through git notes creates a valuable parallel history that enhances code maintainability, enables knowledge transfer, and provides crucial debugging information. This approach keeps the commit history clean while maintaining rich contextual information about the development process.
+
+As AI agents become more prevalent in software development, these practices will become essential for maintaining code quality and understanding the evolution of our systems.
