@@ -185,16 +185,116 @@ Following OAuth 2.0 specification:
 4. **Session State Management**: Complex due to multiple OAuth providers in chain
 5. **Provider-Specific Patterns**: Each provider has slight variations but follows OAuth 2.0 spec
 
+* MCP Specification Compliance Checklist
+
+** OAuth 2.1 Requirements
+- [X] OAuth 2.0 Authorization Server Metadata (/.well-known/oauth-authorization-server)
+- [X] Dynamic Client Registration (/register endpoint)
+- [X] PKCE Support (code_challenge, code_challenge_method)
+- [X] HTTPS for all endpoints (via Cloudflare Workers)
+- [X] Bearer token authentication
+- [X] 401 Unauthorized responses for missing tokens
+- [ ] Resource parameter validation in token requests
+- [ ] Token audience validation
+- [ ] Refresh token support
+
+** Streamable HTTP Transport Requirements
+- [X] HTTP POST support for JSON-RPC
+- [X] Server-Sent Events (SSE) support
+- [X] Single endpoint path (/v1/sse)
+- [X] Accept headers handling (application/json, text/event-stream)
+- [X] JSON-RPC message format
+- [ ] 202 Accepted for notifications
+- [ ] Mcp-Session-Id header support
+- [ ] Origin header validation
+
+** Security Compliance
+- [X] HTTPS only (enforced by Cloudflare)
+- [X] PKCE implementation
+- [X] Secure session cookies (HttpOnly, Secure, SameSite=None)
+- [ ] Short-lived access tokens (currently 1 hour)
+- [ ] Token audience validation
+- [ ] Rate limiting
+
 * Next Steps
 
 1. Monitor Claude.ai connection attempts in production logs
-2. Implement refresh token support if needed
-3. Consider implementing Cloudflare Access integration as alternative to GitHub OAuth
-4. Add metrics for OAuth flow completion rates
+2. Implement missing MCP specification requirements:
+   - Resource parameter validation
+   - Token audience validation
+   - 202 Accepted responses for notifications
+   - Mcp-Session-Id header support
+3. Add refresh token support per OAuth 2.1
+4. Implement Origin header validation for security
+5. Add metrics for OAuth flow completion rates
+
+* Official MCP Specification Requirements
+
+** Authorization (Per MCP Specification 2025-06-18)
+Source: [[https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization][MCP Authorization Specification]]
+
+*** Core Requirements
+- Authorization is *optional* for MCP implementations
+- Must follow OAuth 2.1 draft specification
+- Support for HTTP-based transports required
+
+*** OAuth 2.1 Compliance
+1. *Dynamic Client Registration*: Servers must support client registration
+2. *OAuth 2.0 Authorization Server Metadata*: Discovery endpoint required
+3. *Resource Parameter*: Explicit resource parameter in token requests
+4. *PKCE*: Proof Key for Code Exchange is mandatory
+
+*** Security Requirements
+- HTTPS for all endpoints
+- Short-lived access tokens recommended
+- Tokens must be validated by resource servers
+- Prevent token passthrough between services
+- Validate token audiences
+
+*** Error Responses
+- ~401 Unauthorized~: Missing or invalid token
+- ~403 Forbidden~: Insufficient permissions
+- ~400 Bad Request~: Malformed authorization request
+
+** Streamable HTTP Transport (Per MCP Specification 2025-06-18)
+Source: [[https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http][MCP Streamable HTTP Transport]]
+
+*** Key Characteristics
+- Uses HTTP POST and GET requests
+- Server-Sent Events (SSE) for streaming messages
+- Single HTTP endpoint path required
+
+*** Message Flow
+1. *Client Requests*:
+   - HTTP POST for JSON-RPC messages
+   - Include ~Accept: application/json, text/event-stream~ headers
+   - Send valid JSON-RPC requests/notifications/responses
+
+2. *Server Responses*:
+   - For responses/notifications: Return ~202 Accepted~
+   - For requests: Return SSE stream or JSON response
+   - SSE stream must eventually include JSON-RPC response
+   - May send additional requests/notifications
+
+*** SSE Format
+#+BEGIN_SRC
+data: {"jsonrpc":"2.0","method":"tools/list","id":1}
+
+data: {"jsonrpc":"2.0","id":1,"result":{"tools":[...]}}
+#+END_SRC
+
+*** Security Warnings
+- Validate ~Origin~ header
+- Bind locally to prevent network vulnerabilities
+- Implement proper authentication
+- Support ~Mcp-Session-Id~ header for session management
 
 * References
 
 - [[https://docs.anthropic.com/en/docs/agents-and-tools/remote-mcp-servers][Anthropic Remote MCP Servers Documentation]]
+- [[https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization][MCP Authorization Specification]]
+- [[https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http][MCP Streamable HTTP Transport]]
+- [[https://vercel.com/docs/mcp/vercel-mcp][Vercel MCP Documentation]]
 - [[https://datatracker.ietf.org/doc/html/rfc6749][OAuth 2.0 RFC 6749]]
 - [[https://datatracker.ietf.org/doc/html/rfc7636][PKCE RFC 7636]]
 - [[https://developers.cloudflare.com/agents/model-context-protocol/][Cloudflare MCP Documentation]]
