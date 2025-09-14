@@ -745,6 +745,57 @@ export default {
         }
         break;
 
+      case '/.well-known/oauth-authorization-server':
+        // OAuth discovery endpoint for Claude.ai
+        return new Response(JSON.stringify({
+          issuer: url.origin,
+          authorization_endpoint: `${url.origin}/authorize`,
+          token_endpoint: `${url.origin}/token`,
+          registration_endpoint: `${url.origin}/register`,
+          response_types_supported: ['code'],
+          response_modes_supported: ['query'],
+          grant_types_supported: ['authorization_code', 'refresh_token'],
+          token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post', 'none'],
+          revocation_endpoint: `${url.origin}/token`,
+          code_challenge_methods_supported: ['plain', 'S256']
+        }), {
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        });
+
+      case '/oauth/authorize':
+        // Alias for /authorize to match Cloudflare's pattern
+        request = new Request(url.origin + '/authorize' + url.search, request);
+        path = '/authorize';
+        continue;
+
+      case '/register':
+        // OAuth client registration endpoint
+        // For now, auto-approve all registrations
+        if (request.method !== 'POST') {
+          return new Response('Method not allowed', { status: 405 });
+        }
+
+        const clientId = crypto.randomUUID();
+        const clientSecret = crypto.randomUUID();
+
+        return new Response(JSON.stringify({
+          client_id: clientId,
+          client_secret: clientSecret,
+          client_id_issued_at: Math.floor(Date.now() / 1000),
+          grant_types: ['authorization_code', 'refresh_token'],
+          response_types: ['code'],
+          token_endpoint_auth_method: 'client_secret_basic'
+        }), {
+          status: 201,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        });
+
       case '/token':
         // OAuth token endpoint for Claude.ai
         if (request.method !== 'POST') {
