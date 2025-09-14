@@ -1,0 +1,93 @@
+---
+title: Guile ChangeFlow Multi-Agent Development System
+---
+
+%%{init: {'theme':'dark', 'themeVariables': { 'primaryColor':'#1e40af', 'primaryTextColor':'#fff', 'primaryBorderColor':'#7cb342', 'lineColor':'#f6d32d', 'secondaryColor':'#4fc3f7', 'tertiaryColor':'#fff59d'}}}%%
+
+flowchart TB
+    subgraph "Meta-Observation Layer"
+        H[👤 Human Observers]
+        K[📱 Keybase Alerts]
+        S[📊 Status Reports]
+    end
+
+    subgraph "Automation Layer"
+        C[⏰ Cron Scheduler<br/>*/15 * * * *]
+        MS[🔧 Monitor Script<br/>coordinator-monitor.sh]
+    end
+
+    subgraph "Coordination Layer"
+        MC[🤖 Meta-Coordinator Agent<br/>gcf-coordinator<br/>1562 messages]
+        PD[📈 Python Dashboard<br/>agent_monitor.py]
+        TM[🖥️ Tmux Automation]
+    end
+
+    subgraph "Development Agents"
+        A1[🏗️ Agent 1: Core Models<br/>gcf-a1 / 41 msgs<br/>SRFI-9 records]
+        A2[🌐 Agent 2: MCP Server<br/>gcf-a2 / 50 msgs<br/>JSON-RPC 2.0]
+        A3[⚡ Agent 3: Risk Engine<br/>gcf-a3 / 50 msgs<br/>0-100 scoring]
+        A4[🎨 Agent 4: Web Interface<br/>gcf-a4 / 55 msgs<br/>Port 8080]
+        A5[🔗 Agent 5: Integrations<br/>gcf-a5 / 39 msgs<br/>GitHub/Slack]
+    end
+
+    subgraph "Code Layer"
+        W1[📁 gcf-core-models<br/>3 .scm files]
+        W2[📁 gcf-mcp-server<br/>4 .scm files]
+        W3[📁 gcf-risk-engine<br/>3 .scm files]
+        W4[📁 gcf-web-interface<br/>2 .scm files]
+        W5[📁 gcf-integrations<br/>3 .scm files]
+    end
+
+    subgraph "Infrastructure"
+        GIT[🔀 Git Worktrees<br/>5 branches]
+        CI[🔄 GitHub Actions]
+        CF[☁️ Cloudflare Workers]
+    end
+
+    H -->|Strategic Oversight| S
+    S -->|Review| H
+    K -->|Critical Alerts| H
+
+    C -->|Every 15min| MS
+    MS -->|Prompts| MC
+    MS -->|Logs| K
+
+    MC -->|Monitors via| PD
+    PD -->|Analyzes| TM
+    TM -->|Controls| A1 & A2 & A3 & A4 & A5
+
+    MC -->|Guidance| A1
+    MC -->|Guidance| A2
+    MC -->|Guidance| A3
+    MC -->|Guidance| A4
+    MC -->|Guidance| A5
+
+    A1 -->|Creates| W1
+    A2 -->|Creates| W2
+    A3 -->|Creates| W3
+    A4 -->|Creates| W4
+    A5 -->|Creates| W5
+
+    W1 & W2 & W3 & W4 & W5 -->|Commits| GIT
+    GIT -->|Triggers| CI
+    CI -->|Deploys| CF
+
+    %% Integration Dependencies
+    A2 -.->|Imports models| A1
+    A4 -.->|Uses risk scores| A3
+    A4 -.->|Displays changes| A1
+    A5 -.->|Monitors states| A1
+
+    classDef human fill:#1e40af,stroke:#fff,stroke-width:2px,color:#fff
+    classDef automation fill:#4fc3f7,stroke:#fff,stroke-width:2px,color:#000
+    classDef coordinator fill:#7cb342,stroke:#fff,stroke-width:3px,color:#fff
+    classDef agent fill:#ff9800,stroke:#fff,stroke-width:2px,color:#fff
+    classDef code fill:#9c27b0,stroke:#fff,stroke-width:2px,color:#fff
+    classDef infra fill:#607d8b,stroke:#fff,stroke-width:2px,color:#fff
+
+    class H,K,S human
+    class C,MS automation
+    class MC,PD,TM coordinator
+    class A1,A2,A3,A4,A5 agent
+    class W1,W2,W3,W4,W5 code
+    class GIT,CI,CF infra
