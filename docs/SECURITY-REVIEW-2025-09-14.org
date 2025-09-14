@@ -1,0 +1,228 @@
+#+TITLE: Security Review - OAuth Implementation
+#+DATE: 2025-09-14
+#+AUTHOR: Security Review Team
+#+PRIORITY: CRITICAL
+
+* Executive Summary
+
+Security review identified *CRITICAL VULNERABILITIES* in the OAuth 2.0 implementation that must be addressed before production use. The implementation lacks essential security controls required for OAuth 2.1 compliance and MCP specification adherence.
+
+*VERDICT: NOT PRODUCTION READY*
+
+* Critical Vulnerabilities (MUST FIX)
+
+** CVE-1: Missing PKCE Validation [CRITICAL]
+*** Issue
+- PKCE parameters accepted but *NEVER VALIDATED*
+- Lines 232-236: Parameters stored in state but not verified
+- Authorization code interception attacks possible
+
+*** Impact
+- Authorization code can be intercepted and replayed
+- Mobile/SPA applications vulnerable to code injection
+- Violates MCP mandatory PKCE requirement
+
+*** Fix Required
+#+BEGIN_SRC javascript
+// Add in token exchange
+async function verifyPKCE(verifier, challenge, method) {
+  if (method === 'S256') {
+    const hash = await crypto.subtle.digest('SHA-256',
+      new TextEncoder().encode(verifier));
+    const computed = btoa(String.fromCharCode(...new Uint8Array(hash)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    return computed === challenge;
+  }
+  return verifier === challenge; // plain
+}
+#+END_SRC
+
+** CVE-2: Insecure State Parameter [CRITICAL]
+*** Issue
+- No cryptographic signature on state
+- No timestamp validation (accepts expired state)
+- Base64 encoding is reversible, not secure
+- State reuse possible
+
+*** Impact
+- CSRF attacks possible
+- Session fixation vulnerability
+- State manipulation attacks
+
+*** Fix Required
+#+BEGIN_SRC javascript
+// Generate secure state with HMAC
+async function generateSecureState(data, secret) {
+  const stateData = JSON.stringify({
+    ...data,
+    timestamp: Date.now(),
+    nonce: crypto.randomUUID()
+  });
+  const signature = await crypto.subtle.sign('HMAC', secret,
+    new TextEncoder().encode(stateData));
+  return btoa(stateData + '.' + btoa(signature));
+}
+
+// Validate with 5-minute expiry
+if (Date.now() - stateData.timestamp > 300000) {
+  throw new Error('State expired');
+}
+#+END_SRC
+
+** CVE-3: Missing Redirect URI Validation [CRITICAL]
+*** Issue
+- No validation against allowed redirect URIs
+- Open redirect vulnerability
+- Token theft via malicious redirects
+
+*** Impact
+- Authorization codes can be stolen
+- Users redirected to attacker-controlled sites
+- Token leakage to unauthorized parties
+
+*** Fix Required
+#+BEGIN_SRC javascript
+const ALLOWED_REDIRECT_URIS = [
+  'https://claude.ai/api/mcp/auth_callback',
+  'https://claude.anthropic.com/api/mcp/auth_callback'
+];
+
+if (!ALLOWED_REDIRECT_URIS.includes(redirectUri)) {
+  return new Response('Invalid redirect_uri', { status: 400 });
+}
+#+END_SRC
+
+** CVE-4: Weak Session Management [HIGH]
+*** Issue
+- Session ID is predictable UUID
+- No session validation mechanism
+- No session expiry enforcement
+- Session fixation possible
+
+*** Impact
+- Session hijacking
+- Session replay attacks
+- Persistent unauthorized access
+
+*** Fix Required
+- Implement session storage with validation
+- Add session expiry (1 hour max)
+- Use cryptographically secure session tokens
+- Implement session rotation on privilege changes
+
+* High Priority Issues
+
+** Token Handling Vulnerabilities
+- GitHub access tokens not validated
+- No audience validation (MCP requirement)
+- Bearer tokens generated without validation
+- No token scope enforcement
+
+** CORS Configuration
+- Overly permissive CORS headers
+- No subdomain validation for claude.ai
+- Missing preflight validation
+
+** Input Validation
+- response_type not restricted to 'code'
+- grant_type validation incomplete
+- Client ID format not validated
+- Scope parameter unchecked
+
+* Medium Priority Issues
+
+** Information Disclosure
+- Error messages may leak system state
+- Stack traces visible in errors
+- Internal paths exposed
+
+** Missing Security Controls
+- No rate limiting on OAuth endpoints
+- No security event logging
+- No brute force protection
+- No anomaly detection
+
+* MCP Specification Violations
+
+| Requirement | Status | Severity |
+|-------------+--------+----------|
+| PKCE Support | ❌ BROKEN | CRITICAL |
+| Token Audience Validation | ❌ MISSING | HIGH |
+| Redirect URI Exact Match | ❌ MISSING | CRITICAL |
+| Token Passthrough Prevention | ❌ MISSING | HIGH |
+| Dynamic Client Registration | ⚠️ TOO PERMISSIVE | MEDIUM |
+| Short-lived Tokens | ⚠️ 1 HOUR | MEDIUM |
+
+* Immediate Action Plan
+
+** Phase 1: Critical Fixes (Do Now)
+1. [ ] Implement PKCE validation
+2. [ ] Add secure state handling with HMAC
+3. [ ] Implement redirect URI allowlist
+4. [ ] Fix session security
+
+** Phase 2: High Priority (This Week)
+1. [ ] Add comprehensive input validation
+2. [ ] Implement token audience validation
+3. [ ] Add security logging
+4. [ ] Implement rate limiting
+
+** Phase 3: Medium Priority (Next Sprint)
+1. [ ] Improve error handling
+2. [ ] Add security headers
+3. [ ] Implement token encryption
+4. [ ] Add monitoring/alerting
+
+* Security Testing Required
+
+Before production deployment:
+1. Penetration testing of OAuth flows
+2. OWASP Top 10 validation
+3. OAuth-specific security testing
+4. Code security audit
+5. Dependency vulnerability scan
+
+* Recommended Security Libraries
+
+Consider using established OAuth libraries:
+- [[https://github.com/panva/jose][jose]] - JWT/JWE/JWS implementation
+- [[https://github.com/node-oauth/node-oauth2-server][oauth2-server]] - OAuth 2.0 server
+- [[https://github.com/cloudflare/workers-oauth-providers][workers-oauth-providers]] - Cloudflare OAuth
+
+* Compliance Status
+
+** OAuth 2.1 Draft Compliance: *20%*
+- Missing: PKCE, exact redirect URI match, refresh tokens
+- Partial: Token handling, client registration
+- Complete: Basic authorization flow
+
+** MCP Specification Compliance: *30%*
+- Missing: Most security requirements
+- Partial: SSE transport, discovery endpoint
+- Complete: Basic protocol structure
+
+* Risk Assessment
+
+| Risk | Likelihood | Impact | Priority |
+|------+-----------+--------+----------|
+| Code Interception | HIGH | CRITICAL | P0 |
+| CSRF Attack | HIGH | HIGH | P0 |
+| Open Redirect | HIGH | HIGH | P0 |
+| Session Hijack | MEDIUM | HIGH | P1 |
+| Token Leakage | MEDIUM | CRITICAL | P1 |
+| DoS Attack | HIGH | MEDIUM | P2 |
+
+* Conclusion
+
+The current implementation is a *prototype* suitable for development testing only. It requires significant security hardening before any production use. The identified vulnerabilities pose serious risks to user data and system integrity.
+
+*RECOMMENDATION: DO NOT DEPLOY TO PRODUCTION*
+
+Continue development with security fixes as top priority. Consider engaging a security consultant for implementation review and penetration testing before production deployment.
+
+* References
+
+- [[https://oauth.net/2.1/][OAuth 2.1 Specification]]
+- [[https://datatracker.ietf.org/doc/html/rfc7636][PKCE RFC 7636]]
+- [[https://cheatsheetseries.owasp.org/cheatsheets/OAuth2_Cheat_Sheet.html][OWASP OAuth 2.0 Security Cheat Sheet]]
+- [[https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization][MCP Authorization Specification]]
