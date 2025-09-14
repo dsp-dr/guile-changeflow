@@ -17,9 +17,9 @@ LOG_LEVEL = "info"
 [observability]
 enabled = true
 
-# Sampling configuration for logs
-[[analytics_engine_datasets]]
-binding = "AE"
+# Sampling configuration for logs (needs to be enabled in dashboard)
+# [[analytics_engine_datasets]]
+# binding = "AE"
 
 # For future KV storage
 # [[kv_namespaces]]
