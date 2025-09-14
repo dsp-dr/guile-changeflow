@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guile ChangeFlow - Change Management Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .changes-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .change-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border-left: 5px solid #ddd;
+            transition: all 0.3s;
+        }
+
+        .change-card.risk-low {
+            border-left-color: #4ade80;
+        }
+
+        .change-card.risk-medium {
+            border-left-color: #fbbf24;
+        }
+
+        .change-card.risk-high {
+            border-left-color: #f87171;
+        }
+
+        .change-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .change-id {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 0.9em;
+        }
+
+        .change-title {
+            font-size: 1.3em;
+            color: #333;
+            margin: 10px 0;
+        }
+
+        .change-description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .change-meta {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+            display: inline-block;
+        }
+
+        .badge-status {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+
+        .badge-risk {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .badge-risk.low {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .badge-risk.medium {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .badge-urgency {
+            background: #fce7f3;
+            color: #be185d;
+        }
+
+        .badge-system {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+
+        .risk-score {
+            font-size: 1.8em;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            min-width: 80px;
+        }
+
+        .risk-score.low {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .risk-score.medium {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .risk-score.high {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            padding: 50px;
+        }
+
+        .refresh-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pulse {
+            width: 10px;
+            height: 10px;
+            background: #4ade80;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(1.2);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .empty-state {
+            background: white;
+            border-radius: 12px;
+            padding: 50px;
+            text-align: center;
+            color: #666;
+        }
+
+        .timestamp {
+            color: #999;
+            font-size: 0.85em;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="refresh-indicator">
+        <div class="pulse"></div>
+        <span>Live Updates</span>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>🚀 Guile ChangeFlow</h1>
+            <p class="subtitle">ITIL 4-Compliant Change Management System with AI Risk Assessment</p>
+        </header>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="total-changes">0</div>
+                <div class="stat-label">Total Changes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="high-risk" style="color: #dc2626;">0</div>
+                <div class="stat-label">High Risk</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="medium-risk" style="color: #d97706;">0</div>
+                <div class="stat-label">Medium Risk</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="low-risk" style="color: #16a34a;">0</div>
+                <div class="stat-label">Low Risk</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="approved" style="color: #4338ca;">0</div>
+                <div class="stat-label">Approved</div>
+            </div>
+        </div>
+
+        <div class="changes-grid" id="changes-grid">
+            <div class="loading">Loading changes...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://api.changeflow.us';
+        let lastUpdate = null;
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (minutes < 1) return 'Just now';
+            if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+            if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+            return `${days} day${days > 1 ? 's' : ''} ago`;
+        }
+
+        function renderChange(change) {
+            const riskClass = `risk-${change.risk_category}`;
+            const systems = change.systems.map(s => `<span class="badge badge-system">${s}</span>`).join(' ');
+
+            return `
+                <div class="change-card ${riskClass}">
+                    <div class="change-header">
+                        <div>
+                            <div class="change-id">${change.id}</div>
+                            <div class="change-title">${change.title}</div>
+                        </div>
+                        <div class="risk-score ${change.risk_category}">
+                            ${change.risk_score}
+                        </div>
+                    </div>
+                    <div class="change-description">${change.description}</div>
+                    <div class="change-meta">
+                        <span class="badge badge-status">${change.status}</span>
+                        <span class="badge badge-risk ${change.risk_category}">${change.risk_category} risk</span>
+                        <span class="badge badge-urgency">${change.urgency}</span>
+                        ${systems}
+                    </div>
+                    <div class="timestamp">Created ${formatDate(change.created_at)}</div>
+                    ${change.approved_at ? `<div class="timestamp">✅ ${change.approval_note || 'Approved'}</div>` : ''}
+                </div>
+            `;
+        }
+
+        async function fetchChanges() {
+            try {
+                const response = await fetch(`${API_URL}/api/changes`);
+                const changes = await response.json();
+
+                // Sort by creation date (newest first)
+                changes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                // Update stats
+                document.getElementById('total-changes').textContent = changes.length;
+                document.getElementById('high-risk').textContent = changes.filter(c => c.risk_category === 'high').length;
+                document.getElementById('medium-risk').textContent = changes.filter(c => c.risk_category === 'medium').length;
+                document.getElementById('low-risk').textContent = changes.filter(c => c.risk_category === 'low').length;
+                document.getElementById('approved').textContent = changes.filter(c => c.status === 'approved').length;
+
+                // Render changes
+                const grid = document.getElementById('changes-grid');
+                if (changes.length === 0) {
+                    grid.innerHTML = `
+                        <div class="empty-state">
+                            <h2>No changes yet</h2>
+                            <p>Changes will appear here when created through Claude AI or the API</p>
+                        </div>
+                    `;
+                } else {
+                    grid.innerHTML = changes.map(renderChange).join('');
+                }
+
+                lastUpdate = new Date();
+            } catch (error) {
+                console.error('Error fetching changes:', error);
+                document.getElementById('changes-grid').innerHTML = `
+                    <div class="empty-state">
+                        <h2>Unable to load changes</h2>
+                        <p>Please check the API connection</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Initial load
+        fetchChanges();
+
+        // Refresh every 2 seconds
+        setInterval(fetchChanges, 2000);
+
+        // Create some demo changes for testing
+        async function createDemoChange(title, description, systems, urgency) {
+            try {
+                await fetch(`${API_URL}/api/changes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, description, systems, urgency })
+                });
+            } catch (error) {
+                console.error('Error creating demo change:', error);
+            }
+        }
+
+        // Create demo changes on first load (comment out for production)
+        /*
+        setTimeout(() => {
+            createDemoChange(
+                'Update API documentation',
+                'Add new endpoints to the API documentation',
+                ['docs'],
+                'low'
+            );
+        }, 1000);
+
+        setTimeout(() => {
+            createDemoChange(
+                'Deploy new feature to staging',
+                'Deploy user profile feature to staging environment for testing',
+                ['staging', 'api', 'frontend'],
+                'normal'
+            );
+        }, 2000);
+
+        setTimeout(() => {
+            createDemoChange(
+                'Security patch for production authentication',
+                'Critical security update for the production authentication system to fix vulnerability',
+                ['production', 'auth', 'api'],
+                'emergency'
+            );
+        }, 3000);
+        */
+    </script>
+</body>
+</html>
