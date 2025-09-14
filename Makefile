@@ -34,6 +34,8 @@ help:
 	@echo "  ci-runs   - List all recent workflow runs"
 	@echo "  ci-branch-sync - Trigger branch sync check"
 	@echo "  ci-fix    - Show common CI fixes"
+	@echo "  clear-queue - Clear stuck GitHub Actions queue"
+	@echo "  clear-deploy - Clear queue and trigger deployment"
 	@echo ""
 	@echo "GitHub:"
 	@echo "  issues    - List GitHub issues"
@@ -325,6 +327,14 @@ deploy-production: build
 	@${MAKE} -C infra/cloudflare deploy-production
 	@echo "✅ Production deployment complete"
 
+# Clear GitHub Actions queue
+clear-queue:
+	@bash scripts/clear-gh-queue.sh
+
+# Clear queue and deploy
+clear-deploy:
+	@bash scripts/clear-gh-queue.sh --deploy
+
 # Production sanity check
 check-prod:
 	@echo "=== Production Sanity Check ==="
@@ -353,3 +363,28 @@ oauth-deploy:
 oauth-test:
 	@echo "=== Testing OAuth Locally ==="
 	@${MAKE} -C experiments/011-mcp-oauth-routes test
+
+# Emergency Controls (SPECULATIVE - NOT TESTED)
+# ⚠️ WARNING: These commands will affect production!
+emergency-shutdown:
+	@echo "⚠️ EMERGENCY SHUTDOWN (SPECULATIVE COMMAND)"
+	@echo "This would disable all Cloudflare Workers routes"
+	@echo "Command (DO NOT RUN): wrangler dispatch-namespace disable"
+	@echo "See issue #20 for implementation details"
+
+emergency-maintenance:
+	@echo "🔧 MAINTENANCE MODE (SPECULATIVE COMMAND)"
+	@echo "This would deploy a maintenance worker"
+	@echo "Command (DO NOT RUN): wrangler deploy infra/cloudflare/maintenance-worker.js"
+	@echo "See issue #20 for implementation details"
+
+emergency-restore:
+	@echo "✅ RESTORE SERVICE (SPECULATIVE COMMAND)"
+	@echo "This would restore normal operations"
+	@echo "Command (DO NOT RUN): gmake deploy-production"
+	@echo "See issue #20 for implementation details"
+
+emergency-status:
+	@echo "📊 CHECK EMERGENCY STATUS"
+	@echo "Current production status:"
+	@gmake check-prod
