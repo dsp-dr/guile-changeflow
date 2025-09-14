@@ -9,11 +9,11 @@ account_id = "" # Will be filled in during deployment
 # routes = []
 
 # Environment variables (if needed)
-# WARNING: These override Cloudflare dashboard values on deployment!
+# IMPORTANT: These will override dashboard values on deployment!
 [vars]
 ENVIRONMENT = "production"
 LOG_LEVEL = "info"
-GITHUB_CLIENT_ID = "Ov23lir2JJgJffb51RPs"
+GITHUB_CLIENT_ID = "{{GITHUB_CLIENT_ID}}"  # Replace with: Ov23lir2JJgJffb51RPs
 
 # Workers Logs configuration
 [observability]
@@ -37,4 +37,4 @@ enabled = true
 # Staging settings (use with: wrangler deploy --env staging)
 [env.staging]
 name = "guile-changeflow-staging"
-vars = { ENVIRONMENT = "staging", LOG_LEVEL = "info" }
+vars = { ENVIRONMENT = "staging", LOG_LEVEL = "info", GITHUB_CLIENT_ID = "{{GITHUB_CLIENT_ID}}" }

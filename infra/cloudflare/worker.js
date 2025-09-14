@@ -130,13 +130,12 @@ export default {
 
       case '/authorize':
         // OAuth Step 1: Redirect to GitHub
-        const clientId = env.GITHUB_CLIENT_ID || 'Ov23lir2JJgJffb51RPs';
-        if (!clientId) {
-          return new Response('OAuth not configured', { status: 500 });
+        if (!env.GITHUB_CLIENT_ID) {
+          return new Response('OAuth not configured - GITHUB_CLIENT_ID missing', { status: 500 });
         }
 
         const authParams = new URLSearchParams({
-          client_id: clientId,
+          client_id: env.GITHUB_CLIENT_ID,
           redirect_uri: `${url.origin}/callback`,
           scope: 'read:user',
           state: crypto.randomUUID()
@@ -148,7 +147,6 @@ export default {
         // OAuth Step 2: Handle GitHub callback
         const code = url.searchParams.get('code');
         const state = url.searchParams.get('state');
-        const callbackClientId = env.GITHUB_CLIENT_ID || 'Ov23lir2JJgJffb51RPs';
 
         if (!code) {
           return new Response(ERROR_HTML, {
@@ -166,7 +164,7 @@ export default {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              client_id: callbackClientId,
+              client_id: env.GITHUB_CLIENT_ID,
               client_secret: env.GITHUB_CLIENT_SECRET,
               code: code
             })
