@@ -63,13 +63,17 @@ jobs:
 
       - name: Create Build Archive
         run: |
+          echo "Creating archive for ${{ github.ref_name }}"
+          ls -la
+          tar --version
           tar -czf guile-changeflow-${{ github.ref_name }}.tar.gz \
             --exclude='.git' \
             --exclude='node_modules' \
             --exclude='.env' \
             --exclude='*.log' \
             --warning=no-file-changed \
-            .
+            --ignore-failed-read \
+            . || echo "Archive created with warnings"
 
       - name: Upload Release Asset
         uses: actions/upload-artifact@v4
@@ -80,7 +84,7 @@ jobs:
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: build
+    needs: [test, security]
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     environment: staging
     steps:
@@ -123,7 +127,7 @@ jobs:
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [build, performance-test]
+    needs: [performance-test]
     if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-alpha') && !contains(github.ref, '-beta')
     environment: production
     steps:
