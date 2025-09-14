@@ -1,1410 +1,533 @@
 /**
- * Guile ChangeFlow - Production Cloudflare Worker
- * Enterprise-Grade MCP Protocol Implementation
- * Battle-tested for 7 AM Executive Demonstrations
+ * MCP Protocol Implementation for Cloudflare Worker
+ * POC for 7 AM Demo
+ * 
+ * TODO for collaborator:
+ * 1. Replace skeleton responses with real MCP handlers
+ * 2. Implement all 8 ITIL tools
+ * 3. Add proper error handling
+ * 4. Test with scripts/test-endpoints.sh
  */
 
-// =============================================================================
-// PRODUCTION CONFIGURATION
-// =============================================================================
+// MCP Protocol Version
+const PROTOCOL_VERSION = '2024-11-05';
 
-const WORKER_VERSION = '1.0.0';
-const MCP_PROTOCOL_VERSION = '2024-11-05';
-const UPTIME_SLA = 99.97; // 99.97% uptime guarantee
-
-// Environment Configuration
-const CONFIG = {
-    // Database Configuration
-    DATABASE: {
-        url: process.env.DATABASE_URL || 'sqlite:///data/changeflow.db',
-        maxConnections: 50,
-        connectionTimeout: 5000,
-        queryTimeout: 10000
-    },
-
-    // MCP Server Configuration
-    MCP: {
-        serverName: 'guile-changeflow',
-        version: MCP_PROTOCOL_VERSION,
-        protocolVersion: '2024-11-05',
-        capabilities: {
-            logging: {},
-            prompts: {},
-            resources: {},
-            tools: {}
-        }
-    },
-
-    // Performance Thresholds
-    PERFORMANCE: {
-        responseTimeTarget: 100, // milliseconds
-        errorRateThreshold: 0.01, // 1% error rate
-        throughputTarget: 10000, // requests per minute
-        memoryLimit: 128 * 1024 * 1024 // 128MB
-    },
-
-    // Security Configuration
-    SECURITY: {
-        rateLimitWindow: 60000, // 1 minute
-        maxRequestsPerWindow: 1000,
-        allowedOrigins: [
-            'https://changeflow.enterprise.com',
-            'https://admin.changeflow.com'
-        ],
-        jwtSecret: process.env.JWT_SECRET
-    },
-
-    // Monitoring & Alerting
-    MONITORING: {
-        metricsEndpoint: '/metrics',
-        healthCheckEndpoint: '/health',
-        alertThresholds: {
-            errorRate: 0.05,
-            responseTime: 500,
-            memoryUsage: 0.85
-        }
+// Available ITIL Tools
+const TOOLS = [
+  {
+    name: 'create_change_request',
+    description: 'Create a new ITIL change request',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        description: { type: 'string' },
+        risk_level: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
+        environment: { type: 'string', enum: ['dev', 'test', 'staging', 'production'] }
+      },
+      required: ['title', 'description', 'risk_level', 'environment']
     }
-};
-
-// =============================================================================
-// GLOBAL STATE & METRICS
-// =============================================================================
-
-let globalMetrics = {
-    startTime: Date.now(),
-    requestCount: 0,
-    errorCount: 0,
-    totalResponseTime: 0,
-    activeConnections: 0,
-    lastHealthCheck: Date.now(),
-    cacheHitRate: 0,
-    databaseConnections: 0,
-    mcpMessages: {
-        sent: 0,
-        received: 0,
-        errors: 0
+  },
+  {
+    name: 'assess_change_risk',
+    description: 'Assess risk score for a change',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        change_type: { type: 'string' },
+        environment: { type: 'string' },
+        components_affected: { type: 'number' },
+        has_rollback: { type: 'boolean' },
+        tested_in_staging: { type: 'boolean' }
+      },
+      required: ['change_type', 'environment']
     }
-};
-
-// Real-time change management state
-let changeManagementState = {
-    activeChanges: new Map(),
-    pendingApprovals: new Map(),
-    riskAssessments: new Map(),
-    cabMembers: new Map(),
-    metrics: {
-        changesProcessedToday: 0,
-        avgApprovalTime: 45, // minutes
-        systemAvailability: 99.97,
-        complianceScore: 96
+  },
+  {
+    name: 'check_freeze_period',
+    description: 'Check if a change window falls within a freeze period',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        planned_start: { type: 'string', format: 'date-time' },
+        planned_end: { type: 'string', format: 'date-time' },
+        environment: { type: 'string', enum: ['dev', 'test', 'staging', 'production'] }
+      },
+      required: ['planned_start', 'planned_end', 'environment']
     }
-};
-
-// =============================================================================
-// CLOUDFLARE WORKERS LOGS INTEGRATION
-// =============================================================================
-
-class StructuredLogger {
-    constructor() {
-        this.correlationId = null;
-        this.sampleRate = 0.1; // 10% sampling for routine operations
-        this.criticalEvents = new Set([
-            'error', 'exception', 'critical_failure',
-            'cab_approval', 'emergency_change', 'security_violation',
-            'compliance_violation', 'sla_breach', 'change_rollback'
-        ]);
+  },
+  {
+    name: 'get_cab_members',
+    description: 'Get Change Advisory Board members for approval workflow',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        risk_level: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
+        environment: { type: 'string', enum: ['dev', 'test', 'staging', 'production'] }
+      },
+      required: ['risk_level']
     }
-
-    // Generate unique correlation ID for request tracking
-    generateCorrelationId() {
-        return `cf-${Date.now()}-${Math.random().toString(36).substring(2, 12)}`;
+  },
+  {
+    name: 'schedule_change',
+    description: 'Schedule a change request for execution',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        change_id: { type: 'string' },
+        scheduled_start: { type: 'string', format: 'date-time' },
+        scheduled_end: { type: 'string', format: 'date-time' },
+        notification_contacts: { type: 'array', items: { type: 'string' } }
+      },
+      required: ['change_id', 'scheduled_start', 'scheduled_end']
     }
-
-    // Set correlation ID for request context
-    setCorrelationId(id) {
-        this.correlationId = id;
+  },
+  {
+    name: 'create_emergency_change',
+    description: 'Create an emergency change request with expedited approval',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        description: { type: 'string' },
+        justification: { type: 'string' },
+        impact: { type: 'string' },
+        environment: { type: 'string', enum: ['dev', 'test', 'staging', 'production'] },
+        requester: { type: 'string' }
+      },
+      required: ['title', 'description', 'justification', 'impact', 'environment', 'requester']
     }
-
-    // Check if event should be logged based on sampling strategy
-    shouldLog(eventType, level = 'info') {
-        // Always log critical events at 100%
-        if (this.criticalEvents.has(eventType) || level === 'error' || level === 'critical') {
-            return true;
-        }
-
-        // Apply head-based sampling for routine operations
-        return Math.random() < this.sampleRate;
+  },
+  {
+    name: 'get_change_metrics',
+    description: 'Get change management metrics and statistics',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        time_period: { type: 'string', enum: ['week', 'month', 'quarter'] },
+        environment: { type: 'string', enum: ['all', 'dev', 'test', 'staging', 'production'] },
+        metric_type: { type: 'string', enum: ['success_rate', 'rollback_rate', 'avg_duration', 'all'] }
+      },
+      required: ['time_period']
     }
-
-    // Core logging method with structured JSON format
-    log(level, eventType, message, metadata = {}) {
-        if (!this.shouldLog(eventType, level)) {
-            return;
-        }
-
-        const logEntry = {
-            timestamp: new Date().toISOString(),
-            level: level.toUpperCase(),
-            eventType: eventType,
-            message: message,
-            correlationId: this.correlationId || this.generateCorrelationId(),
-
-            // Worker context
-            worker: {
-                version: WORKER_VERSION,
-                environment: 'production',
-                ray: globalThis.CF_RAY || 'unknown'
-            },
-
-            // Performance metrics
-            performance: {
-                memoryUsed: this.getMemoryUsage(),
-                cpuTime: this.getCpuTime(),
-                timestamp: Date.now()
-            },
-
-            // Request context (if available)
-            request: metadata.request ? {
-                method: metadata.request.method,
-                url: metadata.request.url,
-                userAgent: metadata.request.headers?.get('User-Agent')?.substring(0, 200),
-                cfCountry: metadata.request.cf?.country,
-                cfDataCenter: metadata.request.cf?.colo
-            } : null,
-
-            // Change management context
-            change: metadata.changeId ? {
-                changeId: metadata.changeId,
-                type: metadata.changeType,
-                priority: metadata.priority,
-                riskScore: metadata.riskScore,
-                status: metadata.status
-            } : null,
-
-            // MCP protocol context
-            mcp: metadata.mcpMethod ? {
-                method: metadata.mcpMethod,
-                toolName: metadata.toolName,
-                protocolVersion: MCP_PROTOCOL_VERSION
-            } : null,
-
-            // Business metrics
-            business: {
-                responseTimeMs: metadata.responseTime,
-                success: metadata.success !== false,
-                errorCode: metadata.errorCode,
-                ...metadata.businessMetrics
-            },
-
-            // Additional metadata
-            metadata: {
-                ...metadata,
-                // Remove duplicated fields to avoid redundancy
-                request: undefined,
-                changeId: undefined,
-                changeType: undefined,
-                priority: undefined,
-                riskScore: undefined,
-                status: undefined,
-                mcpMethod: undefined,
-                toolName: undefined,
-                responseTime: undefined,
-                success: undefined,
-                errorCode: undefined,
-                businessMetrics: undefined
-            }
-        };
-
-        // Clean up undefined fields
-        this.cleanLogEntry(logEntry);
-
-        // Output to Workers Logs (captured by console.log)
-        console.log(JSON.stringify(logEntry));
+  },
+  {
+    name: 'generate_audit_report',
+    description: 'Generate compliance audit report for change management',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        report_type: { type: 'string', enum: ['compliance', 'risk_analysis', 'performance'] },
+        date_range: {
+          type: 'object',
+          properties: {
+            start: { type: 'string', format: 'date' },
+            end: { type: 'string', format: 'date' }
+          },
+          required: ['start', 'end']
+        },
+        include_details: { type: 'boolean' }
+      },
+      required: ['report_type', 'date_range']
     }
-
-    // Convenience methods for different log levels
-    info(eventType, message, metadata = {}) {
-        this.log('info', eventType, message, metadata);
-    }
-
-    warn(eventType, message, metadata = {}) {
-        this.log('warn', eventType, message, metadata);
-    }
-
-    error(eventType, message, metadata = {}) {
-        this.log('error', eventType, message, metadata);
-    }
-
-    critical(eventType, message, metadata = {}) {
-        this.log('critical', eventType, message, metadata);
-    }
-
-    // Log MCP tool calls with comprehensive context
-    logMCPToolCall(toolName, params, result, responseTime, success = true) {
-        const metadata = {
-            mcpMethod: 'tools/call',
-            toolName: toolName,
-            responseTime: responseTime,
-            success: success,
-            parameterCount: Object.keys(params || {}).length,
-            resultSize: JSON.stringify(result || {}).length
-        };
-
-        // Add change-specific context if available
-        if (params?.changeId) {
-            const change = changeManagementState.activeChanges.get(params.changeId);
-            if (change) {
-                metadata.changeId = params.changeId;
-                metadata.changeType = change.type;
-                metadata.priority = change.priority;
-                metadata.riskScore = change.riskScore;
-                metadata.status = change.status;
-            }
-        }
-
-        this.info('mcp_tool_call', `MCP tool ${toolName} executed`, metadata);
-    }
-
-    // Log change management events
-    logChangeEvent(eventType, changeId, message, metadata = {}) {
-        const change = changeManagementState.activeChanges.get(changeId);
-        const changeMetadata = {
-            ...metadata,
-            changeId: changeId,
-            changeType: change?.type,
-            priority: change?.priority,
-            riskScore: change?.riskScore,
-            status: change?.status,
-            businessMetrics: {
-                roi: this.calculateROI(change),
-                complianceScore: this.getComplianceScore(change),
-                downtimePrevented: this.calculateDowntimePrevented(change)
-            }
-        };
-
-        // Use appropriate log level based on event type
-        if (this.criticalEvents.has(eventType)) {
-            this.critical(eventType, message, changeMetadata);
-        } else {
-            this.info(eventType, message, changeMetadata);
-        }
-    }
-
-    // Log CAB approval events (always logged at 100%)
-    logCABApproval(changeId, approverId, decision, comments, metadata = {}) {
-        const change = changeManagementState.activeChanges.get(changeId);
-        const approver = changeManagementState.cabMembers.get(approverId);
-
-        this.critical('cab_approval', `CAB ${decision} for change ${changeId}`, {
-            ...metadata,
-            changeId: changeId,
-            approverId: approverId,
-            approverName: approver?.name,
-            decision: decision,
-            comments: comments,
-            changeType: change?.type,
-            riskScore: change?.riskScore,
-            slaCompliant: this.checkApprovalSLA(change),
-            businessMetrics: {
-                approvalTimeMinutes: this.calculateApprovalTime(change),
-                complianceRisk: this.assessComplianceRisk(change, decision)
-            }
-        });
-    }
-
-    // Log performance metrics for executive dashboard
-    logPerformanceMetrics() {
-        const metrics = {
-            requests: globalMetrics.requestCount,
-            errors: globalMetrics.errorCount,
-            avgResponseTime: Math.round(globalMetrics.totalResponseTime / Math.max(globalMetrics.requestCount, 1)),
-            activeConnections: globalMetrics.activeConnections,
-            changeMetrics: {
-                active: changeManagementState.activeChanges.size,
-                pending: changeManagementState.pendingApprovals.size,
-                processedToday: changeManagementState.metrics.changesProcessedToday,
-                avgApprovalTime: changeManagementState.metrics.avgApprovalTime,
-                complianceScore: changeManagementState.metrics.complianceScore
-            },
-            businessMetrics: {
-                uptimePercent: 99.97,
-                costSavings: 4700000, // $4.7M annually
-                roi: 1840, // 1,840%
-                downtimePrevented: 45672 // hours
-            }
-        };
-
-        this.info('performance_metrics', 'Real-time system performance update', {
-            businessMetrics: metrics
-        });
-    }
-
-    // Utility methods
-    getMemoryUsage() {
-        // Approximate memory usage (Workers don't have direct access to memory stats)
-        const objectCount = changeManagementState.activeChanges.size +
-                           changeManagementState.pendingApprovals.size +
-                           changeManagementState.cabMembers.size;
-        return Math.round((objectCount * 1024) / (1024 * 1024)) + 'MB';
-    }
-
-    getCpuTime() {
-        // Approximate CPU time based on request processing
-        return Math.round(globalMetrics.totalResponseTime / 1000) + 's';
-    }
-
-    calculateROI(change) {
-        if (!change) return 0;
-        const baseSavings = { 'critical': 50000, 'high': 25000, 'medium': 10000, 'low': 2500 };
-        return baseSavings[change.priority] || 10000;
-    }
-
-    getComplianceScore(change) {
-        if (!change) return 0;
-        // Calculate based on change type, approvals, and timing
-        let score = 100;
-        if (change.type === 'emergency') score -= 10;
-        if (change.approvals.length < 2) score -= 15;
-        if (change.riskScore > 80) score -= 20;
-        return Math.max(0, score);
-    }
-
-    calculateDowntimePrevented(change) {
-        if (!change) return 0;
-        const preventionHours = { 'critical': 168, 'high': 72, 'medium': 24, 'low': 4 };
-        return preventionHours[change.priority] || 24;
-    }
-
-    calculateApprovalTime(change) {
-        if (!change || !change.approvals.length) return 0;
-        const created = new Date(change.createdAt);
-        const lastApproval = new Date(change.approvals[change.approvals.length - 1].timestamp);
-        return Math.round((lastApproval - created) / (1000 * 60)); // minutes
-    }
-
-    assessComplianceRisk(change, decision) {
-        if (!change) return 'unknown';
-        if (decision === 'rejected') return 'low';
-        if (change.type === 'emergency' && change.riskScore > 90) return 'high';
-        if (change.approvals.length < 2) return 'medium';
-        return 'low';
-    }
-
-    checkApprovalSLA(change) {
-        if (!change) return false;
-        const created = new Date(change.createdAt);
-        const now = new Date();
-        const hoursSinceCreated = (now - created) / (1000 * 60 * 60);
-
-        const slaHours = {
-            'emergency': 1,
-            'critical': 4,
-            'high': 24,
-            'medium': 72,
-            'low': 168
-        };
-
-        return hoursSinceCreated <= (slaHours[change.priority] || 72);
-    }
-
-    // Clean undefined fields from log entry
-    cleanLogEntry(obj) {
-        Object.keys(obj).forEach(key => {
-            if (obj[key] === undefined || obj[key] === null) {
-                delete obj[key];
-            } else if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
-                this.cleanLogEntry(obj[key]);
-                // Remove empty objects
-                if (Object.keys(obj[key]).length === 0) {
-                    delete obj[key];
-                }
-            }
-        });
-    }
-}
-
-// Global logger instance
-const logger = new StructuredLogger();
-
-// =============================================================================
-// MCP PROTOCOL IMPLEMENTATION
-// =============================================================================
-
-class MCPServer {
-    constructor() {
-        this.tools = new Map();
-        this.prompts = new Map();
-        this.resources = new Map();
-        this.initialize();
-    }
-
-    initialize() {
-        // Register core ITIL change management tools
-        this.registerTool('create_change_request', this.createChangeRequest);
-        this.registerTool('approve_change', this.approveChange);
-        this.registerTool('assess_risk', this.assessRisk);
-        this.registerTool('schedule_change', this.scheduleChange);
-        this.registerTool('get_change_status', this.getChangeStatus);
-        this.registerTool('emergency_override', this.emergencyOverride);
-        this.registerTool('compliance_report', this.generateComplianceReport);
-        this.registerTool('metrics_dashboard', this.getMetricsDashboard);
-
-        // Register enterprise prompts
-        this.registerPrompt('change_risk_analysis', this.getRiskAnalysisPrompt);
-        this.registerPrompt('approval_recommendation', this.getApprovalRecommendation);
-        this.registerPrompt('compliance_check', this.getComplianceCheckPrompt);
-
-        // Register resources
-        this.registerResource('change_templates', this.getChangeTemplates);
-        this.registerResource('cab_members', this.getCabMembers);
-        this.registerResource('historical_data', this.getHistoricalData);
-    }
-
-    registerTool(name, handler) {
-        this.tools.set(name, {
-            name,
-            description: this.getToolDescription(name),
-            inputSchema: this.getToolInputSchema(name),
-            handler: handler.bind(this)
-        });
-    }
-
-    registerPrompt(name, handler) {
-        this.prompts.set(name, {
-            name,
-            description: this.getPromptDescription(name),
-            handler: handler.bind(this)
-        });
-    }
-
-    registerResource(name, handler) {
-        this.resources.set(name, {
-            name,
-            description: this.getResourceDescription(name),
-            handler: handler.bind(this)
-        });
-    }
-
-    // Tool Implementations
-    async createChangeRequest(params) {
-        const startTime = Date.now();
-
-        // Log the tool call initiation
-        logger.info('mcp_tool_start', `Creating change request: ${params.title}`, {
-            mcpMethod: 'tools/call',
-            toolName: 'create_change_request',
-            requestor: params.requestor
-        });
-
-        try {
-            // Validate required parameters
-            if (!params.title || !params.description || !params.requestor) {
-                throw new Error('Missing required parameters: title, description, requestor');
-            }
-
-            // Generate unique change ID
-            const changeId = `CHG-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
-            // Perform initial risk assessment
-            const riskScore = await this.calculateRiskScore({
-                type: params.type || 'normal',
-                complexity: params.complexity || 'medium',
-                impact: params.impact || 'medium',
-                urgency: params.urgency || 'medium',
-                affectedSystems: params.affectedSystems || []
-            });
-
-            // Create change record
-            const change = {
-                id: changeId,
-                title: params.title,
-                description: params.description,
-                type: params.type || 'normal',
-                priority: this.calculatePriority(params.impact, params.urgency),
-                status: 'submitted',
-                requestor: params.requestor,
-                riskScore: riskScore,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                approvals: [],
-                comments: [],
-                affectedSystems: params.affectedSystems || []
-            };
-
-            // Store in active changes
-            changeManagementState.activeChanges.set(changeId, change);
-            changeManagementState.metrics.changesProcessedToday++;
-
-            // Trigger approval workflow
-            await this.initiateApprovalWorkflow(change);
-
-            // Log audit event
-            await this.logAuditEvent({
-                changeId: changeId,
-                eventType: 'created',
-                user: params.requestor,
-                details: `Change request created: ${params.title}`
-            });
-
-            // Update metrics
-            globalMetrics.mcpMessages.sent++;
-            const responseTime = Date.now() - startTime;
-            globalMetrics.totalResponseTime += responseTime;
-
-            const result = {
-                success: true,
-                changeId: changeId,
-                status: 'submitted',
-                riskScore: riskScore,
-                nextSteps: 'Change submitted for approval',
-                estimatedApprovalTime: this.estimateApprovalTime(change)
-            };
-
-            // Log successful change creation
-            logger.logChangeEvent('change_created', changeId,
-                `Change request ${changeId} created successfully`, {
-                    responseTime: responseTime,
-                    requestor: params.requestor,
-                    riskScore: riskScore,
-                    businessMetrics: {
-                        estimatedApprovalTimeMinutes: this.estimateApprovalTime(change),
-                        affectedSystemsCount: params.affectedSystems?.length || 0,
-                        potentialDowntimePrevented: logger.calculateDowntimePrevented(change)
-                    }
-                });
-
-            // Log MCP tool call completion
-            logger.logMCPToolCall('create_change_request', params, result, responseTime, true);
-
-            return result;
-
-        } catch (error) {
-            globalMetrics.errorCount++;
-            globalMetrics.mcpMessages.errors++;
-
-            const responseTime = Date.now() - startTime;
-            const errorResult = {
-                success: false,
-                error: error.message,
-                changeId: null
-            };
-
-            // Log error with full context
-            logger.error('change_creation_failed',
-                `Failed to create change request: ${error.message}`, {
-                    responseTime: responseTime,
-                    requestor: params.requestor,
-                    errorCode: 'CREATE_CHANGE_FAILED',
-                    mcpMethod: 'tools/call',
-                    toolName: 'create_change_request',
-                    businessMetrics: {
-                        potentialLoss: 25000, // Estimated cost of failed change creation
-                        complianceImpact: 'medium'
-                    }
-                });
-
-            // Log MCP tool call failure
-            logger.logMCPToolCall('create_change_request', params, errorResult, responseTime, false);
-
-            return errorResult;
-        }
-    }
-
-    async approveChange(params) {
-        const startTime = Date.now();
-
-        // Log CAB approval initiation
-        logger.info('cab_approval_start',
-            `CAB approval process initiated for change ${params.changeId}`, {
-                mcpMethod: 'tools/call',
-                toolName: 'approve_change',
-                changeId: params.changeId,
-                approverId: params.approverId,
-                decision: params.decision
-            });
-
-        try {
-            const { changeId, approverId, decision, comments } = params;
-
-            if (!changeId || !approverId || !decision) {
-                throw new Error('Missing required parameters: changeId, approverId, decision');
-            }
-
-            const change = changeManagementState.activeChanges.get(changeId);
-            if (!change) {
-                throw new Error(`Change ${changeId} not found`);
-            }
-
-            // Validate approver permissions
-            const approver = changeManagementState.cabMembers.get(approverId);
-            if (!approver) {
-                throw new Error(`Approver ${approverId} not found`);
-            }
-
-            if (!this.canApproveChange(approver, change)) {
-                throw new Error(`Approver ${approverId} does not have permission to approve this change type`);
-            }
-
-            // Record approval
-            const approval = {
-                id: `APP-${Date.now()}`,
-                changeId: changeId,
-                approverId: approverId,
-                approverName: approver.name,
-                decision: decision,
-                comments: comments || '',
-                timestamp: new Date().toISOString(),
-                slaCompliant: this.checkApprovalSLA(change)
-            };
-
-            change.approvals.push(approval);
-            change.updatedAt = new Date().toISOString();
-
-            // Update change status based on approvals
-            const newStatus = this.calculateChangeStatus(change);
-            if (newStatus !== change.status) {
-                change.status = newStatus;
-                await this.logAuditEvent({
-                    changeId: changeId,
-                    eventType: 'state_change',
-                    user: approverId,
-                    details: `Status changed from ${change.status} to ${newStatus}`
-                });
-            }
-
-            // Remove from pending if fully approved
-            if (newStatus === 'approved') {
-                changeManagementState.pendingApprovals.delete(changeId);
-            }
-
-            // Log approval event
-            await this.logAuditEvent({
-                changeId: changeId,
-                eventType: decision,
-                user: approverId,
-                details: `Change ${decision} by ${approver.name}: ${comments || 'No comments'}`
-            });
-
-            const responseTime = Date.now() - startTime;
-            const result = {
-                success: true,
-                changeId: changeId,
-                status: newStatus,
-                approval: approval,
-                nextSteps: this.getNextSteps(change)
-            };
-
-            // Log CAB approval event with full business context
-            logger.logCABApproval(changeId, approverId, decision, comments, {
-                responseTime: responseTime,
-                newStatus: newStatus,
-                slaCompliant: approval.slaCompliant,
-                businessMetrics: {
-                    approvalTimeMinutes: logger.calculateApprovalTime(change),
-                    riskReduction: decision === 'approved' ? 25 : 0,
-                    complianceScore: logger.getComplianceScore(change)
-                }
-            });
-
-            // Log MCP tool call completion
-            logger.logMCPToolCall('approve_change', params, result, responseTime, true);
-
-            return result;
-
-        } catch (error) {
-            globalMetrics.errorCount++;
-
-            const responseTime = Date.now() - startTime;
-            const errorResult = {
-                success: false,
-                error: error.message
-            };
-
-            // Log CAB approval failure
-            logger.error('cab_approval_failed',
-                `CAB approval failed for change ${params.changeId}: ${error.message}`, {
-                    responseTime: responseTime,
-                    changeId: params.changeId,
-                    approverId: params.approverId,
-                    decision: params.decision,
-                    errorCode: 'APPROVAL_FAILED',
-                    mcpMethod: 'tools/call',
-                    toolName: 'approve_change',
-                    businessMetrics: {
-                        complianceImpact: 'high',
-                        potentialDelay: 60 // minutes
-                    }
-                });
-
-            // Log MCP tool call failure
-            logger.logMCPToolCall('approve_change', params, errorResult, responseTime, false);
-
-            return errorResult;
-        }
-    }
-
-    async assessRisk(params) {
-        const { changeId, factors } = params;
-
-        try {
-            const change = changeManagementState.activeChanges.get(changeId);
-            if (!change) {
-                throw new Error(`Change ${changeId} not found`);
-            }
-
-            // AI-powered risk assessment using 15 years of data
-            const riskAssessment = {
-                id: `RISK-${Date.now()}`,
-                changeId: changeId,
-                overallScore: await this.calculateAdvancedRiskScore(change, factors),
-                factors: {
-                    technical: this.assessTechnicalRisk(change, factors),
-                    business: this.assessBusinessRisk(change, factors),
-                    security: this.assessSecurityRisk(change, factors),
-                    compliance: this.assessComplianceRisk(change, factors)
-                },
-                mitigations: this.recommendMitigations(change, factors),
-                recommendations: this.generateRecommendations(change, factors),
-                assessedBy: 'AI Risk Engine',
-                assessedAt: new Date().toISOString()
-            };
-
-            // Update change with new risk score
-            change.riskScore = riskAssessment.overallScore;
-            change.riskAssessment = riskAssessment;
-            changeManagementState.riskAssessments.set(changeId, riskAssessment);
-
-            return {
-                success: true,
-                assessment: riskAssessment
-            };
-
-        } catch (error) {
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    }
-
-    async getMetricsDashboard(params) {
-        try {
-            const metrics = {
-                // Real-time System Metrics
-                system: {
-                    uptime: ((Date.now() - globalMetrics.startTime) / 1000 / 60 / 60).toFixed(2) + ' hours',
-                    availability: '99.97%',
-                    responseTime: (globalMetrics.totalResponseTime / Math.max(globalMetrics.requestCount, 1)).toFixed(0) + 'ms',
-                    errorRate: ((globalMetrics.errorCount / Math.max(globalMetrics.requestCount, 1)) * 100).toFixed(2) + '%',
-                    requestsPerMinute: Math.round(globalMetrics.requestCount / Math.max((Date.now() - globalMetrics.startTime) / 60000, 1)),
-                    activeConnections: globalMetrics.activeConnections
-                },
-
-                // Change Management Metrics
-                changes: {
-                    active: changeManagementState.activeChanges.size,
-                    pendingApprovals: changeManagementState.pendingApprovals.size,
-                    processedToday: changeManagementState.metrics.changesProcessedToday,
-                    avgApprovalTime: changeManagementState.metrics.avgApprovalTime + ' minutes',
-                    successRate: '97.3%',
-                    complianceScore: changeManagementState.metrics.complianceScore + '/100'
-                },
-
-                // Risk Metrics
-                risk: {
-                    avgRiskScore: this.calculateAverageRiskScore(),
-                    highRiskChanges: this.countHighRiskChanges(),
-                    riskPredictionAccuracy: '94%',
-                    mitigatedRisks: this.countMitigatedRisks()
-                },
-
-                // Business Metrics
-                business: {
-                    downtimePrevented: '45,672 hours',
-                    costSavings: '$4.7M annually',
-                    roi: '1,840%',
-                    customerSatisfaction: '96.3%'
-                },
-
-                // Performance Trends
-                trends: {
-                    dailyChanges: this.getDailyChangesTrend(),
-                    approvalTimes: this.getApprovalTimesTrend(),
-                    riskDistribution: this.getRiskDistribution(),
-                    complianceHistory: this.getComplianceHistory()
-                }
-            };
-
-            return {
-                success: true,
-                metrics: metrics,
-                lastUpdated: new Date().toISOString()
-            };
-
-        } catch (error) {
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    }
-
-    // Advanced Risk Calculation (15 years of tuned algorithms)
-    async calculateAdvancedRiskScore(change, factors = {}) {
-        const baseRisk = this.getBaseRiskScore(change.type);
-        const complexityMultiplier = this.getComplexityMultiplier(factors.complexity || 'medium');
-        const timingMultiplier = this.getTimingMultiplier(factors.timing || 'normal');
-        const dependencyMultiplier = this.getDependencyMultiplier(factors.dependencies || 'medium');
-        const historicalMultiplier = await this.getHistoricalMultiplier(change.affectedSystems);
-
-        const calculatedScore = Math.min(100, Math.max(0, Math.round(
-            baseRisk *
-            complexityMultiplier *
-            timingMultiplier *
-            dependencyMultiplier *
-            historicalMultiplier
-        )));
-
-        return calculatedScore;
-    }
-
-    getBaseRiskScore(changeType) {
-        const riskMap = {
-            'standard': 5,
-            'normal': 25,
-            'major': 65,
-            'emergency': 85,
-            'critical': 95
-        };
-        return riskMap[changeType] || 50;
-    }
-
-    // Utility Functions
-    calculatePriority(impact, urgency) {
-        const priorityMatrix = {
-            'high-high': 'critical',
-            'high-medium': 'high',
-            'high-low': 'medium',
-            'medium-high': 'high',
-            'medium-medium': 'medium',
-            'medium-low': 'low',
-            'low-high': 'medium',
-            'low-medium': 'low',
-            'low-low': 'low'
-        };
-        return priorityMatrix[`${impact}-${urgency}`] || 'medium';
-    }
-
-    async logAuditEvent(event) {
-        // In production, this would write to the audit_log table
-        console.log(`[AUDIT] ${event.eventType}: ${event.details}`, {
-            changeId: event.changeId,
-            user: event.user,
-            timestamp: new Date().toISOString()
-        });
-    }
-
-    getToolDescription(name) {
-        const descriptions = {
-            'create_change_request': 'Create a new ITIL change request with automatic risk assessment',
-            'approve_change': 'Approve or reject a change request with CAB validation',
-            'assess_risk': 'Perform AI-powered risk assessment on a change request',
-            'schedule_change': 'Schedule change implementation within approved maintenance windows',
-            'get_change_status': 'Retrieve current status and details of a change request',
-            'emergency_override': 'Execute emergency change override with proper authorization',
-            'compliance_report': 'Generate comprehensive compliance audit report',
-            'metrics_dashboard': 'Get real-time change management metrics and KPIs'
-        };
-        return descriptions[name] || 'Enterprise change management tool';
-    }
-
-    getToolInputSchema(name) {
-        const schemas = {
-            'create_change_request': {
-                type: 'object',
-                properties: {
-                    title: { type: 'string', description: 'Change request title' },
-                    description: { type: 'string', description: 'Detailed change description' },
-                    type: { type: 'string', enum: ['standard', 'normal', 'major', 'emergency'] },
-                    requestor: { type: 'string', description: 'Change requestor ID' },
-                    impact: { type: 'string', enum: ['low', 'medium', 'high'] },
-                    urgency: { type: 'string', enum: ['low', 'medium', 'high'] },
-                    affectedSystems: { type: 'array', items: { type: 'string' } }
-                },
-                required: ['title', 'description', 'requestor']
-            },
-            'approve_change': {
-                type: 'object',
-                properties: {
-                    changeId: { type: 'string', description: 'Change request ID' },
-                    approverId: { type: 'string', description: 'CAB member ID' },
-                    decision: { type: 'string', enum: ['approved', 'rejected', 'needs_info'] },
-                    comments: { type: 'string', description: 'Approval comments' }
-                },
-                required: ['changeId', 'approverId', 'decision']
-            }
-            // Add more schemas as needed
-        };
-        return schemas[name] || {};
-    }
-}
-
-// =============================================================================
-// HTTP REQUEST HANDLER
-// =============================================================================
-
-class RequestHandler {
-    constructor() {
-        this.mcpServer = new MCPServer();
-        this.rateLimiter = new Map();
-    }
-
-    async handleRequest(request) {
-        const startTime = Date.now();
-        globalMetrics.requestCount++;
-        globalMetrics.activeConnections++;
-
-        // Generate correlation ID for this request
-        const correlationId = logger.generateCorrelationId();
-        logger.setCorrelationId(correlationId);
-
-        // Log request initiation
-        logger.info('http_request_start', 'HTTP request received', {
-            request: request,
-            correlationId: correlationId
-        });
-
-        try {
-            // CORS handling
-            if (request.method === 'OPTIONS') {
-                return this.handleCORS();
-            }
-
-            // Rate limiting
-            if (!(await this.checkRateLimit(request))) {
-                return this.createErrorResponse(429, 'Rate limit exceeded');
-            }
-
-            // Route request
-            const url = new URL(request.url);
-            const path = url.pathname;
-
-            switch (path) {
-                case '/health':
-                    return this.handleHealthCheck();
-
-                case '/metrics':
-                    return this.handleMetrics();
-
-                case '/mcp':
-                    return this.handleMCPRequest(request);
-
-                case '/api/changes':
-                    return this.handleChangesAPI(request);
-
-                case '/api/approvals':
-                    return this.handleApprovalsAPI(request);
-
-                case '/api/dashboard':
-                    return this.handleDashboardAPI(request);
-
-                default:
-                    return this.createErrorResponse(404, 'Not found');
-            }
-
-        } catch (error) {
-            globalMetrics.errorCount++;
-            const responseTime = Date.now() - startTime;
-
-            // Log error with full context
-            logger.error('http_request_error',
-                `Request handling error: ${error.message}`, {
-                    request: request,
-                    responseTime: responseTime,
-                    errorCode: 'INTERNAL_SERVER_ERROR',
-                    businessMetrics: {
-                        availabilityImpact: 'high',
-                        potentialLoss: 10000
-                    }
-                });
-
-            return this.createErrorResponse(500, 'Internal server error');
-        } finally {
-            globalMetrics.activeConnections--;
-            const responseTime = Date.now() - startTime;
-            globalMetrics.totalResponseTime += responseTime;
-
-            // Log request completion
-            logger.info('http_request_complete', 'HTTP request completed', {
-                request: request,
-                responseTime: responseTime,
-                businessMetrics: {
-                    throughput: globalMetrics.requestCount / Math.max((Date.now() - globalMetrics.startTime) / 60000, 1),
-                    avgResponseTime: Math.round(globalMetrics.totalResponseTime / globalMetrics.requestCount)
-                }
-            });
-        }
-    }
-
-    async handleMCPRequest(request) {
-        try {
-            const data = await request.json();
-            globalMetrics.mcpMessages.received++;
-
-            // Validate MCP message structure
-            if (!data.jsonrpc || data.jsonrpc !== '2.0') {
-                return this.createMCPErrorResponse('Invalid JSON-RPC version');
-            }
-
-            // Handle different MCP methods
-            switch (data.method) {
-                case 'initialize':
-                    return this.handleMCPInitialize(data);
-
-                case 'tools/list':
-                    return this.handleMCPToolsList(data);
-
-                case 'tools/call':
-                    return this.handleMCPToolsCall(data);
-
-                case 'prompts/list':
-                    return this.handleMCPPromptsList(data);
-
-                case 'resources/list':
-                    return this.handleMCPResourcesList(data);
-
-                default:
-                    return this.createMCPErrorResponse(`Unknown method: ${data.method}`);
-            }
-
-        } catch (error) {
-            globalMetrics.mcpMessages.errors++;
-            return this.createMCPErrorResponse(error.message);
-        }
-    }
-
-    async handleMCPInitialize(data) {
-        return new Response(JSON.stringify({
-            jsonrpc: '2.0',
-            id: data.id,
-            result: {
-                protocolVersion: MCP_PROTOCOL_VERSION,
-                capabilities: CONFIG.MCP.capabilities,
-                serverInfo: {
-                    name: CONFIG.MCP.serverName,
-                    version: WORKER_VERSION
-                }
-            }
-        }), {
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
-
-    async handleMCPToolsList(data) {
-        const tools = Array.from(this.mcpServer.tools.values()).map(tool => ({
-            name: tool.name,
-            description: tool.description,
-            inputSchema: tool.inputSchema
-        }));
-
-        return new Response(JSON.stringify({
-            jsonrpc: '2.0',
-            id: data.id,
-            result: {
-                tools: tools
-            }
-        }), {
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
-
-    async handleMCPToolsCall(data) {
-        const { name, arguments: args } = data.params;
-        const tool = this.mcpServer.tools.get(name);
-
-        if (!tool) {
-            logger.error('mcp_tool_not_found', `MCP tool not found: ${name}`, {
-                mcpMethod: 'tools/call',
-                toolName: name,
-                errorCode: 'TOOL_NOT_FOUND'
-            });
-            return this.createMCPErrorResponse(`Tool not found: ${name}`);
-        }
-
-        const startTime = Date.now();
-
-        try {
-            logger.info('mcp_tool_execution_start', `Executing MCP tool: ${name}`, {
-                mcpMethod: 'tools/call',
-                toolName: name,
-                parameterCount: Object.keys(args || {}).length
-            });
-
-            const result = await tool.handler(args);
-            const responseTime = Date.now() - startTime;
-
-            // Note: Tool-specific logging is handled within each tool's implementation
-            // This provides a general MCP protocol level log
-
-            return new Response(JSON.stringify({
-                jsonrpc: '2.0',
-                id: data.id,
-                result: {
-                    content: [{
-                        type: 'text',
-                        text: JSON.stringify(result, null, 2)
-                    }]
-                }
-            }), {
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-        } catch (error) {
-            const responseTime = Date.now() - startTime;
-
-            logger.error('mcp_tool_execution_failed',
-                `MCP tool execution failed: ${error.message}`, {
-                    mcpMethod: 'tools/call',
-                    toolName: name,
-                    responseTime: responseTime,
-                    errorCode: 'TOOL_EXECUTION_ERROR',
-                    businessMetrics: {
-                        availabilityImpact: 'medium',
-                        complianceRisk: 'high'
-                    }
-                });
-
-            return this.createMCPErrorResponse(`Tool execution error: ${error.message}`);
-        }
-    }
-
-    async handleHealthCheck() {
-        const health = {
-            status: 'healthy',
-            version: WORKER_VERSION,
-            uptime: ((Date.now() - globalMetrics.startTime) / 1000).toFixed(0) + 's',
-            checks: {
-                database: await this.checkDatabaseHealth(),
-                memory: this.checkMemoryHealth(),
-                response_time: this.checkResponseTimeHealth(),
-                error_rate: this.checkErrorRateHealth()
-            },
-            metrics: {
-                requests: globalMetrics.requestCount,
-                errors: globalMetrics.errorCount,
-                activeConnections: globalMetrics.activeConnections,
-                avgResponseTime: Math.round(globalMetrics.totalResponseTime / Math.max(globalMetrics.requestCount, 1))
-            }
-        };
-
-        const allHealthy = Object.values(health.checks).every(check => check.status === 'ok');
-
-        return new Response(JSON.stringify(health, null, 2), {
-            status: allHealthy ? 200 : 503,
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
-
-    async handleMetrics() {
-        const metrics = await this.mcpServer.getMetricsDashboard({});
-
-        return new Response(JSON.stringify({
-            worker: {
-                version: WORKER_VERSION,
-                uptime: (Date.now() - globalMetrics.startTime) / 1000,
-                requests: globalMetrics.requestCount,
-                errors: globalMetrics.errorCount,
-                avgResponseTime: globalMetrics.totalResponseTime / Math.max(globalMetrics.requestCount, 1)
-            },
-            changeManagement: metrics.success ? metrics.metrics : { error: metrics.error }
-        }, null, 2), {
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
-
-    async checkRateLimit(request) {
-        const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
-        const now = Date.now();
-        const windowStart = now - CONFIG.SECURITY.rateLimitWindow;
-
-        if (!this.rateLimiter.has(clientIP)) {
-            this.rateLimiter.set(clientIP, []);
-        }
-
-        const requests = this.rateLimiter.get(clientIP);
-
-        // Remove old requests
-        const recentRequests = requests.filter(time => time > windowStart);
-        this.rateLimiter.set(clientIP, recentRequests);
-
-        // Check limit
-        if (recentRequests.length >= CONFIG.SECURITY.maxRequestsPerWindow) {
-            return false;
-        }
-
-        // Add current request
-        recentRequests.push(now);
-        return true;
-    }
-
-    handleCORS() {
-        return new Response(null, {
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-                'Access-Control-Max-Age': '86400'
-            }
-        });
-    }
-
-    createErrorResponse(status, message) {
-        return new Response(JSON.stringify({
-            error: {
-                code: status,
-                message: message,
-                timestamp: new Date().toISOString()
-            }
-        }), {
-            status: status,
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
-
-    createMCPErrorResponse(message) {
-        return new Response(JSON.stringify({
-            jsonrpc: '2.0',
-            error: {
-                code: -32603,
-                message: message
-            }
-        }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
-
-    // Health Check Methods
-    async checkDatabaseHealth() {
-        // In production, this would test database connectivity
-        return { status: 'ok', latency: 5 };
-    }
-
-    checkMemoryHealth() {
-        // Memory usage check would go here
-        return { status: 'ok', usage: '45%' };
-    }
-
-    checkResponseTimeHealth() {
-        const avgResponseTime = globalMetrics.totalResponseTime / Math.max(globalMetrics.requestCount, 1);
-        return {
-            status: avgResponseTime < CONFIG.PERFORMANCE.responseTimeTarget ? 'ok' : 'warning',
-            avgResponseTime: Math.round(avgResponseTime)
-        };
-    }
-
-    checkErrorRateHealth() {
-        const errorRate = globalMetrics.errorCount / Math.max(globalMetrics.requestCount, 1);
-        return {
-            status: errorRate < CONFIG.PERFORMANCE.errorRateThreshold ? 'ok' : 'warning',
-            errorRate: (errorRate * 100).toFixed(2) + '%'
-        };
-    }
-}
-
-// =============================================================================
-// MAIN WORKER ENTRY POINT
-// =============================================================================
-
-// Initialize the request handler
-const requestHandler = new RequestHandler();
-
-// Initialize sample data for demonstration
-function initializeSampleData() {
-    // Add sample CAB members
-    const sampleCABMembers = [
-        { id: 'alice.chen', name: 'Alice Chen', role: 'Change Manager', canApproveEmergency: true },
-        { id: 'bob.williams', name: 'Bob Williams', role: 'Security Officer', canApproveEmergency: true },
-        { id: 'carol.davis', name: 'Carol Davis', role: 'Technical Lead', canApproveEmergency: false },
-        { id: 'david.rodriguez', name: 'David Rodriguez', role: 'Business Representative', canApproveEmergency: false }
-    ];
-
-    sampleCABMembers.forEach(member => {
-        changeManagementState.cabMembers.set(member.id, member);
-    });
-
-    // Add sample active changes for demonstration
-    const sampleChange = {
-        id: 'CHG-DEMO-001',
-        title: 'Emergency Payment Gateway Failover',
-        description: 'Activate backup payment system due to primary system failure',
-        type: 'emergency',
-        priority: 'critical',
-        status: 'assessing',
-        requestor: 'system.admin',
-        riskScore: 85,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        approvals: [],
-        comments: [],
-        affectedSystems: ['payment-gateway', 'order-processing']
+  }
+];
+
+/**
+ * Main request handler
+ */
+export default {
+  async fetch(request, env, ctx) {
+    // CORS headers
+    const headers = {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
     };
 
-    changeManagementState.activeChanges.set(sampleChange.id, sampleChange);
-    changeManagementState.pendingApprovals.set(sampleChange.id, sampleChange);
-    changeManagementState.metrics.changesProcessedToday = 23;
+    // Handle OPTIONS
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers });
+    }
+
+    // Parse request
+    let body;
+    try {
+      body = await request.json();
+    } catch (e) {
+      // Not JSON, return health check
+      return new Response(JSON.stringify({
+        status: 'healthy',
+        message: 'MCP Server Ready',
+        version: PROTOCOL_VERSION,
+        timestamp: new Date().toISOString()
+      }), { headers });
+    }
+
+    // Route to handler based on method
+    const { method, params, id } = body;
+    
+    let result;
+    switch (method) {
+      case 'initialize':
+        result = handleInitialize(params);
+        break;
+      case 'tools/list':
+        result = handleToolsList();
+        break;
+      case 'tools/call':
+        result = await handleToolCall(params);
+        break;
+      default:
+        result = {
+          error: {
+            code: -32601,
+            message: `Method not found: ${method}`
+          }
+        };
+    }
+
+    // Return JSON-RPC response
+    return new Response(JSON.stringify({
+      jsonrpc: '2.0',
+      result,
+      id
+    }), { headers });
+  },
+};
+
+/**
+ * Handle initialize request
+ */
+function handleInitialize(params) {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    capabilities: {
+      tools: {},
+      notifications: {}
+    },
+    serverInfo: {
+      name: 'guile-changeflow-mcp',
+      version: '1.0.0'
+    }
+  };
 }
 
-// Initialize on worker start
-initializeSampleData();
+/**
+ * Handle tools/list request
+ */
+function handleToolsList() {
+  return { tools: TOOLS };
+}
 
-// Main event handler
-addEventListener('fetch', event => {
-    event.respondWith(requestHandler.handleRequest(event.request));
-});
+/**
+ * Handle tools/call request
+ */
+async function handleToolCall(params) {
+  const { name, arguments: args } = params;
+  
+  // TODO: Implement actual tool logic
+  switch (name) {
+    case 'create_change_request':
+      return {
+        change_id: `CHG-${Date.now()}`,
+        status: 'pending',
+        risk_score: calculateRiskScore(args),
+        created_at: new Date().toISOString()
+      };
+    
+    case 'assess_change_risk':
+      return {
+        risk_score: calculateRiskScore(args),
+        risk_level: getRiskLevel(calculateRiskScore(args)),
+        factors: getRiskFactors(args)
+      };
 
-// Periodic metrics update and logging
-setInterval(() => {
-    globalMetrics.lastHealthCheck = Date.now();
+    case 'check_freeze_period':
+      return checkFreezePeriod(args);
 
-    // Log comprehensive performance metrics for executive dashboard
-    logger.logPerformanceMetrics();
+    case 'get_cab_members':
+      return getCabMembers(args);
 
-    // Log system health status
-    logger.info('system_health_check', 'Automated system health check completed', {
-        businessMetrics: {
-            uptime: ((Date.now() - globalMetrics.startTime) / 1000 / 60 / 60).toFixed(2) + ' hours',
-            availability: '99.97%',
-            requestsPerMinute: Math.round(globalMetrics.requestCount / Math.max((Date.now() - globalMetrics.startTime) / 60000, 1)),
-            errorRate: ((globalMetrics.errorCount / Math.max(globalMetrics.requestCount, 1)) * 100).toFixed(2) + '%'
-        }
-    });
+    case 'schedule_change':
+      return scheduleChange(args);
 
-}, 30000);
+    case 'create_emergency_change':
+      return createEmergencyChange(args);
 
-// Initialize structured logging
-logger.critical('worker_initialization', 'Guile ChangeFlow Worker starting up', {
-    workerVersion: WORKER_VERSION,
-    mcpProtocolVersion: MCP_PROTOCOL_VERSION,
-    targetSLA: UPTIME_SLA,
-    environment: 'production',
-    businessMetrics: {
-        expectedThroughput: CONFIG.PERFORMANCE.throughputTarget,
-        targetResponseTime: CONFIG.PERFORMANCE.responseTimeTarget,
-        maxErrorRate: CONFIG.PERFORMANCE.errorRateThreshold * 100 + '%',
-        demoReadiness: 'ready'
+    case 'get_change_metrics':
+      return getChangeMetrics(args);
+
+    case 'generate_audit_report':
+      return generateAuditReport(args);
+
+    default:
+      return {
+        error: `Tool not implemented: ${name}`
+      };
+  }
+}
+
+/**
+ * Calculate risk score
+ */
+function calculateRiskScore(params) {
+  let score = 0;
+  
+  // Environment risk
+  if (params.environment === 'production') score += 40;
+  else if (params.environment === 'staging') score += 20;
+  else if (params.environment === 'test') score += 10;
+  
+  // Testing risk
+  if (!params.tested_in_staging) score += 20;
+  if (!params.has_rollback) score += 15;
+  
+  // Components risk
+  if (params.components_affected > 10) score += 20;
+  else if (params.components_affected > 5) score += 10;
+  
+  // Time risk (weekend/holiday)
+  const now = new Date();
+  if (now.getDay() === 0 || now.getDay() === 6) score += 10;
+  
+  return Math.min(score, 100);
+}
+
+/**
+ * Get risk level from score
+ */
+function getRiskLevel(score) {
+  if (score >= 80) return 'critical';
+  if (score >= 60) return 'high';
+  if (score >= 40) return 'medium';
+  return 'low';
+}
+
+/**
+ * Get risk factors
+ */
+function getRiskFactors(params) {
+  const factors = [];
+  
+  if (params.environment === 'production') {
+    factors.push('Production environment (+40 risk)');
+  }
+  if (!params.tested_in_staging) {
+    factors.push('Not tested in staging (+20 risk)');
+  }
+  if (!params.has_rollback) {
+    factors.push('No rollback plan (+15 risk)');
+  }
+  
+  return factors;
+}
+
+/**
+ * Check if change window conflicts with freeze periods
+ */
+function checkFreezePeriod(args) {
+  const { planned_start, planned_end, environment } = args;
+
+  // Mock freeze periods - in production would check against calendar/config
+  const freezePeriods = [
+    { start: '2025-12-20', end: '2025-01-05', reason: 'Holiday freeze' },
+    { start: '2025-11-28', end: '2025-11-29', reason: 'Thanksgiving freeze' }
+  ];
+
+  const start = new Date(planned_start);
+  const end = new Date(planned_end);
+
+  for (const freeze of freezePeriods) {
+    const freezeStart = new Date(freeze.start);
+    const freezeEnd = new Date(freeze.end);
+
+    if ((start >= freezeStart && start <= freezeEnd) ||
+        (end >= freezeStart && end <= freezeEnd)) {
+      return {
+        is_freeze_period: true,
+        freeze_reason: freeze.reason,
+        freeze_start: freeze.start,
+        freeze_end: freeze.end,
+        recommendation: 'Schedule change outside freeze window'
+      };
     }
-});
+  }
 
-console.log(`🚀 Guile ChangeFlow Worker v${WORKER_VERSION} initialized`);
-console.log(`🎯 MCP Protocol v${MCP_PROTOCOL_VERSION} ready`);
-console.log(`📊 Target SLA: ${UPTIME_SLA}% uptime`);
-console.log(`📝 Structured logging enabled with 10% sampling for routine operations`);
-console.log(`🔍 Critical events logged at 100% (CAB approvals, emergencies, errors)`);
-console.log(`⚡ Ready for 7 AM demonstration with comprehensive observability!`);
+  return {
+    is_freeze_period: false,
+    message: 'No conflicts with freeze periods',
+    next_freeze: freezePeriods[0]
+  };
+}
 
-export default {
-    async fetch(request) {
-        return await requestHandler.handleRequest(request);
+/**
+ * Get CAB members for approval workflow
+ */
+function getCabMembers(args) {
+  const { risk_level, environment } = args;
+
+  const cabMembers = {
+    low: ['tech-lead@company.com'],
+    medium: ['tech-lead@company.com', 'ops-manager@company.com'],
+    high: ['tech-lead@company.com', 'ops-manager@company.com', 'cto@company.com'],
+    critical: ['tech-lead@company.com', 'ops-manager@company.com', 'cto@company.com', 'ceo@company.com']
+  };
+
+  const members = cabMembers[risk_level] || cabMembers.medium;
+
+  return {
+    approvers: members,
+    approval_threshold: risk_level === 'critical' ? members.length : Math.ceil(members.length / 2),
+    sla_hours: risk_level === 'critical' ? 2 : risk_level === 'high' ? 8 : 24,
+    escalation_contact: 'escalation@company.com'
+  };
+}
+
+/**
+ * Schedule a change for execution
+ */
+function scheduleChange(args) {
+  const { change_id, scheduled_start, scheduled_end, notification_contacts } = args;
+
+  return {
+    schedule_id: `SCHED-${Date.now()}`,
+    change_id,
+    status: 'scheduled',
+    scheduled_start,
+    scheduled_end,
+    notifications: {
+      contacts: notification_contacts || [],
+      reminders: [
+        { type: 'email', timing: '24h_before' },
+        { type: 'email', timing: '1h_before' },
+        { type: 'sms', timing: '15m_before' }
+      ]
+    },
+    automation_hooks: {
+      pre_change: 'backup_services',
+      post_change: 'validate_deployment',
+      rollback: 'restore_from_backup'
     }
-};
+  };
+}
+
+/**
+ * Create emergency change with expedited approval
+ */
+function createEmergencyChange(args) {
+  const { title, description, justification, impact, environment, requester } = args;
+
+  const emergencyChangeId = `EMG-${Date.now()}`;
+
+  return {
+    change_id: emergencyChangeId,
+    type: 'emergency',
+    status: 'pending_emergency_approval',
+    title,
+    description,
+    justification,
+    impact,
+    environment,
+    requester,
+    risk_level: 'high', // Emergency changes are automatically high risk
+    approval_required: environment === 'production',
+    emergency_contacts: [
+      'oncall@company.com',
+      'incident-commander@company.com'
+    ],
+    sla_approval_minutes: 30,
+    auto_rollback_enabled: true,
+    created_at: new Date().toISOString()
+  };
+}
+
+/**
+ * Get change management metrics
+ */
+function getChangeMetrics(args) {
+  const { time_period, environment, metric_type } = args;
+
+  // Mock metrics - in production would query from database
+  const mockMetrics = {
+    success_rate: {
+      week: 94.2,
+      month: 92.8,
+      quarter: 91.5
+    },
+    rollback_rate: {
+      week: 5.8,
+      month: 7.2,
+      quarter: 8.5
+    },
+    avg_duration: {
+      week: 45,
+      month: 52,
+      quarter: 48
+    }
+  };
+
+  const result = {
+    time_period,
+    environment: environment || 'all',
+    period_start: new Date(Date.now() - (time_period === 'week' ? 7 : time_period === 'month' ? 30 : 90) * 24 * 60 * 60 * 1000).toISOString(),
+    period_end: new Date().toISOString()
+  };
+
+  if (metric_type === 'all' || !metric_type) {
+    result.metrics = {
+      success_rate: mockMetrics.success_rate[time_period],
+      rollback_rate: mockMetrics.rollback_rate[time_period],
+      avg_duration_minutes: mockMetrics.avg_duration[time_period],
+      total_changes: time_period === 'week' ? 17 : time_period === 'month' ? 84 : 267
+    };
+  } else {
+    result.metrics = {
+      [metric_type]: mockMetrics[metric_type][time_period]
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Generate audit report for compliance
+ */
+function generateAuditReport(args) {
+  const { report_type, date_range, include_details } = args;
+
+  const reportId = `RPT-${Date.now()}`;
+
+  return {
+    report_id: reportId,
+    report_type,
+    generated_at: new Date().toISOString(),
+    date_range,
+    summary: {
+      total_changes: 156,
+      successful_changes: 144,
+      failed_changes: 8,
+      rolled_back: 4,
+      compliance_score: 94.2
+    },
+    findings: [
+      'All high-risk changes had proper CAB approval',
+      '2 changes lacked adequate testing documentation',
+      'Emergency change procedures followed correctly',
+      'Freeze period violations: 0'
+    ],
+    recommendations: [
+      'Improve testing documentation standards',
+      'Consider automated testing gates',
+      'Review change categorization process'
+    ],
+    details_included: include_details || false,
+    compliance_status: 'COMPLIANT',
+    next_audit_due: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+  };
+}
+
+// TODO: Add persistence (KV or D1)
+// TODO: Add authentication
+// TODO: Add rate limiting
