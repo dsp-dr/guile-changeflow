@@ -3,8 +3,11 @@
   #:use-module (storage memory)
   #:use-module (json)
   #:use-module (srfi srfi-1)
+  #:use-module (mcp simulator-tools)
   #:export (create-change-request-tool
-            assess-risk-tool))
+            assess-risk-tool
+            simulator-tool-definitions
+            handle-simulator-tool-call))
 
 (define (generate-change-id)
   "Generate a unique change ID"
