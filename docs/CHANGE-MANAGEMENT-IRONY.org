@@ -1,0 +1,120 @@
+#+TITLE: The Great Change Management Irony
+#+DATE: 2025-09-14
+#+AUTHOR: dsp-dr
+
+* The Incident
+
+On September 14, 2025, we deployed a critical CORS fix (v1.1.1) to production WITHOUT using our own ITIL change management system.
+
+* What We Built vs What We Did
+
+** Our System Enforces:
+- ✅ Risk assessment for ALL changes
+- ✅ CAB approval for medium/high risk
+- ✅ Freeze period enforcement (we have SO many holidays!)
+- ✅ Audit trail for compliance
+- ✅ Emergency override with justification
+
+** What We Actually Did:
+- ❌ No RFC created
+- ❌ No risk assessment (though CORS is clearly low risk)
+- ❌ No CAB approval
+- ❌ No freeze period check
+- ❌ Direct push to production
+- ✅ Emergency override justified as "critical functionality broken"
+
+* The Lesson
+
+"The cobbler's children have no shoes" - Ancient proverb
+
+We built an ITIL-compliant change management system but deployed changes to it like cowboys. This is actually a common pattern in IT:
+- Security teams with weak passwords
+- Backup software that isn't backed up
+- Monitoring systems that aren't monitored
+- Change management systems changed without management
+
+* Our Actual Workflow
+
+#+BEGIN_SRC mermaid
+graph TD
+    A[Developer finds bug] -->|"YOLO"| B[Fix locally]
+    B --> C[git commit]
+    C --> D[git push]
+    D --> E[CI/CD deploys]
+    E --> F[Production updated]
+    F -->|"Oops"| G[Remember we have ITIL tools]
+    G --> H[Document the irony]
+#+END_SRC
+
+* The Ideal Workflow (That We Should Follow)
+
+#+BEGIN_SRC mermaid
+graph TD
+    A[Identify Change Need] --> B[Create RFC]
+    B --> C[Use our MCP tools!]
+    C --> D[curl -X POST api.changeflow.us/mcp/tools/invoke]
+    D --> E[create_change_request]
+    E --> F[assess_risk]
+    F --> G{Risk Level?}
+    G -->|Low| H[Auto-approve]
+    G -->|Medium| I[Single approval]
+    G -->|High| J[CAB Review]
+    H --> K[check_freeze_period]
+    I --> K
+    J --> K
+    K -->|Clear| L[Deploy]
+    K -->|Frozen| M[Wait or emergency_override]
+    L --> N[audit_trail]
+#+END_SRC
+
+* Going Forward
+
+Starting NOW, we will use our own tools:
+
+1. Before ANY change to the MCP server:
+   #+BEGIN_SRC bash
+   # Create change request
+   curl -X POST https://api.changeflow.us/mcp/tools/invoke \
+     -H "Content-Type: application/json" \
+     -d '{
+       "tool": "create_change_request",
+       "params": {
+         "title": "Update MCP server for XYZ",
+         "description": "Details here",
+         "systems": ["mcp-server"],
+         "urgency": "normal"
+       }
+     }'
+   #+END_SRC
+
+2. Check freeze periods:
+   #+BEGIN_SRC bash
+   # Check if today is frozen
+   curl -X POST https://api.changeflow.us/mcp/tools/invoke \
+     -H "Content-Type: application/json" \
+     -d '{
+       "tool": "check_freeze_period",
+       "params": {
+         "proposed_date": "2025-09-14",
+         "change_type": "standard"
+       }
+     }'
+   #+END_SRC
+
+3. Review audit trail:
+   #+BEGIN_SRC bash
+   curl -X POST https://api.changeflow.us/mcp/tools/invoke \
+     -H "Content-Type: application/json" \
+     -d '{
+       "tool": "audit_trail",
+       "params": {}
+     }'
+   #+END_SRC
+
+* The Meta-Meta Irony
+
+We're documenting that we didn't follow process... without creating a change request for adding this documentation. 🤦
+
+* Conclusion
+
+Practice what you preach. Even if you're building the preaching platform.
