@@ -46,7 +46,3 @@ RATE_LIMIT_PER_MINUTE = "100"
 # Build configuration
 [build]
 command = "echo 'No build step required for production worker'"
-
-# Resource limits
-[limits]
-cpu_ms = 30000
