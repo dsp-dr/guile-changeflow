@@ -1,0 +1,25 @@
+Agent: Claude
+Session: 2025-09-14-afternoon
+Task: Document AI agent context preservation strategy
+
+Context:
+- User requested documentation on preserving AI agent decisions
+- Referenced YouTube video and HN discussions on agentic development
+- Need to track why agents make specific implementation choices
+
+Decisions:
+- Used org-mode format for consistency with project standards
+- Implemented simple post-commit hook as reminder mechanism
+- Focused on git notes as parallel metadata system
+- Included practical examples and industry references
+
+Rationale:
+- Git notes don't pollute commit history but travel with commits
+- Post-commit hook provides gentle reminder without being intrusive
+- Documentation covers both theory and practice
+- Checklist format makes implementation actionable
+
+Trade-offs:
+- Simple reminder over automated extraction (start simple)
+- Manual notes over AI parsing (human judgment valuable)
+- Local hook over global config (project-specific needs)
