@@ -331,9 +331,9 @@ clear-queue:
 clear-deploy:
 	@bash scripts/clear-gh-queue.sh --deploy
 
-# Production sanity check
-check-prod:
-	@echo "=== Production Sanity Check ==="
+# Production sanity check (old API endpoint)
+check-prod-legacy:
+	@echo "=== Production Sanity Check (Legacy API) ==="
 	@curl -s https://api.changeflow.us/health | jq -r 'if .status == "healthy" then "✅ Production: HEALTHY" else "❌ Production: UNHEALTHY" end'
 	@echo "Service: $$(curl -s https://api.changeflow.us/health | jq -r '.service')"
 	@echo "Version: $$(curl -s https://api.changeflow.us/health | jq -r '.version')"
@@ -347,7 +347,7 @@ check-staging:
 	@echo "Version: $$(curl -s https://guile-changeflow-staging.jasonwalsh.workers.dev/health | jq -r '.version')"
 
 # Quick health check for both environments
-check: check-staging check-prod
+check: check-staging check-prod-legacy check-prod
 	@echo "=== All Environments Checked ==="
 
 # OAuth Experiment Deployment
