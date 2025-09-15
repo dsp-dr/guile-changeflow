@@ -1,0 +1,676 @@
+#+TITLE: MCP Ecosystem Integration Guide for Enterprise Change Management
+#+AUTHOR: Guile ChangeFlow Team
+#+DATE: 2025-09-14
+#+OPTIONS: toc:3 num:t
+
+* Executive Summary
+
+This guide demonstrates how our ITIL-compliant MCP server integrates with the broader MCP ecosystem, enabling AI-powered change management across enterprise tools. We show how to connect our ChangeFlow MCP server with popular platforms and AI assistants for comprehensive DevOps automation.
+
+* MCP (Model Context Protocol) Overview
+
+** What is MCP?
+The Model Context Protocol is an open standard that enables AI assistants to interact with external systems through:
+- Standardized tool definitions
+- Secure authentication flows
+- Consistent error handling
+- Streaming responses
+- Context preservation
+
+** Why MCP for Change Management?
+- **AI-Native**: Built for LLM interaction from the ground up
+- **Tool Agnostic**: Works with any MCP-compliant AI assistant
+- **Security First**: OAuth2/JWT authentication built-in
+- **Audit Ready**: Complete interaction logging
+
+* Our ChangeFlow MCP Server
+
+** Core Capabilities
+#+BEGIN_SRC javascript
+// From infra/cloudflare/worker.js
+const CHANGEFLOW_TOOLS = {
+  // Change Management
+  'create_change_request': createRFC,
+  'assess_risk': evaluateChangeRisk,
+  'schedule_deployment': scheduleWindow,
+  'approve_change': processApproval,
+  'rollback_deployment': initiateRollback,
+
+  // Monitoring
+  'check_health': getSystemHealth,
+  'get_metrics': fetchMetrics,
+  'view_audit_log': retrieveAuditTrail,
+
+  // Chaos Testing
+  'simulate_failure': runChaosScenario,
+  'validate_recovery': testRollback
+};
+#+END_SRC
+
+** Endpoint Structure
+- **Production**: `https://mcp.changeflow.us/v1/`
+- **Staging**: `https://guile-changeflow-staging.jasonwalsh.workers.dev/v1/`
+- **SSE Stream**: `/v1/sse` (Server-Sent Events)
+- **Tools**: `/v1/tools/list`, `/v1/tools/call`
+
+* Integration Patterns
+
+** 1. CircleCI Integration
+[[https://circleci.com/mcp/][CircleCI MCP Documentation]]
+
+*** Use Case: Automated Change Requests from CI/CD
+#+BEGIN_SRC yaml
+# .circleci/config.yml
+version: 2.1
+
+orbs:
+  mcp: circleci/mcp@1.0.0
+
+workflows:
+  deploy:
+    jobs:
+      - build
+      - mcp/create-change:
+          requires: [build]
+          mcp-server: "https://mcp.changeflow.us"
+          tool: "create_change_request"
+          params:
+            title: "Deploy ${CIRCLE_SHA1}"
+            type: "standard"
+            component: "backend-api"
+
+      - mcp/await-approval:
+          requires: [mcp/create-change]
+          tool: "get_approval_status"
+
+      - deploy:
+          requires: [mcp/await-approval]
+#+END_SRC
+
+*** Benefits
+- Automatic RFC creation from CI pipeline
+- Risk assessment before deployment
+- CAB approval integration
+- Rollback triggers on test failure
+
+** 2. GitHub Integration
+[[https://github.com/github/github-mcp-server][GitHub MCP Server]]
+
+*** Use Case: PR-Triggered Change Management
+#+BEGIN_SRC javascript
+// GitHub Action using MCP
+name: 'ITIL Change Flow'
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  change-management:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Create Change Request
+        uses: github/mcp-action@v1
+        with:
+          server: 'https://mcp.changeflow.us'
+          tool: 'create_change_request'
+          params: |
+            title: "${{ github.event.pull_request.title }}"
+            pr_number: ${{ github.event.pull_request.number }}
+            author: "${{ github.actor }}"
+
+      - name: Risk Assessment
+        uses: github/mcp-action@v1
+        with:
+          tool: 'assess_risk'
+          params: |
+            change_id: "${{ steps.create.outputs.change_id }}"
+
+      - name: Comment Risk Score
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              body: `Risk Assessment: ${{ steps.risk.outputs.score }}`
+            })
+#+END_SRC
+
+*** Integration Points
+- PR → Change Request mapping
+- Automated risk scoring on PR updates
+- Deployment gates based on approvals
+- Rollback triggers from GitHub incidents
+
+** 3. Google Workspace Integration
+[[https://support.anthropic.com/en/articles/10166901-using-the-google-drive-integration][Google Drive Integration]]
+[[https://support.anthropic.com/en/articles/11088742-using-the-gmail-and-google-calendar-integrations][Gmail/Calendar Integration]]
+
+*** Use Case: Change Calendar & Documentation
+#+BEGIN_SRC python
+# Python script for Google integration
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+import requests
+
+class ChangeFlowGoogle:
+    def __init__(self):
+        self.calendar = self._init_calendar()
+        self.drive = self._init_drive()
+        self.mcp_server = "https://mcp.changeflow.us"
+
+    def schedule_maintenance_window(self, change_id):
+        # Get change details from MCP
+        change = self._mcp_call("get_change", {"id": change_id})
+
+        # Create calendar event
+        event = {
+            'summary': f'Maintenance: {change["title"]}',
+            'description': f'Change ID: {change_id}\nRisk: {change["risk"]}',
+            'start': {'dateTime': change['scheduled_time']},
+            'end': {'dateTime': change['estimated_end']},
+            'attendees': self._get_approvers(change['approval_level'])
+        }
+
+        self.calendar.events().insert(
+            calendarId='maintenance@company.com',
+            body=event
+        ).execute()
+
+    def document_change(self, change_id):
+        # Generate RFC document
+        doc = self._mcp_call("generate_rfc_document", {"id": change_id})
+
+        # Save to Drive
+        file_metadata = {
+            'name': f'RFC-{change_id}.pdf',
+            'parents': ['change-requests-folder-id']
+        }
+
+        self.drive.files().create(
+            body=file_metadata,
+            media_body=doc['content']
+        ).execute()
+#+END_SRC
+
+*** Features
+- Automatic maintenance window scheduling
+- RFC document generation and storage
+- Email notifications to stakeholders
+- Calendar-based freeze period enforcement
+
+** 4. Atlassian Integration
+[[https://support.atlassian.com/rovo/docs/getting-started-with-the-atlassian-remote-mcp-server/][Atlassian Rovo MCP Server]]
+
+*** Use Case: Jira Service Management Integration
+#+BEGIN_SRC javascript
+// Jira automation rule using MCP
+{
+  "trigger": {
+    "type": "issue_created",
+    "project": "CHANGE"
+  },
+  "conditions": [{
+    "type": "issue_type",
+    "value": "Change Request"
+  }],
+  "actions": [{
+    "type": "mcp_call",
+    "server": "https://mcp.changeflow.us",
+    "tool": "create_change_request",
+    "params": {
+      "title": "{{issue.summary}}",
+      "description": "{{issue.description}}",
+      "jira_key": "{{issue.key}}",
+      "priority": "{{issue.priority.name}}"
+    }
+  }, {
+    "type": "mcp_call",
+    "tool": "assess_risk",
+    "store_as": "risk_assessment"
+  }, {
+    "type": "add_comment",
+    "body": "Risk Score: {{risk_assessment.score}}\nRequired Approvals: {{risk_assessment.approvers}}"
+  }]
+}
+#+END_SRC
+
+*** Confluence Integration
+#+BEGIN_SRC javascript
+// Auto-generate runbooks
+async function generateRunbook(changeId) {
+  const change = await mcp.call('get_change', { id: changeId });
+  const runbook = await mcp.call('generate_runbook', {
+    change_id: changeId,
+    include_rollback: true
+  });
+
+  // Create Confluence page
+  await confluence.content.create({
+    type: 'page',
+    title: `Runbook: ${change.title}`,
+    space: { key: 'OPS' },
+    body: {
+      storage: {
+        value: runbook.html,
+        representation: 'storage'
+      }
+    },
+    metadata: {
+      labels: [
+        { prefix: 'change', name: changeId },
+        { prefix: 'risk', name: change.risk_level }
+      ]
+    }
+  });
+}
+#+END_SRC
+
+** 5. Slack Integration
+[[https://slack.dev/secure-data-connectivity-for-the-modern-ai-era/][Slack Secure Data Connectivity]]
+
+*** Use Case: ChatOps Change Management
+#+BEGIN_SRC python
+# Slack bot with MCP integration
+from slack_bolt import App
+from slack_bolt.adapter.socket_mode import SocketModeHandler
+import requests
+
+app = App(token=os.environ["SLACK_BOT_TOKEN"])
+MCP_SERVER = "https://mcp.changeflow.us"
+
+@app.command("/change")
+def handle_change_command(ack, command, client):
+    ack()
+
+    # Parse command
+    action = command['text'].split()[0]
+
+    if action == "create":
+        # Interactive modal for change creation
+        client.views_open(
+            trigger_id=command["trigger_id"],
+            view=create_change_modal()
+        )
+
+    elif action == "status":
+        # Get all pending changes
+        changes = mcp_call("list_pending_changes")
+
+        blocks = []
+        for change in changes:
+            blocks.append({
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*{change['id']}*: {change['title']}\n"
+                           f"Status: {change['status']} | Risk: {change['risk']}"
+                },
+                "accessory": {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "Approve"},
+                    "action_id": f"approve_{change['id']}"
+                }
+            })
+
+        client.chat_postMessage(
+            channel=command['channel_id'],
+            blocks=blocks
+        )
+
+@app.action("approve_*")
+def handle_approval(ack, action, client):
+    ack()
+    change_id = action['action_id'].split('_')[1]
+
+    result = mcp_call("approve_change", {
+        "change_id": change_id,
+        "approver": action['user']['id']
+    })
+
+    client.chat_postMessage(
+        channel=action['channel']['id'],
+        text=f"✅ Change {change_id} approved by <@{action['user']['id']}>"
+    )
+#+END_SRC
+
+*** Features
+- Slash commands for change operations
+- Interactive approval workflows
+- Real-time status updates
+- Incident escalation to emergency changes
+
+** 6. Cloudflare Workers AI Integration
+[[https://github.com/cloudflare/ai/tree/main/demos/remote-mcp-server][Cloudflare Remote MCP Server]]
+
+*** Use Case: AI-Powered Risk Assessment
+#+BEGIN_SRC javascript
+// Enhanced risk assessment using Workers AI
+export default {
+  async fetch(request, env) {
+    const change = await request.json();
+
+    // Use AI to analyze change description
+    const aiAnalysis = await env.AI.run('@cf/meta/llama-2-7b-chat', {
+      prompt: `Analyze this change for risk factors:
+        Title: ${change.title}
+        Description: ${change.description}
+        Component: ${change.component}
+
+        Consider: dependencies, timing, complexity, rollback difficulty.
+        Provide risk score 1-100 and key concerns.`
+    });
+
+    // Combine AI analysis with rule-based assessment
+    const ruleBasedRisk = calculateRiskScore(change);
+    const aiRisk = parseAIRiskScore(aiAnalysis);
+
+    const finalRisk = {
+      score: Math.max(ruleBasedRisk.score, aiRisk.score),
+      factors: [...ruleBasedRisk.factors, ...aiRisk.concerns],
+      ai_insight: aiAnalysis.response,
+      recommendation: determineRecommendation(ruleBasedRisk, aiRisk)
+    };
+
+    // Store in KV for audit
+    await env.RISK_ASSESSMENTS.put(
+      `risk_${change.id}`,
+      JSON.stringify(finalRisk)
+    );
+
+    return Response.json(finalRisk);
+  }
+};
+#+END_SRC
+
+*** Capabilities
+- LLM-enhanced risk analysis
+- Intelligent dependency detection
+- Anomaly detection in change patterns
+- Predictive failure analysis
+
+** 7. Pulumi Infrastructure as Code Integration
+[[https://www.pulumi.com/docs/iac/using-pulumi/mcp-server/][Pulumi MCP Server]]
+
+*** Use Case: Infrastructure Change Tracking
+#+BEGIN_SRC typescript
+// Pulumi program with MCP integration
+import * as pulumi from "@pulumi/pulumi";
+import * as aws from "@pulumi/aws";
+import { MCPClient } from "@pulumi/mcp";
+
+const mcp = new MCPClient({
+  server: "https://mcp.changeflow.us",
+  token: process.env.MCP_TOKEN
+});
+
+// Custom resource that creates change request
+class ManagedResource extends pulumi.ComponentResource {
+  constructor(name: string, args: any, opts?: pulumi.ComponentResourceOptions) {
+    super("changeflow:ManagedResource", name, {}, opts);
+
+    // Create change request before resource creation
+    const changeRequest = mcp.createChangeRequest({
+      title: `Deploy ${name}`,
+      type: "infrastructure",
+      component: args.component,
+      pulumi_stack: pulumi.getStack(),
+      preview: pulumi.runtime.isDryRun()
+    });
+
+    // Only proceed if approved (or preview mode)
+    if (!pulumi.runtime.isDryRun()) {
+      changeRequest.apply(cr => {
+        if (cr.status !== "approved") {
+          throw new Error(`Change ${cr.id} not approved`);
+        }
+      });
+    }
+
+    // Create actual resource
+    const resource = new aws.s3.Bucket(`${name}-bucket`, args, {
+      parent: this,
+      dependsOn: [changeRequest]
+    });
+
+    // Register completion
+    resource.id.apply(id => {
+      if (!pulumi.runtime.isDryRun()) {
+        mcp.updateChangeStatus({
+          change_id: changeRequest.id,
+          status: "completed",
+          resource_id: id
+        });
+      }
+    });
+  }
+}
+
+// Usage
+const webBucket = new ManagedResource("web", {
+  component: "frontend",
+  website: { indexDocument: "index.html" }
+});
+
+export const bucketName = webBucket.bucket.id;
+#+END_SRC
+
+*** Features
+- Automatic change requests for IaC deployments
+- Preview → Change Request → Approval → Deploy flow
+- Resource tracking and rollback coordination
+- Drift detection and remediation
+
+* AI Assistant Integration
+
+** Claude Code Integration
+For Anthropic's Claude Code assistant:
+
+#+BEGIN_SRC javascript
+// .claude/mcp_config.json
+{
+  "mcpServers": {
+    "changeflow": {
+      "url": "https://mcp.changeflow.us",
+      "description": "ITIL Change Management",
+      "tools": [
+        "create_change_request",
+        "assess_risk",
+        "schedule_deployment",
+        "check_health",
+        "rollback_deployment"
+      ],
+      "auth": {
+        "type": "oauth2",
+        "client_id": "${CHANGEFLOW_CLIENT_ID}",
+        "scope": "change:write deployment:read"
+      }
+    }
+  }
+}
+#+END_SRC
+
+*** Usage in Claude Code
+#+BEGIN_EXAMPLE
+Human: Deploy the frontend changes to production
+
+Claude: I'll help you deploy the frontend changes to production. Let me first create a change request and assess the risk.
+
+[Using MCP: create_change_request]
+Creating change request for frontend deployment...
+
+Change Request Created:
+- ID: CHG-2024-1234
+- Title: Deploy frontend changes to production
+- Component: frontend
+- Risk Level: LOW (8% failure rate typical)
+
+[Using MCP: assess_risk]
+Performing risk assessment...
+
+Risk Assessment Complete:
+- Score: 23/100 (LOW)
+- No blocking dependencies detected
+- Recommended window: Today 2-4 PM UTC
+- Required approvals: Dev Lead only
+
+[Using MCP: schedule_deployment]
+Scheduling deployment window...
+
+Deployment scheduled for 2:00 PM UTC (in 1 hour).
+Would you like me to prepare the rollback plan as well?
+#+END_EXAMPLE
+
+** GitHub Copilot Integration
+For GitHub Copilot with MCP support:
+
+#+BEGIN_SRC yaml
+# .github/copilot/mcp.yml
+servers:
+  - name: changeflow
+    url: https://mcp.changeflow.us
+    description: Change management and deployment
+    authentication:
+      type: github_app
+      app_id: 123456
+
+    contexts:
+      - trigger: "/deploy"
+        tools: ["create_change_request", "schedule_deployment"]
+
+      - trigger: "/rollback"
+        tools: ["rollback_deployment", "get_incident"]
+
+      - trigger: "/status"
+        tools: ["check_health", "get_metrics"]
+#+END_SRC
+
+*** In-IDE Usage
+#+BEGIN_SRC python
+# When typing a comment like:
+# TODO: Deploy this to production after testing
+
+# Copilot suggests:
+async def deploy_to_production():
+    """Deploy after creating change request and getting approval."""
+    # Create change request via MCP
+    change = await mcp.create_change_request(
+        title=f"Deploy {__package__} v{__version__}",
+        component="backend-api",
+        risk_assessment_required=True
+    )
+
+    # Wait for approval
+    await mcp.await_approval(change.id, timeout=3600)
+
+    # Deploy with automatic rollback on failure
+    result = await mcp.deploy_with_rollback(
+        change_id=change.id,
+        environment="production",
+        health_check_interval=30,
+        rollback_threshold=0.05  # 5% error rate
+    )
+
+    return result
+#+END_SRC
+
+* Security & Compliance
+
+** Authentication Methods
+1. **OAuth2**: For user-interactive tools (Slack, GitHub)
+2. **API Keys**: For CI/CD systems (CircleCI, Jenkins)
+3. **JWT**: For service-to-service (Pulumi, Cloudflare)
+4. **mTLS**: For high-security environments
+
+** Audit Trail
+Every MCP interaction is logged:
+#+BEGIN_SRC json
+{
+  "timestamp": "2024-01-15T14:30:00Z",
+  "client": "claude-code",
+  "user": "alice@company.com",
+  "tool": "create_change_request",
+  "params": { "title": "Update API gateway" },
+  "result": { "change_id": "CHG-2024-1234" },
+  "duration_ms": 234,
+  "ip_address": "203.0.113.42"
+}
+#+END_SRC
+
+** Compliance Features
+- SOC2 Type II compliant logging
+- GDPR-compliant data handling
+- Role-based access control (RBAC)
+- Encryption at rest and in transit
+
+* Implementation Roadmap
+
+** Phase 1: Core Integrations (Current)
+- ✅ Cloudflare Workers deployment
+- ✅ Basic MCP protocol support
+- ✅ Authentication framework
+- ✅ Audit logging
+
+** Phase 2: Platform Integrations (Q1 2025)
+- ⏳ GitHub Actions integration
+- ⏳ CircleCI orb development
+- ⏳ Slack bot deployment
+- ⏳ Google Workspace connectors
+
+** Phase 3: AI Enhancement (Q2 2025)
+- ⏳ Claude Code plugin
+- ⏳ Copilot extension
+- ⏳ Workers AI risk analysis
+- ⏳ Predictive failure detection
+
+** Phase 4: Enterprise Features (Q3 2025)
+- ⏳ Multi-region coordination
+- ⏳ Cross-platform change correlation
+- ⏳ Advanced rollback strategies
+- ⏳ Compliance reporting dashboard
+
+* Best Practices
+
+** 1. Tool Design
+- Keep tools focused and single-purpose
+- Use clear, descriptive names
+- Provide comprehensive error messages
+- Include progress indicators for long operations
+
+** 2. Integration Patterns
+- Implement circuit breakers for external calls
+- Use exponential backoff for retries
+- Cache frequently accessed data
+- Batch operations where possible
+
+** 3. Security
+- Rotate API keys quarterly
+- Use least-privilege principles
+- Implement rate limiting
+- Monitor for anomalous usage patterns
+
+** 4. Monitoring
+- Track tool usage metrics
+- Monitor response times
+- Alert on error rates > 1%
+- Review audit logs weekly
+
+* Conclusion
+
+The MCP ecosystem enables our ITIL-compliant change management system to integrate seamlessly with modern DevOps toolchains and AI assistants. By providing standardized interfaces through MCP, we enable:
+
+- **Unified Change Management**: Single source of truth across all platforms
+- **AI-Powered Operations**: Intelligent risk assessment and automation
+- **Enterprise Compliance**: Full audit trail and approval workflows
+- **Developer Experience**: Natural language interactions with change processes
+
+This integration strategy positions ChangeFlow as the central nervous system for enterprise change management in the AI era.
+
+* Resources
+
+- [[https://github.com/dsp-dr/guile-changeflow][Our GitHub Repository]]
+- [[https://mcp.changeflow.us/docs][API Documentation]]
+- [[https://modelcontextprotocol.org][MCP Protocol Specification]]
+- [[file:./ITIL-MCP-IMPLEMENTATION-OVERVIEW.org][ITIL Implementation Guide]]
+- [[file:../infra/cloudflare/worker.js][MCP Server Source Code]]
