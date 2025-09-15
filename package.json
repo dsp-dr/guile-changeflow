@@ -1,0 +1,77 @@
+{
+  "name": "@guile-changeflow/mcp-server",
+  "version": "1.4.4",
+  "description": "ITIL-compliant MCP server for change management with chaos engineering",
+  "main": "infra/cloudflare/worker.js",
+  "bin": {
+    "guile-changeflow-mcp": "./bin/mcp-server.js"
+  },
+  "scripts": {
+    "start": "node bin/mcp-server.js",
+    "dev": "nodemon bin/mcp-server.js",
+    "test": "gmake test",
+    "deploy": "./scripts/parallel-deploy.sh",
+    "validate": "./scripts/parallel-validate.sh",
+    "deploy:staging": "wrangler deploy --name guile-changeflow-staging",
+    "deploy:production": "wrangler deploy --name guile-changeflow-prod",
+    "rollback": "./scripts/parallel-rollback.sh",
+    "serve": "npx serve demos/web-ui -p 3000",
+    "mcp:local": "node bin/mcp-server.js --local",
+    "mcp:remote": "node bin/mcp-server.js --remote"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dsp-dr/guile-changeflow.git"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "itil",
+    "change-management",
+    "chaos-engineering",
+    "cloudflare-workers",
+    "guile",
+    "scheme"
+  ],
+  "author": "Jason Walsh",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dsp-dr/guile-changeflow/issues"
+  },
+  "homepage": "https://github.com/dsp-dr/guile-changeflow#readme",
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.14.2",
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "winston": "^3.11.0",
+    "jsonwebtoken": "^9.0.2",
+    "express-rate-limit": "^7.1.5",
+    "opossum": "^8.1.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "wrangler": "^3.22.1",
+    "@cloudflare/workers-types": "^4.20231218.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "mcp": {
+    "version": "1.0.0",
+    "protocol": "jsonrpc",
+    "transport": ["stdio", "websocket", "http"],
+    "capabilities": {
+      "tools": true,
+      "resources": true,
+      "prompts": true,
+      "sampling": false
+    }
+  }
+}
