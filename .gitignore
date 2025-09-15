@@ -110,7 +110,7 @@ coverage.xml
 /config.local.scm
 /config.local
 .env
-.envrc
+# .envrc - now tracked since it contains no secrets
 .direnv/
 
 # Logs and temporary files

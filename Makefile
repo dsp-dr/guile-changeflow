@@ -35,6 +35,8 @@ help:
 	@echo "  ci-runs   - List all recent workflow runs"
 	@echo "  ci-branch-sync - Trigger branch sync check"
 	@echo "  ci-fix    - Show common CI fixes"
+	@echo "  clear-queue - Clear stuck GitHub Actions queue"
+	@echo "  clear-deploy - Clear queue and trigger deployment"
 	@echo ""
 	@echo "GitHub:"
 	@echo "  issues    - List GitHub issues"
@@ -310,13 +312,9 @@ mcp-server-background:
 test: test-guile test-mcp
 	@echo "=== All tests completed ==="
 
-# Build target - only copy worker.js, keep wrangler.toml in infra
-build: infra/cloudflare/worker.js
-
-infra/cloudflare/worker.js: mcp-server/changeflow-mcp.js
-	@echo "📦 Building MCP server to infra/cloudflare/worker.js..."
-	@cp mcp-server/changeflow-mcp.js infra/cloudflare/worker.js
-	@echo "✅ Build complete"
+# Build target - worker.js already in infra/cloudflare
+build:
+	@echo "✅ Build complete (single file already in place)"
 
 # Deploy to Cloudflare (depends on worker.js being up to date)
 deploy: build
@@ -334,9 +332,17 @@ deploy-production: build
 	@${MAKE} -C infra/cloudflare deploy-production
 	@echo "✅ Production deployment complete"
 
-# Production sanity check
-check-prod:
-	@echo "=== Production Sanity Check ==="
+# Clear GitHub Actions queue
+clear-queue:
+	@bash scripts/clear-gh-queue.sh
+
+# Clear queue and deploy
+clear-deploy:
+	@bash scripts/clear-gh-queue.sh --deploy
+
+# Production sanity check (old API endpoint)
+check-prod-legacy:
+	@echo "=== Production Sanity Check (Legacy API) ==="
 	@curl -s https://api.changeflow.us/health | jq -r 'if .status == "healthy" then "✅ Production: HEALTHY" else "❌ Production: UNHEALTHY" end'
 	@echo "Service: $$(curl -s https://api.changeflow.us/health | jq -r '.service')"
 	@echo "Version: $$(curl -s https://api.changeflow.us/health | jq -r '.version')"
@@ -350,7 +356,7 @@ check-staging:
 	@echo "Version: $$(curl -s https://guile-changeflow-staging.jasonwalsh.workers.dev/health | jq -r '.version')"
 
 # Quick health check for both environments
-check: check-staging check-prod
+check: check-staging check-prod-legacy check-prod
 	@echo "=== All Environments Checked ==="
 
 # OAuth Experiment Deployment
@@ -403,3 +409,62 @@ clean-demo:
 	@echo "🧹 Cleaning demo data..."
 	@rm -rf data/demo-*.json
 	@echo "✅ Demo data cleaned"
+
+# GitHub Actions Queue Management
+kill-queue:
+	@echo "🔄 Cancelling all queued GitHub Actions runs..."
+	@gh run list --repo dsp-dr/guile-changeflow --status queued --json databaseId -q '.[].databaseId' | \
+		xargs -I {} sh -c 'echo "Cancelling run {}..." && gh run cancel {} --repo dsp-dr/guile-changeflow'
+	@echo "✅ Queue cleared"
+
+deploy-manual:
+	@echo "🚀 Triggering manual deployment..."
+	@gh workflow run deploy-cloudflare.yml --repo dsp-dr/guile-changeflow --ref main
+	@echo "✅ Deployment triggered - check status with: gmake deploy-status"
+
+deploy-status:
+	@echo "📊 Deployment Status:"
+	@gh run list --repo dsp-dr/guile-changeflow --workflow deploy-cloudflare.yml --limit 3
+
+# Emergency Controls (SPECULATIVE - NOT TESTED)
+# ⚠️ WARNING: These commands will affect production!
+emergency-shutdown:
+	@echo "⚠️ EMERGENCY SHUTDOWN (SPECULATIVE COMMAND)"
+	@echo "This would disable all Cloudflare Workers routes"
+	@echo "Command (DO NOT RUN): wrangler dispatch-namespace disable"
+	@echo "See issue #20 for implementation details"
+
+emergency-maintenance:
+	@echo "🔧 MAINTENANCE MODE (SPECULATIVE COMMAND)"
+	@echo "This would deploy a maintenance worker"
+	@echo "Command (DO NOT RUN): wrangler deploy infra/cloudflare/maintenance-worker.js"
+	@echo "See issue #20 for implementation details"
+
+emergency-restore:
+	@echo "✅ RESTORE SERVICE (SPECULATIVE COMMAND)"
+	@echo "This would restore normal operations"
+	@echo "Command (DO NOT RUN): gmake deploy-production"
+	@echo "See issue #20 for implementation details"
+
+emergency-status:
+	@echo "📊 CHECK EMERGENCY STATUS"
+	@echo "Current production status:"
+	@gmake check-prod
+
+# Production endpoint checks
+check-prod:
+	@echo "🔍 Checking ChangeFlow MCP Production Endpoints"
+	@echo "Landing Page:"
+	@curl -s -o /dev/null -w "  https://mcp.changeflow.us/: %{http_code}\n" https://mcp.changeflow.us/
+	@echo "Health Check:"
+	@curl -s -o /dev/null -w "  https://mcp.changeflow.us/health: %{http_code}\n" https://mcp.changeflow.us/health
+	@echo "MCP Legacy:"
+	@curl -s -o /dev/null -w "  https://mcp.changeflow.us/mcp: %{http_code}\n" https://mcp.changeflow.us/mcp
+	@echo "MCP SSE (no auth):"
+	@curl -s -o /dev/null -w "  https://mcp.changeflow.us/v1/sse: %{http_code}\n" https://mcp.changeflow.us/v1/sse
+	@echo "Favicon:"
+	@curl -s -o /dev/null -w "  https://mcp.changeflow.us/favicon.ico: %{http_code}\n" https://mcp.changeflow.us/favicon.ico
+	@echo "OAuth:"
+	@curl -s -o /dev/null -w "  https://mcp.changeflow.us/authorize: %{http_code}\n" https://mcp.changeflow.us/authorize
+
+prod-status: check-prod

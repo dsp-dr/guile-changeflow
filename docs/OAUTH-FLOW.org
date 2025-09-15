@@ -1,0 +1,97 @@
+#+TITLE: OAuth Flow Implementation
+#+DATE: 2025-09-14
+
+* OAuth Flow Diagram
+
+#+BEGIN_SRC mermaid
+sequenceDiagram
+    participant User
+    participant CF as ChangeFlow<br/>(api.changeflow.us)
+    participant GH as GitHub OAuth
+    participant Claude as Claude.ai
+
+    User->>CF: 1. Visit /
+    CF-->>User: Show landing page
+    User->>CF: 2. Click "Authorize"
+    CF->>GH: 3. Redirect to GitHub<br/>/authorize?client_id=...
+
+    Note over GH: User logs in<br/>and authorizes
+
+    GH->>CF: 4. Redirect to /callback<br/>with code & state
+    CF->>GH: 5. POST /access_token<br/>(exchange code)
+    GH-->>CF: 6. Return access_token
+    CF-->>User: 7. Show success page<br/>with MCP URL
+
+    User->>Claude: 8. Add MCP URL to<br/>Custom Connectors
+    Claude->>CF: 9. Connect to /mcp
+    CF-->>Claude: 10. MCP protocol active
+#+END_SRC
+
+* OAuth Flow Sequence
+
+** 1. Initial Landing (/authorize)
+User clicks "Authorize with GitHub" on our landing page
+
+** 2. GitHub Redirect
+We redirect to:
+#+BEGIN_SRC
+https://github.com/login/oauth/authorize?
+  client_id=Ov23lir2JJgJffb51RPs&
+  redirect_uri=https://api.changeflow.us/callback&
+  scope=read:user&
+  state=<random-uuid>
+#+END_SRC
+
+** 3. User Authorizes
+GitHub shows authorization page:
+- "ChangeFlow MCP Server wants to access your account"
+- User clicks "Authorize"
+
+** 4. GitHub Callback (/callback)
+GitHub redirects back to us with:
+#+BEGIN_SRC
+https://api.changeflow.us/callback?
+  code=<temporary-code>&
+  state=<same-uuid>
+#+END_SRC
+
+** 5. Token Exchange
+We POST to GitHub:
+#+BEGIN_SRC
+POST https://github.com/login/oauth/access_token
+{
+  "client_id": "Ov23lir2JJgJffb51RPs",
+  "client_secret": "<from-env>",
+  "code": "<from-callback>"
+}
+#+END_SRC
+
+** 6. Success Page
+Show user success with MCP URL to add to Claude.ai
+
+* Routes Summary
+
+| Route        | Method | Purpose                      | Response     |
+|--------------+--------+------------------------------+--------------|
+| /            | GET    | Minimal landing page         | HTML         |
+| /health      | GET    | Health check                 | JSON         |
+| /authorize   | GET    | Start OAuth flow             | Redirect     |
+| /callback    | GET    | Handle GitHub callback       | HTML/Error   |
+| /token       | POST   | Token exchange (API)         | JSON         |
+| /mcp         | GET    | MCP info                     | JSON         |
+| /mcp         | POST   | MCP protocol                 | JSON         |
+
+* Testing the Flow
+
+1. Visit https://api.changeflow.us/
+2. Click "Authorize with GitHub"
+3. Authorize on GitHub
+4. Land on success page with MCP URL
+5. Add URL to Claude.ai Custom Connectors
+
+* Security Considerations
+
+- State parameter for CSRF protection
+- Client secret never exposed to frontend
+- Access tokens not stored in cookies
+- CORS restricted to claude.ai

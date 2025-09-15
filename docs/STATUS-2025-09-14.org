@@ -1,0 +1,129 @@
+#+TITLE: ChangeFlow MCP Status Report
+#+DATE: 2025-09-14
+#+AUTHOR: ChangeFlow Team
+
+* Executive Summary
+
+Successfully deployed v1.3.2 with OAuth redirect flow for Claude.ai integration. The system now automatically redirects unauthenticated requests to GitHub OAuth, maintaining session state through cookies for subsequent SSE connections.
+
+* Deployment Status
+
+** Production (mcp.changeflow.us)
+- Version: v1.3.2
+- Status: ✅ Operational
+- OAuth Flow: ✅ Working (302 redirect to GitHub)
+- SSE Endpoint: ✅ Ready
+- Deployment Time: 2025-09-14 22:15 UTC
+
+** Key Changes Deployed
+1. OAuth redirect flow for /v1/sse endpoint
+2. Session cookie management (mcp_session)
+3. Automatic redirect for unauthenticated requests
+4. Support for both cookie and Bearer token auth
+
+* Technical Implementation
+
+** OAuth Flow Sequence
+#+BEGIN_SRC
+1. Claude.ai → GET /v1/sse (no auth)
+2. Server → 302 Redirect to GitHub OAuth
+3. User → Authorizes on GitHub
+4. GitHub → Redirect to /callback with code
+5. Server → Exchange code for token
+6. Server → Set session cookie
+7. Server → Return success page
+8. Claude.ai → GET /v1/sse (with cookie)
+9. Server → SSE stream established
+#+END_SRC
+
+** Authentication Methods
+- Session cookies (mcp_session) - Primary for Claude.ai
+- Bearer tokens - Backward compatibility
+- No auth required after OAuth completion
+
+* Environment Variables
+
+** Configured in wrangler.toml
+- ENVIRONMENT = "production"
+- LOG_LEVEL = "info"
+- GITHUB_CLIENT_ID = "Ov23lir2JJgJffb51RPs"
+
+** Required in Cloudflare Dashboard
+- GITHUB_CLIENT_SECRET (as Secret)
+
+* Testing Results
+
+** OAuth Redirect Test
+#+BEGIN_SRC bash
+curl -i https://mcp.changeflow.us/v1/sse
+# Result: HTTP/2 302
+# Location: https://github.com/login/oauth/authorize?client_id=...
+#+END_SRC
+
+** Health Check
+#+BEGIN_SRC bash
+curl https://mcp.changeflow.us/health
+# Status: healthy
+# Version: 1.3.2
+# Capabilities: [mcp, change_management, risk_assessment, oauth]
+#+END_SRC
+
+* Known Issues & Resolutions
+
+** Issue: GITHUB_CLIENT_ID Deletion on Deploy
+- Problem: Environment variable deleted during deployment
+- Solution: Added to wrangler.toml [vars] section
+- Status: ✅ Resolved
+
+** Issue: Claude.ai 401 Errors
+- Problem: Claude.ai doesn't send Bearer tokens after OAuth
+- Solution: Implemented session cookie authentication
+- Status: ✅ Resolved
+
+** Issue: Missing OAuth Redirect
+- Problem: /v1/sse returning 401 instead of redirecting
+- Solution: Added redirect logic for unauthenticated requests
+- Status: ✅ Resolved
+
+* Next Steps
+
+1. Monitor Claude.ai connection success rate
+2. Implement token refresh mechanism if needed
+3. Add metrics for OAuth flow completion
+4. Consider implementing state persistence in KV store
+
+* Deployment Commands
+
+** Manual Production Deploy
+#+BEGIN_SRC bash
+gh workflow run deploy-cloudflare.yml \
+  --repo dsp-dr/guile-changeflow \
+  -f environment=production
+#+END_SRC
+
+** Check Deployment Status
+#+BEGIN_SRC bash
+gh run list --repo dsp-dr/guile-changeflow --limit 5
+#+END_SRC
+
+* Lessons Learned
+
+1. Claude.ai uses session-based auth, not Bearer tokens post-OAuth
+2. Cloudflare Workers supports cookies with SameSite=None for cross-origin
+3. GitHub Actions defaults to staging without explicit environment
+4. wrangler.toml [vars] persists across deployments vs dashboard values
+
+* Appendix: Configuration Files
+
+** wrangler.toml (Key sections)
+#+BEGIN_SRC toml
+[vars]
+ENVIRONMENT = "production"
+LOG_LEVEL = "info"
+GITHUB_CLIENT_ID = "Ov23lir2JJgJffb51RPs"
+#+END_SRC
+
+** worker.js OAuth Implementation
+- Redirect logic at lines 449-468
+- Cookie setting at lines 176-197
+- Session checking at lines 444-446

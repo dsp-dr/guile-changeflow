@@ -1,0 +1,31 @@
+{
+  "server": "ChangeFlow",
+  "url": "https://mcp.changeflow.us/mcp",
+  "timestamp": "2025-09-14T14:50:20-04:00",
+  "get_status": "200",
+  "get_headers": {
+    "date": "Sun, 14 Sep 2025 18:50:20 GMT",
+    "content-type": "application/json",
+    "content-length": "255",
+    "access-control-allow-origin": "https://claude.ai",
+    "access-control-allow-headers": "Content-Type, Authorization, anthropic-version",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "vary": "accept-encoding",
+    "report-to": "{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=KtGRjxzM5miUm1yF3kKvqL1NrtKHk9uAZQn7roF%2Bx9EryIuNRQ2uet1B8TjLS1nAPYMz4x0y6HXOKohmpZgTpAX5QSHdLeuU9BmN25XUmtx4"}]}",
+    "nel": "{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}",
+    "server": "cloudflare",
+    "cf-ray": "97f211c8edf6c470-EWR",
+    "alt-svc": "h3=":443"; ma=86400",
+  },
+  "options_status": "204",
+  "cors_headers": {
+    "access-control-allow-origin": "https://claude.ai",
+    "access-control-allow-headers": "Content-Type, Authorization, anthropic-version",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+  },
+  "post_status": "200",
+  "response_type": "JSON-RPC",
+  "tools_count": 8,
+  "sse_support": false,
+  "complete": true
+}
