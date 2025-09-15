@@ -95,7 +95,7 @@ lint-scheme:
 		echo "Found Scheme files:"; \
 		find . -name "*.scm" -o -name "*.ss" -not -path "./.git/*" -not -path "./.tmp/*" | while read file; do \
 			echo "  Checking: $$file"; \
-			guile -L . -c "(use-modules (ice-9 format)) (load \"$$file\")" 2>&1 | grep -E "ERROR|WARNING" || echo "    ✓ Valid"; \
+			guile3 -L . -c "(use-modules (ice-9 format)) (load \"$$file\")" 2>&1 | grep -E "ERROR|WARNING" || echo "    ✓ Valid"; \
 		done; \
 	fi
 	@echo "=== Scheme Lint Complete ==="
@@ -221,7 +221,7 @@ reports: status
 dev-setup:
 	@echo "=== Setting up development environment ==="
 	@echo "1. Checking dependencies..."
-	@command -v guile || echo "   Install Guile 3.0+: apt-get install guile-3.0 guile-3.0-dev"
+	@command -v guile3 || echo "   Install Guile 3.0+: apt-get install guile-3.0 guile-3.0-dev"
 	@command -v node || echo "   Install Node.js: https://nodejs.org/"
 	@command -v jq || echo "   Install jq: apt-get install jq"
 	@echo "2. Setting up directories..."
@@ -278,22 +278,22 @@ test-mcp:
 test-guile:
 	@echo "=== Testing Guile Environment ==="
 	@echo "1. Guile version..."
-	@guile --version | head -1
+	@guile3 --version | head -1
 	@echo ""
 	@echo "2. Module loading test..."
 	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
-		guile -c "(use-modules (ice-9 format)) (display \"Guile modules: OK\\n\")" || \
+		guile3 -c "(use-modules (ice-9 format)) (display \"Guile modules: OK\\n\")" || \
 		echo "❌ Guile module loading failed"
 	@echo ""
 	@echo "3. Running module test suite..."
 	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
-		guile -s test/module-test-simple.scm || \
+		guile3 -s test/module-test-simple.scm || \
 		echo "❌ Module test suite failed"
 
 # Environment check target for .envrc
 check-env:
 	@echo "Checking environment..."
-	@command -v guile > /dev/null && echo "✅ Guile installed" || (echo "❌ Guile missing" && exit 1)
+	@command -v guile3 > /dev/null && echo "✅ Guile 3 installed" || (echo "❌ Guile 3 missing" && exit 1)
 	@command -v node > /dev/null && echo "✅ Node.js installed" || (echo "❌ Node.js missing" && exit 1)
 	@command -v npm > /dev/null && echo "✅ npm installed" || (echo "❌ npm missing" && exit 1)
 	@[ -d src ] && echo "✅ src/ directory exists" || (echo "❌ src/ missing" && exit 1)
@@ -370,32 +370,32 @@ data/demo-change-requests.json:
 	@echo "🎯 Generating reproducible demo datasets..."
 	@mkdir -p data
 	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
-		guile -c "(use-modules (simulator data-export)) (generate-demo-dataset)"
+		guile3 -c "(use-modules (simulator data-export)) (generate-demo-dataset)"
 	@echo "✅ Demo datasets created in data/ directory"
 
 # Demo runners with pre-generated data
 demo-quick: data/demo-quick.json
 	@echo "🚀 Running 5-PR quick demo..."
 	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
-		guile -c "(use-modules (simulator data-export) (simulator deployment-pipeline)) \
+		guile3 -c "(use-modules (simulator data-export) (simulator deployment-pipeline)) \
 		          (run-demo-with-data \"data/demo-quick.json\" 5)"
 
 demo-frontend: data/demo-frontend-only.json
 	@echo "🎨 Running frontend-focused demo..."
 	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
-		guile -c "(use-modules (simulator data-export) (simulator deployment-pipeline)) \
+		guile3 -c "(use-modules (simulator data-export) (simulator deployment-pipeline)) \
 		          (run-demo-with-data \"data/demo-frontend-only.json\" 10)"
 
 demo-backend: data/demo-backend-focus.json
 	@echo "⚙️  Running backend-focused demo..."
 	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
-		guile -c "(use-modules (simulator data-export) (simulator deployment-pipeline)) \
+		guile3 -c "(use-modules (simulator data-export) (simulator deployment-pipeline)) \
 		          (run-demo-with-data \"data/demo-backend-focus.json\" 15)"
 
 demo-infra: data/demo-infrastructure.json
 	@echo "🏗️  Running infrastructure-focused demo..."
 	@export GUILE_LOAD_PATH="$$PWD/src:$$GUILE_LOAD_PATH" && \
-		guile -c "(use-modules (simulator data-export) (simulator deployment-pipeline)) \
+		guile3 -c "(use-modules (simulator data-export) (simulator deployment-pipeline)) \
 		          (run-demo-with-data \"data/demo-infrastructure.json\" 8)"
 
 # Clean demo data
