@@ -360,6 +360,22 @@ oauth-test:
 	@echo "=== Testing OAuth Locally ==="
 	@${MAKE} -C experiments/011-mcp-oauth-routes test
 
+# GitHub Actions Queue Management
+kill-queue:
+	@echo "🔄 Cancelling all queued GitHub Actions runs..."
+	@gh run list --repo dsp-dr/guile-changeflow --status queued --json databaseId -q '.[].databaseId' | \
+		xargs -I {} sh -c 'echo "Cancelling run {}..." && gh run cancel {} --repo dsp-dr/guile-changeflow'
+	@echo "✅ Queue cleared"
+
+deploy-manual:
+	@echo "🚀 Triggering manual deployment..."
+	@gh workflow run deploy-cloudflare.yml --repo dsp-dr/guile-changeflow --ref main
+	@echo "✅ Deployment triggered - check status with: gmake deploy-status"
+
+deploy-status:
+	@echo "📊 Deployment Status:"
+	@gh run list --repo dsp-dr/guile-changeflow --workflow deploy-cloudflare.yml --limit 3
+
 # Emergency Controls (SPECULATIVE - NOT TESTED)
 # ⚠️ WARNING: These commands will affect production!
 emergency-shutdown:

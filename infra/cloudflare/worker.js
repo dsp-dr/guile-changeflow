@@ -847,10 +847,15 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
         });
 
       case '/oauth/authorize':
-        // Alias for /authorize to match Cloudflare's pattern - fall through to /authorize
-        url = new URL(url.origin + '/authorize' + url.search);
-        path = '/authorize';
-        // Fall through to /authorize case
+        // Alias for /authorize to match Cloudflare's pattern
+        // Redirect to /authorize with same query params
+        return new Response(null, {
+          status: 302,
+          headers: {
+            'Location': '/authorize' + url.search,
+            ...corsHeaders
+          }
+        });
 
       case '/register':
         // OAuth client registration endpoint
