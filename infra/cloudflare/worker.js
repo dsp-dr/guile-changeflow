@@ -17,7 +17,7 @@ const getLandingHTML = () => `<!DOCTYPE html>
 </a>
 <h1>🔄 ChangeFlow MCP Server</h1>
 <p>ITIL 4 Change Management for AI</p>
-<p class="version">v${SERVER_VERSION} - OAuth + SSE Ready!</p>
+<p class="version"><span data-version="${SERVER_VERSION}" id="semver">${SERVER_VERSION}</span> - OAuth + SSE Ready!</p>
 <p><a href="/authorize">🔑 Authorize with GitHub</a></p>
 </body>
 </html>`;
@@ -55,7 +55,7 @@ const ERROR_HTML = `<!DOCTYPE html>
 </html>`;
 
 // Server Configuration
-const SERVER_VERSION = '1.4.2';
+const SERVER_VERSION = '1.4.4';
 
 // OAuth URLs
 const GITHUB_OAUTH_URL = 'https://github.com/login/oauth/authorize';
@@ -127,6 +127,18 @@ export default {
           timestamp: new Date().toISOString(),
           environment: env.ENVIRONMENT || 'production',
           capabilities: ['mcp', 'change_management', 'risk_assessment', 'oauth']
+        }), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+
+      case '/version':
+        // Version endpoint - returns clean semver for automation
+        return new Response(JSON.stringify({
+          version: SERVER_VERSION,
+          semver: SERVER_VERSION,
+          major: parseInt(SERVER_VERSION.split('.')[0]),
+          minor: parseInt(SERVER_VERSION.split('.')[1]),
+          patch: parseInt(SERVER_VERSION.split('.')[2])
         }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
