@@ -42,6 +42,8 @@ gh run view <RUN_ID> --log-failed --repo dsp-dr/guile-changeflow
 
 This automated verification ensures your changes are properly deployed without manual checking.
 
+The hook runs automatically on every main branch commit - no developer intervention required.
+
 ## Repository-Specific Guidelines
 
 - `.envrc` contains no secrets and should be committed
