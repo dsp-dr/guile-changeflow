@@ -1,0 +1,29 @@
+Version extraction improvements for automation (v1.4.4)
+
+Context:
+- User requested clean semver extraction for automation/CI-CD pipelines
+- Previous version display mixed version with text: 'v1.4.2 - OAuth + SSE Ready!'
+- Needed machine-readable version for automated validation
+
+Changes implemented:
+1. Updated SERVER_VERSION from 1.4.2 to 1.4.4
+2. Added HTML span element with id='semver' for CSS selector extraction
+3. Added data-version attribute for dataset extraction
+4. Created new /version endpoint returning clean JSON with semver breakdown
+5. Created scripts/check-version.sh for version synchronization validation
+
+Extraction methods now available:
+- JavaScript: document.querySelector('#semver').textContent
+- JavaScript: document.querySelector('[data-version]').dataset.version
+- API: GET /version returns {version, semver, major, minor, patch}
+- API: GET /health includes version field
+- Bash: scripts/check-version.sh validates all versions match
+
+This enables:
+- Automated deployment verification
+- CI/CD pipeline version checks
+- Package version synchronization
+- Semantic version comparison
+- Production readiness validation
+
+The version is now cleanly extractable as '1.4.4' without any surrounding text or prefixes, making it suitable for automated tooling and deployment scripts.
