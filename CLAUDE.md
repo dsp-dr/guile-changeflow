@@ -1,27 +1,46 @@
 # Claude Code Directives for Guile ChangeFlow
 
-## Post-Commit Deployment Verification
+## MANDATORY Post-Commit Deployment Verification
 
-**IMPORTANT**: After committing to the main branch, ALWAYS verify deployment:
+**CRITICAL**: The post-commit hook AUTOMATICALLY verifies deployments when you commit to main.
 
-1. **Check GitHub Actions status**:
-   ```bash
-   gh run list --repo dsp-dr/guile-changeflow --limit 3
-   ```
+The hook will:
+1. Check if deployment was triggered for your commit
+2. Wait for deployment to complete (max 3 minutes)
+3. Verify ALL production endpoints are responding correctly
+4. Compare production version with code version
+5. Report any failures or mismatches
 
-2. **Wait for deployment to complete** (usually 2-3 minutes)
+**YOU MUST**:
+- ALWAYS wait for the post-commit hook to complete after committing to main
+- NEVER ignore deployment failures reported by the hook
+- If the hook reports issues, investigate and fix them immediately
+- If endpoints fail, check the deployment logs and fix the issue
 
-3. **Verify production deployment**:
-   ```bash
-   curl -s https://mcp.changeflow.us/health | jq '.version'
-   ```
+**The hook checks these endpoints**:
+- `/` (200)
+- `/health` (200)
+- `/mcp` (200)
+- `/v1/sse` (401 - requires auth)
+- `/authorize` (200 or 302)
+- `/oauth/authorize` (302)
+- `/.well-known/oauth-authorization-server` (200)
+- `/favicon.ico` (200)
 
-4. **Confirm the version matches your commit**
+**If you see deployment issues**:
+```bash
+# Check deployment status
+gmake deploy-status
 
-This verification is CRITICAL because:
-- Changes to main branch auto-deploy to production
-- Deployment failures can break the live service
-- Version verification confirms your changes are live
+# Clear stuck queue and redeploy
+gmake kill-queue
+gmake deploy-manual
+
+# Check specific run logs
+gh run view <RUN_ID> --log-failed --repo dsp-dr/guile-changeflow
+```
+
+This automated verification ensures your changes are properly deployed without manual checking.
 
 ## Repository-Specific Guidelines
 
