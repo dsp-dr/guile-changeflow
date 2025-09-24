@@ -55,7 +55,7 @@ const ERROR_HTML = `<!DOCTYPE html>
 </html>`;
 
 // Server Configuration
-const SERVER_VERSION = '1.4.4';
+const SERVER_VERSION = '1.5.0';
 
 // OAuth URLs
 const GITHUB_OAUTH_URL = 'https://github.com/login/oauth/authorize';
@@ -232,16 +232,42 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
         if (request.method === 'POST') {
           const formData = await request.formData();
           const action = formData.get('action');
+          const redirectUri = formData.get('redirect_uri');
+          const state = formData.get('state');
 
           if (action === 'approve') {
-            // User approved - redirect to GitHub OAuth
+            // For Claude.ai - skip GitHub OAuth entirely
+            if (redirectUri && (redirectUri.includes('claude.ai') || redirectUri.includes('claude.com'))) {
+              // Generate our own authorization code
+              const authCode = crypto.randomUUID();
+
+              // Encode auth data in the code itself (stateless)
+              const codeData = {
+                client_id: formData.get('client_id'),
+                redirect_uri: redirectUri,
+                code_challenge: formData.get('code_challenge'),
+                code_challenge_method: formData.get('code_challenge_method'),
+                scope: formData.get('scope') || 'mcp',
+                exp: Date.now() + 600000 // 10 minutes
+              };
+
+              const encodedCode = btoa(JSON.stringify(codeData));
+
+              // Redirect directly back to Claude with our code
+              return Response.redirect(
+                `${redirectUri}?code=${encodedCode}&state=${state}`,
+                302
+              );
+            }
+
+            // For non-Claude requests, continue with GitHub OAuth
             const githubParams = new URLSearchParams({
               client_id: env.GITHUB_CLIENT_ID,
               redirect_uri: `${url.origin}/callback`,
               scope: 'read:user',
               state: btoa(JSON.stringify({
-                claudeRedirect: formData.get('redirect_uri'),
-                claudeState: formData.get('state'),
+                claudeRedirect: redirectUri,
+                claudeState: state,
                 codeChallenge: formData.get('code_challenge'),
                 codeChallengeMethod: formData.get('code_challenge_method'),
                 timestamp: Date.now()
@@ -251,9 +277,7 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
             return Response.redirect(`${GITHUB_OAUTH_URL}?${githubParams}`, 302);
           } else {
             // User cancelled
-            const cancelRedirect = formData.get('redirect_uri');
-            const cancelState = formData.get('state');
-            return Response.redirect(`${cancelRedirect}?error=access_denied&state=${cancelState}`, 302);
+            return Response.redirect(`${redirectUri}?error=access_denied&state=${state}`, 302);
           }
         }
 
@@ -586,30 +610,51 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
 
       case '/v1/sse':
         // SSE endpoint for Claude.ai integration
-        // Claude.ai expects: 401 Unauthorized → initiates OAuth flow → SSE works
-
-        // Check for authentication (session cookie or Bearer token)
-        const cookies = request.headers.get('cookie') || '';
-        const hasSession = cookies.includes('mcp_session=');
         const authHeader = request.headers.get('authorization');
+        let isAuthenticated = false;
+
+        // Check Bearer token
+        if (authHeader?.startsWith('Bearer ')) {
+          const token = authHeader.substring(7);
+
+          try {
+            // Try to decode as our token format
+            const tokenData = JSON.parse(atob(token));
+
+            // Validate expiration
+            if (!tokenData.exp || Date.now() < tokenData.exp) {
+              isAuthenticated = true;
+            }
+          } catch (e) {
+            // Token might be a simple UUID from fallback, accept it for now
+            if (token.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+              isAuthenticated = true;
+            }
+          }
+        }
+
+        // Check session cookie as fallback
+        if (!isAuthenticated) {
+          const cookies = request.headers.get('cookie') || '';
+          isAuthenticated = cookies.includes('mcp_session=');
+        }
 
         // If no auth, return 401 with WWW-Authenticate header
-        // This tells Claude.ai to initiate OAuth flow
-        if (!hasSession && !authHeader) {
+        if (!isAuthenticated) {
           return new Response(JSON.stringify({
             error: 'invalid_token',
-            error_description: 'Missing or invalid access token'
+            error_description: 'Authentication required'
           }), {
             status: 401,
             headers: {
               'Content-Type': 'application/json',
-              'WWW-Authenticate': 'Bearer realm="OAuth", error="invalid_token", error_description="Missing or invalid access token"',
+              'WWW-Authenticate': 'Bearer realm="OAuth", error="invalid_token"',
               ...corsHeaders
             }
           });
         }
 
-        // For authenticated requests (has session or Bearer token), return SSE stream
+        // For authenticated GET requests, return SSE stream
         if (request.method === 'GET') {
           return new Response(`data: {"type":"ready","version":"${SERVER_VERSION}"}\n\n`, {
             headers: {
@@ -895,7 +940,7 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
         });
 
       case '/token':
-        // OAuth token endpoint for Claude.ai
+        // OAuth token endpoint
         if (request.method !== 'POST') {
           return new Response('Method not allowed', { status: 405 });
         }
@@ -904,24 +949,80 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
           const body = await request.json();
           const grantType = body.grant_type;
           const code = body.code;
+          const codeVerifier = body.code_verifier;
 
           // Handle authorization_code grant
           if (grantType === 'authorization_code' && code) {
-            // Code is actually our session ID from callback
-            // Generate an access token
-            const accessToken = crypto.randomUUID();
+            // Try to decode as our Claude auth code first
+            try {
+              const codeData = JSON.parse(atob(code));
 
-            return new Response(JSON.stringify({
-              access_token: accessToken,
-              token_type: 'Bearer',
-              expires_in: 3600,
-              scope: 'mcp'
-            }), {
-              headers: {
-                'Content-Type': 'application/json',
-                ...corsHeaders
+              // Validate expiration
+              if (codeData.exp && Date.now() > codeData.exp) {
+                throw new Error('Code expired');
               }
-            });
+
+              // Validate PKCE if present
+              if (codeData.code_challenge_method === 'S256' && codeVerifier) {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(codeVerifier);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = new Uint8Array(hashBuffer);
+
+                // Base64URL encode
+                const computed = btoa(String.fromCharCode(...hashArray))
+                  .replace(/=/g, '')
+                  .replace(/\+/g, '-')
+                  .replace(/\//g, '_');
+
+                if (computed !== codeData.code_challenge) {
+                  return new Response(JSON.stringify({
+                    error: 'invalid_grant',
+                    error_description: 'PKCE validation failed'
+                  }), {
+                    status: 400,
+                    headers: { 'Content-Type': 'application/json', ...corsHeaders }
+                  });
+                }
+              }
+
+              // Generate access token with embedded data
+              const tokenData = {
+                client_id: codeData.client_id,
+                scope: codeData.scope || 'mcp',
+                exp: Date.now() + 3600000 // 1 hour
+              };
+
+              const accessToken = btoa(JSON.stringify(tokenData));
+
+              return new Response(JSON.stringify({
+                access_token: accessToken,
+                token_type: 'Bearer',
+                expires_in: 3600,
+                scope: tokenData.scope
+              }), {
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...corsHeaders
+                }
+              });
+            } catch (decodeError) {
+              // Not our encoded code, might be GitHub session
+              // Fall back to simple token generation for now
+              const accessToken = crypto.randomUUID();
+
+              return new Response(JSON.stringify({
+                access_token: accessToken,
+                token_type: 'Bearer',
+                expires_in: 3600,
+                scope: 'mcp'
+              }), {
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...corsHeaders
+                }
+              });
+            }
           }
 
           return new Response(JSON.stringify({
