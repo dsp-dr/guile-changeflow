@@ -55,7 +55,7 @@ const ERROR_HTML = `<!DOCTYPE html>
 </html>`;
 
 // Server Configuration
-const SERVER_VERSION = '1.5.0';
+const SERVER_VERSION = '1.5.2';
 
 // OAuth URLs
 const GITHUB_OAUTH_URL = 'https://github.com/login/oauth/authorize';
@@ -254,10 +254,17 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
               const encodedCode = btoa(JSON.stringify(codeData));
 
               // Redirect directly back to Claude with our code
-              return Response.redirect(
-                `${redirectUri}?code=${encodedCode}&state=${state}`,
-                302
-              );
+              const redirectUrl = `${redirectUri}?code=${encodedCode}&state=${state}`;
+
+              // Use 303 See Other for POST->GET redirect pattern
+              // This ensures browser properly follows the redirect after form POST
+              return new Response(null, {
+                status: 303,
+                headers: {
+                  'Location': redirectUrl,
+                  ...corsHeaders
+                }
+              });
             }
 
             // For non-Claude requests, continue with GitHub OAuth
@@ -276,8 +283,8 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
 
             return Response.redirect(`${GITHUB_OAUTH_URL}?${githubParams}`, 302);
           } else {
-            // User cancelled
-            return Response.redirect(`${redirectUri}?error=access_denied&state=${state}`, 302);
+            // User cancelled - use 303 for POST->GET redirect
+            return Response.redirect(`${redirectUri}?error=access_denied&state=${state}`, 303);
           }
         }
 
@@ -1007,16 +1014,12 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
                 }
               });
             } catch (decodeError) {
-              // Not our encoded code, might be GitHub session
-              // Fall back to simple token generation for now
-              const accessToken = crypto.randomUUID();
-
+              // Not our encoded code - reject it
               return new Response(JSON.stringify({
-                access_token: accessToken,
-                token_type: 'Bearer',
-                expires_in: 3600,
-                scope: 'mcp'
+                error: 'invalid_grant',
+                error_description: 'Invalid or expired authorization code'
               }), {
+                status: 400,
                 headers: {
                   'Content-Type': 'application/json',
                   ...corsHeaders

@@ -1,3 +1,6 @@
 [submodule "experiments/013-cloudflare-mcp-patterns/cloudflare-mcp"]
 	path = experiments/013-cloudflare-mcp-patterns/cloudflare-mcp
 	url = https://github.com/cloudflare/mcp-server-cloudflare.git
+[submodule "typescript-sdk"]
+	path = typescript-sdk
+	url = https://github.com/modelcontextprotocol/typescript-sdk.git
