@@ -55,7 +55,7 @@ const ERROR_HTML = `<!DOCTYPE html>
 </html>`;
 
 // Server Configuration
-const SERVER_VERSION = '1.5.2';
+const SERVER_VERSION = '1.5.3';
 
 // OAuth URLs
 const GITHUB_OAUTH_URL = 'https://github.com/login/oauth/authorize';
@@ -953,7 +953,18 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
         }
 
         try {
-          const body = await request.json();
+          // Parse form data (OAuth uses application/x-www-form-urlencoded)
+          const contentType = request.headers.get('content-type') || '';
+          let body;
+
+          if (contentType.includes('application/x-www-form-urlencoded')) {
+            const formData = await request.formData();
+            body = Object.fromEntries(formData.entries());
+          } else {
+            // Fallback to JSON for backward compatibility
+            body = await request.json();
+          }
+
           const grantType = body.grant_type;
           const code = body.code;
           const codeVerifier = body.code_verifier;
