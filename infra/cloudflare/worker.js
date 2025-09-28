@@ -55,7 +55,7 @@ const ERROR_HTML = `<!DOCTYPE html>
 </html>`;
 
 // Server Configuration
-const SERVER_VERSION = '1.6.0';
+const SERVER_VERSION = '1.6.1';
 
 // Inline ITIL Service Class
 class ITILService {
@@ -1148,7 +1148,32 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
           grant_types_supported: ['authorization_code', 'refresh_token'],
           token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post', 'none'],
           revocation_endpoint: `${url.origin}/token`,
-          code_challenge_methods_supported: ['plain', 'S256']
+          code_challenge_methods_supported: ['plain', 'S256'],
+          scopes_supported: ['mcp', 'claudeai'],
+          service_documentation: 'https://github.com/dsp-dr/guile-changeflow'
+        }), {
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        });
+
+      case '/.well-known/oauth-protected-resource':
+        // OAuth protected resource metadata (for MCP service discovery)
+        return new Response(JSON.stringify({
+          resource: url.origin,
+          scopes_supported: ['mcp', 'claudeai'],
+          authorization_servers: [url.origin],
+          bearer_methods_supported: ['header'],
+          resource_documentation: 'https://github.com/dsp-dr/guile-changeflow',
+          resource_signing_alg_values_supported: ['none'],
+          interfaces: {
+            mcp: {
+              endpoint: `${url.origin}/v1/sse`,
+              protocol: 'sse',
+              version: '2024-11-05'
+            }
+          }
         }), {
           headers: {
             'Content-Type': 'application/json',
