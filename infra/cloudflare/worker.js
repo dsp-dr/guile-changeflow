@@ -4,11 +4,85 @@
  */
 
 // Inline HTML for landing page (as function to use SERVER_VERSION)
-const getLandingHTML = () => `<!DOCTYPE html>
+const getLandingHTML = (hostname) => {
+  // Check if this is the root domain request
+  const isRootDomain = hostname === 'www.changeflow.us' || hostname === 'changeflow.us';
+
+  if (isRootDomain) {
+    // Enhanced landing page for root domain
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChangeFlow - ITIL 4 Change Management MCP Server</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<meta name="description" content="ChangeFlow MCP Server for ITIL 4 Change Management integration with Claude.ai">
+<meta property="og:title" content="ChangeFlow MCP Server">
+<meta property="og:description" content="ITIL 4 Change Management tools for Claude.ai">
+<meta property="og:url" content="https://changeflow.us">
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;margin:0;padding:0;display:flex;align-items:center;justify-content:center;min-height:100vh}
+.container{text-align:center;padding:2rem;background:rgba(255,255,255,0.1);border-radius:1rem;backdrop-filter:blur(10px);max-width:600px;margin:1rem}
+h1{margin:0 0 1rem 0;font-size:2.5rem}
+.logo{font-size:4rem;margin-bottom:1rem}
+p{margin:1rem 0;font-size:1.1rem;line-height:1.6}
+a{color:#60a5fa;text-decoration:none;font-weight:bold}
+a:hover{text-decoration:underline}
+.features{background:rgba(0,0,0,0.2);padding:1.5rem;border-radius:0.5rem;margin:2rem 0}
+.features h2{margin-top:0;color:#93c5fd}
+.features ul{text-align:left;margin:0 auto;max-width:400px;list-style:none;padding:0}
+.features li{padding:0.5rem 0;position:relative;padding-left:1.5rem}
+.features li:before{content:"✓";position:absolute;left:0;color:#34d399;font-weight:bold}
+.cta{margin-top:2rem;padding:1rem;background:rgba(59,130,246,0.2);border-radius:0.5rem}
+.version{font-size:0.9rem;opacity:0.8;margin-top:2rem}
+.gh-link{position:fixed;top:1rem;right:1rem;opacity:0.7;transition:opacity 0.3s}
+.gh-link:hover{opacity:1}
+</style>
+</head>
+<body>
+<a href="https://github.com/dsp-dr/guile-changeflow" class="gh-link">
+<svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+</a>
+<div class="container">
+  <div class="logo">🔄</div>
+  <h1>ChangeFlow</h1>
+  <p><strong>ITIL 4 Change Management MCP Server</strong></p>
+  <p>Enterprise-grade change management capabilities for Claude.ai through the Model Context Protocol.</p>
+
+  <div class="features">
+    <h2>Features</h2>
+    <ul>
+      <li>Create and manage change requests</li>
+      <li>Risk assessment and analysis</li>
+      <li>Freeze period management</li>
+      <li>CAB approval workflows</li>
+      <li>Emergency change handling</li>
+      <li>Audit trail and compliance</li>
+    </ul>
+  </div>
+
+  <div class="cta">
+    <p><strong>Connect with Claude.ai:</strong></p>
+    <p><code style="background:rgba(0,0,0,0.3);padding:0.25rem 0.5rem;border-radius:0.25rem;display:inline-block">https://mcp.changeflow.us</code></p>
+    <p style="margin-top:1rem">
+      <a href="https://mcp.changeflow.us" style="background:rgba(255,255,255,0.2);padding:0.75rem 1.5rem;border-radius:0.5rem;display:inline-block">Visit MCP Server →</a>
+    </p>
+  </div>
+
+  <p class="version">Version ${SERVER_VERSION} • OAuth 2.0 + SSE Ready</p>
+</div>
+</body>
+</html>`;
+  }
+
+  // Default landing page for MCP subdomain
+  return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>ChangeFlow MCP</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
 <style>body{font-family:system-ui;background:#0f172a;color:#e2e8f0;margin:0;padding:2rem;text-align:center}h1{color:#3b82f6}a{color:#3b82f6;text-decoration:none;padding:1rem 2rem;background:#1e293b;display:inline-block;margin:1rem;border-radius:0.5rem}a:hover{background:#334155}.version{color:#64748b;font-size:0.9rem}.gh-link{position:absolute;top:1rem;right:1rem;color:#64748b;text-decoration:none}.gh-link:hover{color:#94a3b8}</style>
 </head>
 <body>
@@ -18,9 +92,10 @@ const getLandingHTML = () => `<!DOCTYPE html>
 <h1>🔄 ChangeFlow MCP Server</h1>
 <p>ITIL 4 Change Management for AI</p>
 <p class="version"><span data-version="${SERVER_VERSION}" id="semver">${SERVER_VERSION}</span> - OAuth + SSE Ready!</p>
-<p><a href="/authorize">🔑 Authorize with GitHub</a></p>
+<p><a href="/authorize">🔑 Authorize with OAuth</a></p>
 </body>
 </html>`;
+};
 
 // Success page HTML
 const SUCCESS_HTML = `<!DOCTYPE html>
@@ -55,7 +130,7 @@ const ERROR_HTML = `<!DOCTYPE html>
 </html>`;
 
 // Server Configuration
-const SERVER_VERSION = '1.6.2';
+const SERVER_VERSION = '1.6.3';
 
 // Inline ITIL Service Class
 class ITILService {
@@ -201,9 +276,9 @@ export default {
     // Route handling
     switch (path) {
       case '/':
-        // Landing page
-        return new Response(getLandingHTML(), {
-          headers: { 'Content-Type': 'text/html', ...corsHeaders }
+        // Landing page - enhanced for root domain
+        return new Response(getLandingHTML(url.hostname), {
+          headers: { 'Content-Type': 'text/html; charset=UTF-8', ...corsHeaders }
         });
 
       case '/health':
