@@ -61,8 +61,10 @@ jobs:
 
         if [ "$ENVIRONMENT" = "production" ]; then
           echo "Deploying to production..."
-          wrangler deploy
+          wrangler deploy --env production
+          echo "Production URL: https://mcp.changeflow.us"
         else
           echo "Deploying to staging..."
           wrangler deploy --env staging
+          echo "Staging URL: https://guile-changeflow-staging.workers.dev"
         fi

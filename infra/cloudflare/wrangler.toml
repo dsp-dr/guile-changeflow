@@ -38,4 +38,13 @@ enabled = true
 # Staging settings (use with: wrangler deploy --env staging)
 [env.staging]
 name = "guile-changeflow-staging"
-vars = { ENVIRONMENT = "staging", LOG_LEVEL = "info" }
+vars = { ENVIRONMENT = "staging", LOG_LEVEL = "debug", GITHUB_CLIENT_ID = "Ov23lir2JJgJffb51RPs" }
+# Staging uses workers.dev subdomain by default
+# routes = ["staging-mcp.changeflow.us/*"] # Optional: custom domain for staging
+
+# Production settings (use with: wrangler deploy --env production)
+[env.production]
+name = "guile-changeflow-prod"
+vars = { ENVIRONMENT = "production", LOG_LEVEL = "info", GITHUB_CLIENT_ID = "Ov23lir2JJgJffb51RPs" }
+# Production uses custom domain configured in Cloudflare dashboard
+# routes = ["mcp.changeflow.us/*"]
