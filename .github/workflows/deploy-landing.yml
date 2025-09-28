@@ -1,0 +1,50 @@
+name: Deploy Landing Page
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'infra/cloudflare/landing-worker.js'
+      - 'infra/cloudflare/wrangler-landing.toml'
+      - '.github/workflows/deploy-landing.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy Landing Page to Root Domain
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Wrangler
+      run: npm install -g wrangler
+
+    - name: Deploy Landing Page Worker
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      run: |
+        echo "Deploying landing page to changeflow.us..."
+        cd infra/cloudflare
+        wrangler deploy -c wrangler-landing.toml
+        echo "✅ Landing page deployed"
+        echo ""
+        echo "Next steps:"
+        echo "1. Go to Cloudflare dashboard"
+        echo "2. Add custom domains:"
+        echo "   - changeflow.us"
+        echo "   - www.changeflow.us"
+        echo "3. Point them to the changeflow-landing worker"
+
+    - name: Test Landing Page
+      run: |
+        echo "Note: Testing will only work after domain is configured in Cloudflare"
+        # Once configured, these URLs should work:
+        # curl -I https://changeflow.us/favicon.ico
+        # curl -I https://www.changeflow.us/favicon.ico

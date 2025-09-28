@@ -1,0 +1,18 @@
+name = "changeflow-landing"
+main = "landing-worker.js"
+compatibility_date = "2025-01-13"
+
+# Account settings (same as main worker)
+account_id = "" # Will be filled during deployment
+
+# Routes for root domain
+# Configure these in Cloudflare dashboard:
+# - changeflow.us/*
+# - www.changeflow.us/*
+
+[vars]
+ENVIRONMENT = "production"
+
+# Observability
+[observability]
+enabled = true
