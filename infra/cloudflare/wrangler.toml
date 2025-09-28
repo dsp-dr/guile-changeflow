@@ -24,10 +24,10 @@ enabled = true
 # binding = "AE"
 
 # KV storage for ITIL change requests
-[[kv_namespaces]]
-binding = "CHANGES_KV"
-id = "changes-kv-namespace"
-# Note: Will be created automatically during deployment
+# TODO: Create KV namespace in Cloudflare dashboard and add the ID here
+# [[kv_namespaces]]
+# binding = "CHANGES_KV"
+# id = "your-actual-kv-namespace-id"
 
 # For future Durable Objects
 # [[durable_objects.bindings]]
