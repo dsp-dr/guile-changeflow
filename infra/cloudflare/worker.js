@@ -55,7 +55,95 @@ const ERROR_HTML = `<!DOCTYPE html>
 </html>`;
 
 // Server Configuration
-const SERVER_VERSION = '1.5.3';
+const SERVER_VERSION = '1.6.0';
+
+// Inline ITIL Service Class
+class ITILService {
+  constructor(kv) {
+    this.kv = kv;
+    this.FREEZE_PERIODS = [
+      { name: 'Black Friday', start: '2025-11-25', end: '2025-12-02' },
+      { name: 'Year End', start: '2025-12-20', end: '2026-01-05' },
+      { name: 'Quarterly Close', pattern: 'lastWeekOfQuarter' }
+    ];
+  }
+
+  async createChangeRequest(data) {
+    const changeId = `CHG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const change = {
+      id: changeId,
+      title: data.title,
+      description: data.description,
+      environment: data.environment,
+      changeType: data.changeType || 'normal',
+      state: 'new',
+      priority: data.priority || 3,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    if (this.kv) {
+      await this.kv.put(changeId, JSON.stringify(change));
+    }
+    return change;
+  }
+
+  async assessRisk(changeId) {
+    const change = await this.getChange(changeId);
+    if (!change) throw new Error('Change not found');
+
+    const factors = {
+      environment: { production: 3, staging: 2, development: 1 },
+      changeType: { emergency: 4, normal: 2, standard: 1 }
+    };
+
+    let riskScore = 0;
+    riskScore += factors.environment[change.environment] || 2;
+    riskScore += factors.changeType[change.changeType] || 2;
+
+    let riskLevel;
+    if (riskScore <= 3) riskLevel = 'LOW';
+    else if (riskScore <= 5) riskLevel = 'MEDIUM';
+    else if (riskScore <= 7) riskLevel = 'HIGH';
+    else riskLevel = 'CRITICAL';
+
+    return { score: riskScore, level: riskLevel, assessedAt: new Date().toISOString() };
+  }
+
+  checkFreezePeriod(date) {
+    const checkDate = new Date(date);
+    for (const freeze of this.FREEZE_PERIODS) {
+      if (freeze.pattern === 'lastWeekOfQuarter') {
+        const month = checkDate.getMonth();
+        const day = checkDate.getDate();
+        if ([2, 5, 8, 11].includes(month)) {
+          const lastDay = new Date(checkDate.getFullYear(), month + 1, 0).getDate();
+          if (day > lastDay - 7) {
+            return { inFreeze: true, period: freeze.name, reason: 'Quarterly close freeze period' };
+          }
+        }
+      } else if (freeze.start && freeze.end) {
+        const start = new Date(freeze.start);
+        const end = new Date(freeze.end);
+        if (checkDate >= start && checkDate <= end) {
+          return { inFreeze: true, period: freeze.name, reason: `${freeze.name} freeze period` };
+        }
+      }
+    }
+    return { inFreeze: false };
+  }
+
+  async getChange(changeId) {
+    if (!this.kv) return null;
+    const data = await this.kv.get(changeId);
+    return data ? JSON.parse(data) : null;
+  }
+
+  async getActiveChanges() {
+    // Simplified version - in production would use proper indexing
+    return [];
+  }
+}
 
 // OAuth URLs
 const GITHUB_OAUTH_URL = 'https://github.com/login/oauth/authorize';
@@ -547,38 +635,117 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
               const toolName = body.params?.name;
               const toolParams = body.params?.arguments || {};
 
+              // Initialize ITIL service with KV storage
+              const itilService = new ITILService(env.CHANGES_KV);
               let result;
-              switch (toolName) {
-                case 'create_change_request':
-                  const changeId = `CHG-${Date.now()}`;
-                  const change = {
-                    id: changeId,
-                    ...toolParams,
-                    status: 'pending',
-                    createdAt: new Date().toISOString(),
-                    riskScore: calculateRisk(toolParams)
-                  };
-                  changeRequests.set(changeId, change);
-                  result = { content: [{ type: 'text', text: JSON.stringify(change, null, 2) }] };
-                  break;
 
-                case 'check_freeze_period':
-                  const checkDate = new Date(toolParams.date);
-                  const inFreeze = freezePeriods.some(period => {
-                    const start = new Date(period.start);
-                    const end = new Date(period.end);
-                    return checkDate >= start && checkDate <= end;
-                  });
-                  result = {
-                    content: [{
-                      type: 'text',
-                      text: inFreeze ? 'Date is within a freeze period!' : 'Date is clear for changes.'
-                    }]
-                  };
-                  break;
+              try {
+                switch (toolName) {
+                  case 'create_change_request':
+                    const change = await itilService.createChangeRequest(toolParams);
+                    result = {
+                      content: [{
+                        type: 'text',
+                        text: `Change request created: ${change.id}\n\n${JSON.stringify(change, null, 2)}`
+                      }]
+                    };
+                    break;
 
-                default:
-                  result = { content: [{ type: 'text', text: `Tool ${toolName} executed successfully` }] };
+                  case 'assess_risk':
+                    const riskAssessment = await itilService.assessRisk(toolParams.changeId);
+                    result = {
+                      content: [{
+                        type: 'text',
+                        text: `Risk Assessment:\n${JSON.stringify(riskAssessment, null, 2)}`
+                      }]
+                    };
+                    break;
+
+                  case 'check_freeze_period':
+                    const freezeCheck = itilService.checkFreezePeriod(toolParams.date);
+                    result = {
+                      content: [{
+                        type: 'text',
+                        text: freezeCheck.inFreeze
+                          ? `⚠️ Date is within ${freezeCheck.period} freeze period!\nReason: ${freezeCheck.reason}`
+                          : `✅ Date is clear for changes.${freezeCheck.nextFreeze ? `\nNext freeze: ${freezeCheck.nextFreeze.name} in ${freezeCheck.nextFreeze.daysUntil} days` : ''}`
+                      }]
+                    };
+                    break;
+
+                  case 'get_change_request':
+                    const changeDetails = await itilService.getChange(toolParams.changeId);
+                    result = {
+                      content: [{
+                        type: 'text',
+                        text: changeDetails
+                          ? JSON.stringify(changeDetails, null, 2)
+                          : 'Change request not found'
+                      }]
+                    };
+                    break;
+
+                  case 'list_change_requests':
+                    const activeChanges = await itilService.getActiveChanges();
+                    result = {
+                      content: [{
+                        type: 'text',
+                        text: `Active Changes (${activeChanges.length}):\n${JSON.stringify(activeChanges, null, 2)}`
+                      }]
+                    };
+                    break;
+
+                  case 'get_approval_status':
+                    const changeForApproval = await itilService.getChange(toolParams.changeId);
+                    const approvalStatus = changeForApproval?.cabRequest || { status: 'not_requested' };
+                    result = {
+                      content: [{
+                        type: 'text',
+                        text: `CAB Approval Status:\n${JSON.stringify(approvalStatus, null, 2)}`
+                      }]
+                    };
+                    break;
+
+                  case 'emergency_override':
+                    const emergencyChange = await itilService.getChange(toolParams.changeId);
+                    if (emergencyChange) {
+                      emergencyChange.changeType = 'emergency';
+                      emergencyChange.emergencyJustification = toolParams.justification;
+                      emergencyChange.auditLog.push({
+                        timestamp: new Date().toISOString(),
+                        user: 'mcp-client',
+                        action: 'EMERGENCY_OVERRIDE',
+                        details: toolParams.justification
+                      });
+                      if (env.CHANGES_KV) {
+                        await env.CHANGES_KV.put(toolParams.changeId, JSON.stringify(emergencyChange));
+                      }
+                      result = {
+                        content: [{
+                          type: 'text',
+                          text: `Emergency override applied. Change ${toolParams.changeId} marked as emergency.`
+                        }]
+                      };
+                    } else {
+                      result = {
+                        content: [{
+                          type: 'text',
+                          text: 'Change request not found'
+                        }]
+                      };
+                    }
+                    break;
+
+                  default:
+                    result = { content: [{ type: 'text', text: `Tool ${toolName} not implemented yet` }] };
+                }
+              } catch (error) {
+                result = {
+                  content: [{
+                    type: 'text',
+                    text: `Error executing ${toolName}: ${error.message}`
+                  }]
+                };
               }
 
               return new Response(JSON.stringify({
@@ -814,38 +981,117 @@ button{padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-size:1rem;curs
                   const toolName = body.params?.name;
                   const toolParams = body.params?.arguments || {};
 
+                  // Initialize ITIL service with KV storage
+                  const itilService = new ITILService(env.CHANGES_KV);
                   let result;
-                  switch (toolName) {
-                    case 'create_change_request':
-                      const changeId = `CHG-${Date.now()}`;
-                      const change = {
-                        id: changeId,
-                        ...toolParams,
-                        status: 'pending',
-                        createdAt: new Date().toISOString(),
-                        riskScore: calculateRisk(toolParams)
-                      };
-                      changeRequests.set(changeId, change);
-                      result = { content: [{ type: 'text', text: JSON.stringify(change, null, 2) }] };
-                      break;
 
-                    case 'check_freeze_period':
-                      const checkDate = new Date(toolParams.date);
-                      const inFreeze = freezePeriods.some(period => {
-                        const start = new Date(period.start);
-                        const end = new Date(period.end);
-                        return checkDate >= start && checkDate <= end;
-                      });
-                      result = {
-                        content: [{
-                          type: 'text',
-                          text: inFreeze ? 'Date is within a freeze period!' : 'Date is clear for changes.'
-                        }]
-                      };
-                      break;
+                  try {
+                    switch (toolName) {
+                      case 'create_change_request':
+                        const change = await itilService.createChangeRequest(toolParams);
+                        result = {
+                          content: [{
+                            type: 'text',
+                            text: `Change request created: ${change.id}\n\n${JSON.stringify(change, null, 2)}`
+                          }]
+                        };
+                        break;
 
-                    default:
-                      result = { content: [{ type: 'text', text: `Tool ${toolName} executed successfully` }] };
+                      case 'assess_risk':
+                        const riskAssessment = await itilService.assessRisk(toolParams.changeId);
+                        result = {
+                          content: [{
+                            type: 'text',
+                            text: `Risk Assessment:\n${JSON.stringify(riskAssessment, null, 2)}`
+                          }]
+                        };
+                        break;
+
+                      case 'check_freeze_period':
+                        const freezeCheck = itilService.checkFreezePeriod(toolParams.date);
+                        result = {
+                          content: [{
+                            type: 'text',
+                            text: freezeCheck.inFreeze
+                              ? `⚠️ Date is within ${freezeCheck.period} freeze period!\nReason: ${freezeCheck.reason}`
+                              : `✅ Date is clear for changes.${freezeCheck.nextFreeze ? `\nNext freeze: ${freezeCheck.nextFreeze.name} in ${freezeCheck.nextFreeze.daysUntil} days` : ''}`
+                          }]
+                        };
+                        break;
+
+                      case 'get_change_request':
+                        const changeDetails = await itilService.getChange(toolParams.changeId);
+                        result = {
+                          content: [{
+                            type: 'text',
+                            text: changeDetails
+                              ? JSON.stringify(changeDetails, null, 2)
+                              : 'Change request not found'
+                          }]
+                        };
+                        break;
+
+                      case 'list_change_requests':
+                        const activeChanges = await itilService.getActiveChanges();
+                        result = {
+                          content: [{
+                            type: 'text',
+                            text: `Active Changes (${activeChanges.length}):\n${JSON.stringify(activeChanges, null, 2)}`
+                          }]
+                        };
+                        break;
+
+                      case 'get_approval_status':
+                        const changeForApproval = await itilService.getChange(toolParams.changeId);
+                        const approvalStatus = changeForApproval?.cabRequest || { status: 'not_requested' };
+                        result = {
+                          content: [{
+                            type: 'text',
+                            text: `CAB Approval Status:\n${JSON.stringify(approvalStatus, null, 2)}`
+                          }]
+                        };
+                        break;
+
+                      case 'emergency_override':
+                        const emergencyChange = await itilService.getChange(toolParams.changeId);
+                        if (emergencyChange) {
+                          emergencyChange.changeType = 'emergency';
+                          emergencyChange.emergencyJustification = toolParams.justification;
+                          emergencyChange.auditLog.push({
+                            timestamp: new Date().toISOString(),
+                            user: 'mcp-client',
+                            action: 'EMERGENCY_OVERRIDE',
+                            details: toolParams.justification
+                          });
+                          if (env.CHANGES_KV) {
+                            await env.CHANGES_KV.put(toolParams.changeId, JSON.stringify(emergencyChange));
+                          }
+                          result = {
+                            content: [{
+                              type: 'text',
+                              text: `Emergency override applied. Change ${toolParams.changeId} marked as emergency.`
+                            }]
+                          };
+                        } else {
+                          result = {
+                            content: [{
+                              type: 'text',
+                              text: 'Change request not found'
+                            }]
+                          };
+                        }
+                        break;
+
+                      default:
+                        result = { content: [{ type: 'text', text: `Tool ${toolName} not implemented yet` }] };
+                    }
+                  } catch (error) {
+                    result = {
+                      content: [{
+                        type: 'text',
+                        text: `Error executing ${toolName}: ${error.message}`
+                      }]
+                    };
                   }
 
                   const response = {
