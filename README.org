@@ -1,6 +1,8 @@
 #+TITLE: ChangeFlow - ITIL 4 Change Management System
 #+STARTUP: overview
 
+[[file:assets/banner.png]]
+
 [[https://github.com/dsp-dr/guile-changeflow/actions/workflows/ci.yml][https://github.com/dsp-dr/guile-changeflow/actions/workflows/ci.yml/badge.svg]]
 [[https://github.com/dsp-dr/guile-changeflow/releases][https://img.shields.io/github/v/release/dsp-dr/guile-changeflow.svg?include_prereleases]]
 [[https://mcp.changeflow.us][https://img.shields.io/badge/deployed-Cloudflare%20Workers-orange.svg]]
