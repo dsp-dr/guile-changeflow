@@ -21,6 +21,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'production' || github.event.inputs.environment || 'staging' }}
+      url: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'https://mcp.changeflow.us' || 'https://guile-changeflow-staging.workers.dev' }}
 
     steps:
     - uses: actions/checkout@v4
