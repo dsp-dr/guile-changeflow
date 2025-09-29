@@ -68,3 +68,14 @@ jobs:
           wrangler deploy --env staging
           echo "Staging URL: https://guile-changeflow-staging.workers.dev"
         fi
+
+    - name: Health Check
+      run: |
+        if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          URL="https://mcp.changeflow.us/health"
+        else
+          URL="https://guile-changeflow-staging.workers.dev/health"
+        fi
+        sleep 10
+        curl -f "$URL" || exit 1
+        echo "✅ Deployment health check passed"

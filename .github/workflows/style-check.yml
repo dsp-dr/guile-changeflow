@@ -1,0 +1,131 @@
+name: Style and Spelling Checks
+
+on:
+  pull_request:
+    paths:
+      - '**.org'
+      - '.vale.ini'
+      - '.vale/**'
+      - 'Makefile'
+  push:
+    branches: [ main ]
+    paths:
+      - '**.org'
+  workflow_dispatch:
+
+jobs:
+  vale-style-check:
+    name: Vale Style Check
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Don't block PRs on style issues
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vale Linting
+        uses: errata-ai/vale-action@v2
+        continue-on-error: true
+        with:
+          files: '[".", "docs"]'
+          vale_flags: '--glob="*.org" --no-exit'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Style Check Summary
+        if: always()
+        run: |
+          echo "## 📝 Style Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Vale style checking is enabled but non-blocking." >> $GITHUB_STEP_SUMMARY
+          echo "Review any warnings to improve documentation quality." >> $GITHUB_STEP_SUMMARY
+
+  spelling-check:
+    name: Spelling Check
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Don't block PRs on spelling
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install aspell
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y aspell aspell-en
+
+      - name: Check Spelling
+        continue-on-error: true
+        run: |
+          echo "## 🔤 Spelling Check" >> spelling-report.txt
+          echo "" >> spelling-report.txt
+          find . -name "*.org" -not -path "./.git/*" | while read file; do
+            echo "Checking: $file" >> spelling-report.txt
+            aspell --mode=org --lang=en list < "$file" | \
+              sort | uniq | head -10 >> spelling-report.txt || true
+          done
+
+      - name: Upload Spelling Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spelling-report
+          path: spelling-report.txt
+
+      - name: Spelling Summary
+        if: always()
+        run: |
+          echo "## 🔤 Spelling Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Spelling check completed. Review report for potential issues." >> $GITHUB_STEP_SUMMARY
+          echo "Note: Technical terms may be flagged - these can be ignored." >> $GITHUB_STEP_SUMMARY
+
+  org-mode-lint:
+    name: Org-Mode Lint
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Don't block on org-lint issues
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Emacs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y emacs-nox
+
+      - name: Run Org Lint
+        continue-on-error: true
+        run: |
+          find . -name "*.org" -not -path "./.git/*" | while read file; do
+            echo "Linting: $file"
+            emacs --batch -Q \
+              --eval "(require 'org)" \
+              --visit "$file" \
+              -f org-lint \
+              2>&1 | grep -v "^Loading" | grep -v "^Checking" | grep -v "^Done" || true
+          done
+
+      - name: Org Lint Summary
+        if: always()
+        run: |
+          echo "## 📋 Org-Mode Lint Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Org-mode structure validation completed." >> $GITHUB_STEP_SUMMARY
+
+  style-report:
+    name: Generate Style Report
+    runs-on: ubuntu-latest
+    needs: [vale-style-check, spelling-check, org-mode-lint]
+    if: always()
+
+    steps:
+      - name: Final Report
+        run: |
+          echo "# 📊 Documentation Style Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All style checks completed. These are **non-blocking warnings** to help improve documentation quality." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Status" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Vale style check: Complete (warnings only)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Spelling check: Complete (informational)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Org-mode lint: Complete (structure check)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Style checks do not block merging. Review suggestions when convenient." >> $GITHUB_STEP_SUMMARY

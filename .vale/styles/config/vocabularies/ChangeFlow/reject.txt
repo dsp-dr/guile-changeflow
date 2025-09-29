@@ -1,0 +1,26 @@
+# Terms to flag as incorrect
+# These are common misspellings or incorrect capitalizations
+
+# Incorrect capitalizations (correct form is in accept.txt)
+oauth  # Should be OAuth
+Oauth  # Should be OAuth
+oAuth  # Should be OAuth
+Json   # Should be JSON
+json-rpc  # Should be JSON-RPC
+Mcp    # Should be MCP
+mcp    # Should be MCP (when referring to protocol)
+Sse    # Should be SSE
+sse    # Should be SSE (when referring to Server-Sent Events)
+Api    # Should be API (when referring to Application Programming Interface)
+Itil   # Should be ITIL
+itil   # Should be ITIL
+Cab    # Should be CAB (Change Advisory Board)
+cab    # Should be CAB (Change Advisory Board)
+
+# Common misspellings
+recieve  # Should be receive
+occured  # Should be occurred
+seperate # Should be separate
+managment # Should be management
+enviroment # Should be environment
+deployement # Should be deployment

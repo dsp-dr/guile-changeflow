@@ -1,0 +1,94 @@
+* Deployment Status - v1.0.1
+:PROPERTIES:
+:CUSTOM_ID: deployment-status---v1.0.1
+:END:
+** Deployment Summary
+:PROPERTIES:
+:CUSTOM_ID: deployment-summary
+:END:
+- *Version*: v1.0.1
+- *Date*: 2025-09-14
+- *Status*: Partially Deployed
+- *Issue Tracking*:
+  [[https://github.com/dsp-dr/guile-changeflow/issues/12][#12]]
+
+** Environment Status
+:PROPERTIES:
+:CUSTOM_ID: environment-status
+:END:
+*** Staging ✅
+:PROPERTIES:
+:CUSTOM_ID: staging
+:END:
+- *URL*: https://guile-changeflow-staging.jasonwalsh.workers.dev
+- *Status*: OPERATIONAL
+- *ITIL Tools*: 8/8
+- *Version*: 2024-11-05 (MCP Protocol)
+
+*** Production Worker ✅
+:PROPERTIES:
+:CUSTOM_ID: production-worker
+:END:
+- *URL*: https://guile-changeflow-prod.jasonwalsh.workers.dev
+- *Status*: OPERATIONAL
+- *ITIL Tools*: 8/8
+- *Version*: 2024-11-05 (MCP Protocol)
+
+*** Production DNS ❌
+:PROPERTIES:
+:CUSTOM_ID: production-dns
+:END:
+- *URL*: https://api.changeflow.us
+- *Status*: OUTDATED (skeleton version)
+- *ITIL Tools*: 0/8
+- *Version*: 0.0.1-skeleton
+- *Action Required*: Manual DNS update in Cloudflare Dashboard
+
+** Deployment Timeline
+:PROPERTIES:
+:CUSTOM_ID: deployment-timeline
+:END:
+1. *04:30 UTC* - Added Cloudflare credentials to GitHub secrets
+2. *04:34 UTC* - Fixed workflow to include CLOUDFLARE_ACCOUNT_ID
+3. *04:38 UTC* - Removed CPU limits for free tier compatibility
+4. *04:43 UTC* - Tagged v1.0.1 release
+5. *04:45 UTC* - Successfully deployed to staging and production workers
+6. *04:49 UTC* - Identified DNS routing issue
+
+** Issues Resolved
+:PROPERTIES:
+:CUSTOM_ID: issues-resolved
+:END:
+- ✅ GitHub Actions syntax errors fixed
+- ✅ Cloudflare authentication configured
+- ✅ CPU limits removed for free tier
+- ✅ Deployment pipeline operational
+
+** Outstanding Issues
+:PROPERTIES:
+:CUSTOM_ID: outstanding-issues
+:END:
+- ❌ DNS routing for api.changeflow.us needs manual update
+- ⚠️ Need automated DNS validation in pipeline
+
+** Verification
+:PROPERTIES:
+:CUSTOM_ID: verification
+:END:
+Run =./scripts/verify-deployment.sh= to audit deployment status.
+
+** Rollback Plan
+:PROPERTIES:
+:CUSTOM_ID: rollback-plan
+:END:
+Previous versions available as Git tags: - v1.0.0 - Initial release
+attempt - v1.0.1 - Current production version
+
+** Next Steps
+:PROPERTIES:
+:CUSTOM_ID: next-steps
+:END:
+1. Update DNS routing in Cloudflare Dashboard
+2. Add deployment verification to CI/CD
+3. Document troubleshooting procedures
+4. Create deployment checklist

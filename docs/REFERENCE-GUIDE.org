@@ -1,0 +1,535 @@
+* ChangeFlow MCP Server - Complete Reference Guide
+:PROPERTIES:
+:CUSTOM_ID: changeflow-mcp-server---complete-reference-guide
+:END:
+** Table of Contents
+:PROPERTIES:
+:CUSTOM_ID: table-of-contents
+:END:
+1. [[#core-technologies][Core Technologies]]
+2. [[#key-resources][Key Resources]]
+3. [[#architecture-decisions][Architecture Decisions]]
+4. [[#implementation-details][Implementation Details]]
+5. [[#deployment-references][Deployment References]]
+6. [[#security-considerations][Security Considerations]]
+7. [[#troubleshooting-guide][Troubleshooting Guide]]
+
+** Core Technologies
+:PROPERTIES:
+:CUSTOM_ID: core-technologies
+:END:
+*** Cloudflare Workers
+:PROPERTIES:
+:CUSTOM_ID: cloudflare-workers
+:END:
+- *Platform*: Edge serverless computing
+- *Language*: JavaScript/TypeScript
+- *Runtime*: V8 isolates
+- *Key Features*: Global distribution, zero cold starts, automatic
+  scaling
+
+*** Model Context Protocol (MCP)
+:PROPERTIES:
+:CUSTOM_ID: model-context-protocol-mcp
+:END:
+- *Purpose*: Standardized AI tool integration
+- *Transport*: Server-Sent Events (SSE)
+- *Protocol*: JSON-RPC 2.0
+- *Version*: 2024-11-05
+
+*** OAuth 2.0 Implementation
+:PROPERTIES:
+:CUSTOM_ID: oauth-2.0-implementation
+:END:
+- *Flow*: Authorization Code with PKCE
+- *Endpoints*: /authorize, /token
+- *Discovery*: /.well-known/oauth-authorization-server
+- *Token Type*: Bearer tokens (stateless, Base64-encoded)
+
+** Key Resources
+:PROPERTIES:
+:CUSTOM_ID: key-resources
+:END:
+*** Essential Documentation
+:PROPERTIES:
+:CUSTOM_ID: essential-documentation
+:END:
+**** Cloudflare Workers
+:PROPERTIES:
+:CUSTOM_ID: cloudflare-workers-1
+:END:
+- *Code Mode Blog*: https://blog.cloudflare.com/code-mode/
+  - Visual development environment for Workers
+  - Real-time preview and debugging
+  - Integrated with Wrangler CLI
+- *Workers Documentation*: https://developers.cloudflare.com/workers/
+- *KV Storage*:
+  https://developers.cloudflare.com/workers/runtime-apis/kv/
+- *Durable Objects*:
+  https://developers.cloudflare.com/workers/runtime-apis/durable-objects/
+- *Wrangler CLI*: https://developers.cloudflare.com/workers/wrangler/
+
+**** Model Context Protocol
+:PROPERTIES:
+:CUSTOM_ID: model-context-protocol
+:END:
+- *MCP Specification*: https://modelcontextprotocol.io/specification
+- *TypeScript SDK*:
+  https://github.com/modelcontextprotocol/typescript-sdk
+- *Server Examples*: https://github.com/modelcontextprotocol/servers
+- *SimpleScraper Guide*: https://simplescraper.io/blog/how-to-mcp
+
+**** OAuth 2.0 & Security
+:PROPERTIES:
+:CUSTOM_ID: oauth-2.0-security
+:END:
+- *OAuth 2.0 RFC 6749*: https://tools.ietf.org/html/rfc6749
+- *OAuth 2.1 Draft*:
+  https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1
+- *PKCE RFC 7636*: https://tools.ietf.org/html/rfc7636
+- *JWT RFC 7519*: https://tools.ietf.org/html/rfc7519
+
+**** ITIL 4
+:PROPERTIES:
+:CUSTOM_ID: itil-4
+:END:
+- *ITIL 4 Foundation*:
+  https://www.axelos.com/certifications/itil-service-management/itil-4-foundation
+- *Change Management*: ITIL 4 Practice Guide
+- *Service Management*: ITIL 4 Framework
+
+*** Claude.ai Integration
+:PROPERTIES:
+:CUSTOM_ID: claude.ai-integration
+:END:
+- *Claude Documentation*: https://docs.anthropic.com/claude/
+- *MCP Integration*: Settings → Developer → MCP Servers
+- *OAuth Requirements*: Dynamic client registration, PKCE mandatory
+
+** Architecture Decisions
+:PROPERTIES:
+:CUSTOM_ID: architecture-decisions
+:END:
+*** Why Cloudflare Workers?
+:PROPERTIES:
+:CUSTOM_ID: why-cloudflare-workers
+:END:
+1. *Global Distribution*: 300+ edge locations
+2. *No Cold Starts*: V8 isolates always warm
+3. *Cost Effective*: Pay per request, generous free tier
+4. *Security*: Isolated execution environment
+5. *Integration*: Native KV, Durable Objects, R2 storage
+
+*** Why Server-Sent Events (SSE)?
+:PROPERTIES:
+:CUSTOM_ID: why-server-sent-events-sse
+:END:
+1. *Real-time*: Push updates to clients
+2. *Simple*: Uses standard HTTP
+3. *Reliable*: Automatic reconnection
+4. *Compatible*: Works with Claude.ai MCP
+
+*** Why Stateless Tokens?
+:PROPERTIES:
+:CUSTOM_ID: why-stateless-tokens
+:END:
+1. *Scalability*: No server-side session storage
+2. *Performance*: No database lookups
+3. *Simplicity*: Self-contained authentication
+4. *Edge-friendly*: Works with distributed Workers
+
+** Implementation Details
+:PROPERTIES:
+:CUSTOM_ID: implementation-details
+:END:
+*** Project Structure
+:PROPERTIES:
+:CUSTOM_ID: project-structure
+:END:
+#+begin_example
+guile-changeflow/
+├── infra/cloudflare/
+│   ├── worker.js           # Main MCP server
+│   ├── landing-worker.js   # Root domain handler
+│   ├── itil-service.js     # ITIL 4 implementation
+│   ├── wrangler.toml       # Worker configuration
+│   └── wrangler-landing.toml
+├── docs/
+│   ├── TERMINOLOGY.md      # Project terminology
+│   ├── REFERENCE-GUIDE.md  # This file
+│   └── *.md                # Various documentation
+├── .github/workflows/
+│   ├── deploy-cloudflare.yml
+│   ├── release.yml
+│   └── *.yml
+└── scripts/
+    └── test-environments.sh
+#+end_example
+
+*** Key Implementation Files
+:PROPERTIES:
+:CUSTOM_ID: key-implementation-files
+:END:
+**** worker.js (Main Server)
+:PROPERTIES:
+:CUSTOM_ID: worker.js-main-server
+:END:
+- Handles OAuth flow for Claude.ai
+- Implements MCP protocol over SSE
+- Provides ITIL 4 change management tools
+- Serves landing pages based on domain
+
+**** itil-service.js
+:PROPERTIES:
+:CUSTOM_ID: itil-service.js
+:END:
+- Complete ITIL 4 change management implementation
+- Risk assessment algorithms
+- Freeze period management
+- CAB approval workflows
+
+**** Landing Pages
+:PROPERTIES:
+:CUSTOM_ID: landing-pages
+:END:
+- *mcp.changeflow.us*: MCP server interface
+- *www.changeflow.us*: Full landing page
+- *changeflow.us*: Root domain redirect
+
+*** Environment Variables
+:PROPERTIES:
+:CUSTOM_ID: environment-variables
+:END:
+#+begin_src toml
+# wrangler.toml
+[vars]
+ENVIRONMENT = "production"
+LOG_LEVEL = "info"
+GITHUB_CLIENT_ID = "Ov23lir2JJgJffb51RPs"
+
+# Secrets (set via dashboard)
+GITHUB_CLIENT_SECRET = "***"
+CLOUDFLARE_API_TOKEN = "***"
+#+end_src
+
+** Deployment References
+:PROPERTIES:
+:CUSTOM_ID: deployment-references
+:END:
+*** GitHub Actions Workflows
+:PROPERTIES:
+:CUSTOM_ID: github-actions-workflows
+:END:
+**** Main Deployment
+:PROPERTIES:
+:CUSTOM_ID: main-deployment
+:END:
+#+begin_src yaml
+# .github/workflows/deploy-cloudflare.yml
+- Triggers on push to main
+- Deploys to production automatically
+- Includes health checks
+#+end_src
+
+**** Release Pipeline
+:PROPERTIES:
+:CUSTOM_ID: release-pipeline
+:END:
+#+begin_src yaml
+# .github/workflows/release.yml
+- Triggers on version tags (v*)
+- Runs test suite
+- Performs security scans
+- Deploys to staging then production
+#+end_src
+
+*** Deployment Commands
+:PROPERTIES:
+:CUSTOM_ID: deployment-commands
+:END:
+#+begin_src sh
+# Local deployment
+wrangler deploy
+
+# Staging deployment
+wrangler deploy --env staging
+
+# Production deployment
+wrangler deploy --env production
+
+# Landing page deployment
+wrangler deploy -c wrangler-landing.toml
+
+# Check deployment status
+gmake deploy-status
+
+# Test endpoints
+bash scripts/test-environments.sh
+#+end_src
+
+*** Version Management
+:PROPERTIES:
+:CUSTOM_ID: version-management
+:END:
+- Semantic versioning (MAJOR.MINOR.PATCH)
+- Version in worker.js: =const SERVER_VERSION = '1.6.3';=
+- Git tags for releases: =git tag v1.6.3=
+- GitHub releases with changelog
+
+** Security Considerations
+:PROPERTIES:
+:CUSTOM_ID: security-considerations
+:END:
+*** OAuth 2.0 Security
+:PROPERTIES:
+:CUSTOM_ID: oauth-2.0-security-1
+:END:
+1. *PKCE Required*: Prevents authorization code interception
+2. *State Parameter*: CSRF protection
+3. *Secure Redirects*: Whitelist redirect URIs
+4. *Token Expiry*: 1-hour access tokens
+5. *HTTPS Only*: All endpoints require TLS
+
+*** Worker Security
+:PROPERTIES:
+:CUSTOM_ID: worker-security
+:END:
+1. *CORS Headers*: Restrict to claude.ai
+2. *Rate Limiting*: Prevent abuse
+3. *Input Validation*: Sanitize all inputs
+4. *Error Handling*: Don't expose internals
+5. *Secrets Management*: Use Cloudflare dashboard
+
+*** Best Practices
+:PROPERTIES:
+:CUSTOM_ID: best-practices
+:END:
+#+begin_src javascript
+// CORS configuration
+const corsHeaders = {
+  'Access-Control-Allow-Origin': 'https://claude.ai',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+};
+
+// Token validation
+const validateToken = (token) => {
+  try {
+    const data = JSON.parse(atob(token));
+    return data.exp && Date.now() < data.exp;
+  } catch {
+    return false;
+  }
+};
+#+end_src
+
+** Troubleshooting Guide
+:PROPERTIES:
+:CUSTOM_ID: troubleshooting-guide
+:END:
+*** Common Issues
+:PROPERTIES:
+:CUSTOM_ID: common-issues
+:END:
+**** OAuth Flow Fails
+:PROPERTIES:
+:CUSTOM_ID: oauth-flow-fails
+:END:
+#+begin_example
+Error: step=end_error in Claude.ai
+#+end_example
+
+*Solution*: Check redirect URI, ensure PKCE validation works
+
+**** SSE Connection Drops
+:PROPERTIES:
+:CUSTOM_ID: sse-connection-drops
+:END:
+#+begin_example
+Error: EventSource connection failed
+#+end_example
+
+*Solution*: Check CORS headers, verify Bearer token
+
+**** Deployment Fails
+:PROPERTIES:
+:CUSTOM_ID: deployment-fails
+:END:
+#+begin_example
+Error: KV namespace not found
+#+end_example
+
+*Solution*: Create KV namespace in Cloudflare dashboard
+
+*** Debug Commands
+:PROPERTIES:
+:CUSTOM_ID: debug-commands
+:END:
+#+begin_src sh
+# Check production version
+curl https://mcp.changeflow.us/version
+
+# Test OAuth discovery
+curl https://mcp.changeflow.us/.well-known/oauth-authorization-server
+
+# Check health endpoint
+curl https://mcp.changeflow.us/health
+
+# Test SSE endpoint (expect 401)
+curl https://mcp.changeflow.us/v1/sse
+
+# View deployment logs
+wrangler tail
+
+# Check GitHub Actions
+gh run list --limit 10
+#+end_src
+
+*** Performance Monitoring
+:PROPERTIES:
+:CUSTOM_ID: performance-monitoring
+:END:
+#+begin_src sh
+# Apache Bench test
+ab -n 100 -c 10 https://mcp.changeflow.us/health
+
+# Response time check
+time curl -s https://mcp.changeflow.us/health > /dev/null
+
+# Check worker metrics in Cloudflare dashboard
+# Workers & Pages → Analytics
+#+end_src
+
+** Development Workflow
+:PROPERTIES:
+:CUSTOM_ID: development-workflow
+:END:
+*** Local Development
+:PROPERTIES:
+:CUSTOM_ID: local-development
+:END:
+#+begin_src sh
+# Install dependencies
+npm install -g wrangler
+
+# Login to Cloudflare
+wrangler login
+
+# Start dev server
+wrangler dev
+
+# Test locally
+curl http://localhost:8787/health
+#+end_src
+
+*** Git Workflow
+:PROPERTIES:
+:CUSTOM_ID: git-workflow
+:END:
+#+begin_src sh
+# Feature branch
+git checkout -b feature/new-tool
+
+# Make changes
+vim infra/cloudflare/worker.js
+
+# Test locally
+wrangler dev
+
+# Commit with conventional commits
+git commit -m "feat: add new ITIL tool"
+
+# Push and create PR
+git push origin feature/new-tool
+gh pr create
+#+end_src
+
+*** Release Process
+:PROPERTIES:
+:CUSTOM_ID: release-process
+:END:
+1. Merge PR to main (auto-deploys)
+2. Create release tag: =git tag v1.7.0=
+3. Push tag: =git push --tags=
+4. Create GitHub release
+5. Check deployment status
+
+** More Resources
+:PROPERTIES:
+:CUSTOM_ID: additional-resources
+:END:
+*** Related Projects
+:PROPERTIES:
+:CUSTOM_ID: related-projects
+:END:
+- *MCP Servers*: https://github.com/modelcontextprotocol/servers
+- *Claude Desktop*: https://claude.ai/download
+- *Wrangler Action*: https://github.com/cloudflare/wrangler-action
+
+*** Community Resources
+:PROPERTIES:
+:CUSTOM_ID: community-resources
+:END:
+- *Cloudflare Discord*: https://discord.cloudflare.com
+- *Workers Forum*:
+  https://community.cloudflare.com/c/developers/workers/
+- *MCP Discord*: https://discord.gg/modelcontext
+
+*** Learning Resources
+:PROPERTIES:
+:CUSTOM_ID: learning-resources
+:END:
+- *Cloudflare TV*: https://cloudflare.tv/
+- *Workers Tutorials*:
+  https://developers.cloudflare.com/workers/tutorials/
+- *ITIL Training*:
+  https://www.axelos.com/certifications/itil-service-management
+
+** Appendix: Quick Reference
+:PROPERTIES:
+:CUSTOM_ID: appendix-quick-reference
+:END:
+*** URLs
+:PROPERTIES:
+:CUSTOM_ID: urls
+:END:
+- *Production*: https://mcp.changeflow.us
+- *Root Domain*: https://changeflow.us
+- *WWW Domain*: https://www.changeflow.us
+- *GitHub Repo*: https://github.com/dsp-dr/guile-changeflow
+
+*** Important Files
+:PROPERTIES:
+:CUSTOM_ID: important-files
+:END:
+- Main Worker: =/infra/cloudflare/worker.js=
+- Config: =/infra/cloudflare/wrangler.toml=
+- Deploy Workflow: =/.github/workflows/deploy-cloudflare.yml=
+- Test Script: =/scripts/test-environments.sh=
+
+*** Key Endpoints
+:PROPERTIES:
+:CUSTOM_ID: key-endpoints
+:END:
+- =/= - Landing page
+- =/health= - Health check
+- =/version= - Version info
+- =/authorize= - OAuth authorization
+- =/token= - Token exchange
+- =/v1/sse= - MCP SSE endpoint
+- =/.well-known/oauth-authorization-server= - OAuth discovery
+- =/.well-known/oauth-protected-resource= - Resource metadata
+- =/favicon.ico= - Favicon
+
+*** Version History
+:PROPERTIES:
+:CUSTOM_ID: version-history
+:END:
+- v1.0.0 - Initial release
+- v1.5.0 - OAuth implementation
+- v1.6.0 - ITIL 4 integration
+- v1.6.3 - Current version
+
+--------------
+
+/Last Updated: 2025-09-28/ /Generated for ChangeFlow MCP Server Project/

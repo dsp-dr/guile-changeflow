@@ -1,0 +1,173 @@
+* MCP Server Status Report
+:PROPERTIES:
+:CUSTOM_ID: mcp-server-status-report
+:END:
+** Executive Summary
+:PROPERTIES:
+:CUSTOM_ID: executive-summary
+:END:
+*Date*: 2025-09-14 *Version*: 1.3.0 *Status*: SSE Implementation
+Complete ✅
+
+** Current State
+:PROPERTIES:
+:CUSTOM_ID: current-state
+:END:
+*** Production Endpoints (2025-09-14 19:22 UTC)
+:PROPERTIES:
+:CUSTOM_ID: production-endpoints-2025-09-14-1922-utc
+:END:
+- *Landing Page*: https://mcp.changeflow.us/ ✅ (200)
+- *Health Check*: https://mcp.changeflow.us/health ✅ (200)
+- *OAuth Flow*: https://mcp.changeflow.us/authorize ✅ (302)
+- *Legacy MCP*: https://mcp.changeflow.us/mcp ✅ (200)
+- *SSE Endpoint*: https://mcp.changeflow.us/v1/sse ❌ (404) - *NEEDS
+  UPDATE*
+- *Favicon*: https://mcp.changeflow.us/favicon.ico ❌ (404) - *NEEDS
+  UPDATE*
+
+*** Key Changes (v1.3.0)
+:PROPERTIES:
+:CUSTOM_ID: key-changes-v1.3.0
+:END:
+1. *Simplified Architecture* - Single worker.js file in
+   infra/cloudflare/
+2. *Removed Build Complexity* - No more cp commands, just deploy
+   wrangler.toml
+3. *Added SSE Support* - Server-Sent Events for Claude.ai (needs
+   deployment)
+4. *Updated to /v1/sse* - Following Atlassian pattern
+5. *GitHub Link Added* - Landing page now links to repository
+
+*** Lessons Learned
+:PROPERTIES:
+:CUSTOM_ID: lessons-learned
+:END:
+- Build systems for single-file deployments create unnecessary
+  complexity
+- Multiple files (mcp-server/, infra/) caused dependency confusion
+- *Final pattern*: One huge worker.js + wrangler.toml = simple
+  deployment
+
+** Technical Implementation
+:PROPERTIES:
+:CUSTOM_ID: technical-implementation
+:END:
+*** Architecture
+:PROPERTIES:
+:CUSTOM_ID: architecture
+:END:
+#+begin_example
+Client (Claude.ai)
+    ↓
+OAuth (GitHub)
+    ↓
+MCP SSE Endpoint (/mcp/sse)
+    ↓
+Stream JSON-RPC over SSE
+#+end_example
+
+*** Key Findings from Experiment 012
+:PROPERTIES:
+:CUSTOM_ID: key-findings-from-experiment-012
+:END:
+- *Pattern Identified*: All working MCP servers use SSE
+- *URLs*: Production servers use =/sse= suffix
+- *Auth*: 401 response without authentication
+- *CORS*: Specific headers for Claude.ai required
+
+** Issues Resolved
+:PROPERTIES:
+:CUSTOM_ID: issues-resolved
+:END:
+- ✅ Issue #25: SSE Support Implementation
+- ✅ Issue #24: OAuth Implementation
+- ✅ Issue #20: Emergency Shutdown Capability
+
+** Testing Results
+:PROPERTIES:
+:CUSTOM_ID: testing-results
+:END:
+*** MCP Server Audit (Experiment 012)
+:PROPERTIES:
+:CUSTOM_ID: mcp-server-audit-experiment-012
+:END:
+| Server       | SSE | CORS | Auth | Working |
+|--------------+-----+------+------+---------|
+| Linear       | ✅  | ✅   | ✅   | Yes     |
+| Square       | ✅  | ✅   | ✅   | Yes     |
+| Asana        | ✅  | ✅   | ✅   | Yes     |
+| *ChangeFlow* | ✅  | ✅   | ✅   | Testing |
+
+** Next Steps
+:PROPERTIES:
+:CUSTOM_ID: next-steps
+:END:
+*** Immediate
+:PROPERTIES:
+:CUSTOM_ID: immediate
+:END:
+1. Test Claude.ai connection with new SSE endpoint
+2. Monitor streaming performance
+3. Verify OAuth token validation
+
+*** Future Enhancements
+:PROPERTIES:
+:CUSTOM_ID: future-enhancements
+:END:
+1. Add resource endpoints for data access
+2. Implement notification support
+3. Add telemetry for debugging
+4. Create TypeScript version (pending from builder/coordinator)
+
+** Deployment Notes
+:PROPERTIES:
+:CUSTOM_ID: deployment-notes
+:END:
+*** GitHub Actions
+:PROPERTIES:
+:CUSTOM_ID: github-actions
+:END:
+- Deployment pipeline working
+- Added =clear-queue= script for stuck runs
+- Current deployment time: ~30-45 seconds
+
+*** Cloudflare Configuration
+:PROPERTIES:
+:CUSTOM_ID: cloudflare-configuration
+:END:
+#+begin_example
+Environment Variables:
+- GITHUB_CLIENT_ID: Ov23lir2JJgJffb51RPs
+- GITHUB_CLIENT_SECRET: [REDACTED]
+#+end_example
+
+** Known Issues
+:PROPERTIES:
+:CUSTOM_ID: known-issues
+:END:
+1. SSE endpoint may need fine-tuning for Claude.ai
+2. Token validation currently accepts any Bearer token
+3. In-memory storage (not persistent across deployments)
+
+** Documentation
+:PROPERTIES:
+:CUSTOM_ID: documentation
+:END:
+- [[file:oauth-implementation-log.org][OAuth Implementation Log]]
+- [[../experiments/012-mcp-server-audit/analysis.md][Experiment 012
+  Analysis]]
+- [[../experiments/012-mcp-server-audit/learnings.md][Learnings
+  Document]]
+
+** Support
+:PROPERTIES:
+:CUSTOM_ID: support
+:END:
+- *Repository*: https://github.com/dsp-dr/guile-changeflow
+- *Issues*: https://github.com/dsp-dr/guile-changeflow/issues
+- *MCP Endpoint*: https://mcp.changeflow.us/mcp/sse
+
+--------------
+
+/Last Updated: 2025-09-14 19:03 UTC/

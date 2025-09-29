@@ -240,7 +240,7 @@ node test/mcp-comprehensive-test.js
 ** Environments
 | Environment | URL                                                       | Purpose     |
 |-------------+-----------------------------------------------------------+-------------|
-| Production  | https://api.changeflow.us                                | Live system |
+| Production  | https://mcp.changeflow.us                                 | Live system |
 | Staging     | https://guile-changeflow-staging.jasonwalsh.workers.dev  | Testing env |
 | Local       | http://localhost:8427                                     | Development |
 

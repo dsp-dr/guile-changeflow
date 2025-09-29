@@ -1,0 +1,194 @@
+* CRITICAL BUG: OAuth Flow Breaking Claude.ai Integration
+:PROPERTIES:
+:CUSTOM_ID: critical-bug-oauth-flow-breaking-claude.ai-integration
+:END:
+** The Problem
+:PROPERTIES:
+:CUSTOM_ID: the-problem
+:END:
+Claude.ai OAuth flow fails with error after authentication:
+
+#+begin_example
+https://claude.ai/settings/connectors?&server=d2b1454a-c6cf-44ee-8f92-ffbc23e2f719&step=end_error
+#+end_example
+
+** Root Cause
+:PROPERTIES:
+:CUSTOM_ID: root-cause
+:END:
+Our OAuth implementation incorrectly chains GitHub OAuth into
+Claude.ai's OAuth flow:
+
+1. Claude.ai requests authorization at =/authorize=
+2. We show consent page ✅
+3. When user approves, we redirect to GitHub OAuth ❌ *THIS IS WRONG*
+4. GitHub authenticates and calls back to our =/callback=
+5. Our callback tries to redirect to Claude.ai
+6. *FAILURE*: Claude.ai expects our authorization code, not GitHub's
+
+** The Fix Required
+:PROPERTIES:
+:CUSTOM_ID: the-fix-required
+:END:
+When Claude.ai connects (redirect_uri contains =claude.ai=), we should:
+
+1. Show consent page
+2. When approved, generate OUR authorization code
+3. Redirect DIRECTLY to Claude.ai callback with our code
+4. Skip GitHub OAuth entirely
+
+** Code Changes Needed
+:PROPERTIES:
+:CUSTOM_ID: code-changes-needed
+:END:
+#+begin_src javascript
+case '/authorize':
+  // ... get params ...
+
+  if (request.method === 'POST') {
+    const formData = await request.formData();
+    const action = formData.get('action');
+
+    if (action === 'approve') {
+      const redirectUri = formData.get('redirect_uri');
+
+      // For Claude.ai - skip GitHub, return our own code
+      if (redirectUri && redirectUri.includes('claude.ai')) {
+        const authCode = crypto.randomUUID();
+
+        // Store the auth code with PKCE challenge
+        // (Need to implement storage - KV or in-memory)
+        authCodes.set(authCode, {
+          clientId: formData.get('client_id'),
+          redirectUri: redirectUri,
+          codeChallenge: formData.get('code_challenge'),
+          codeChallengeMethod: formData.get('code_challenge_method'),
+          timestamp: Date.now()
+        });
+
+        // Redirect directly to Claude.ai with our code
+        const claudeState = formData.get('state');
+        return Response.redirect(
+          `${redirectUri}?code=${authCode}&state=${claudeState}`,
+          302
+        );
+      }
+
+      // For non-Claude.ai, continue with GitHub OAuth
+      // ... existing GitHub redirect code ...
+    }
+  }
+#+end_src
+
+** Token Endpoint Fix
+:PROPERTIES:
+:CUSTOM_ID: token-endpoint-fix
+:END:
+#+begin_src javascript
+case '/token':
+  const body = await request.json();
+  const code = body.code;
+  const codeVerifier = body.code_verifier;
+
+  // Retrieve stored auth code
+  const authCode = authCodes.get(code);
+  if (!authCode) {
+    return error('invalid_grant');
+  }
+
+  // Validate PKCE if present
+  if (authCode.codeChallengeMethod === 'S256') {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    const computed = base64url(new Uint8Array(hash));
+
+    if (computed !== authCode.codeChallenge) {
+      return error('invalid_grant');
+    }
+  }
+
+  // Generate access token
+  const accessToken = crypto.randomUUID();
+
+  // Store token for validation in /v1/sse
+  accessTokens.set(accessToken, {
+    clientId: authCode.clientId,
+    scope: 'claudeai',
+    timestamp: Date.now()
+  });
+
+  return new Response(JSON.stringify({
+    access_token: accessToken,
+    token_type: 'Bearer',
+    expires_in: 3600,
+    scope: 'claudeai'
+  }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
+#+end_src
+
+** SSE Endpoint Fix
+:PROPERTIES:
+:CUSTOM_ID: sse-endpoint-fix
+:END:
+#+begin_src javascript
+case '/v1/sse':
+  const authHeader = request.headers.get('authorization');
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+
+    // Validate token exists
+    if (accessTokens.has(token)) {
+      // Return SSE stream
+      return handleMCPProtocol(request);
+    }
+  }
+
+  // Return 401 if no valid token
+  return new Response(JSON.stringify({
+    error: 'invalid_token',
+    error_description: 'Missing or invalid access token'
+  }), {
+    status: 401,
+    headers: {
+      'WWW-Authenticate': 'Bearer realm="OAuth"',
+      'Content-Type': 'application/json'
+    }
+  });
+#+end_src
+
+** Storage Problem
+:PROPERTIES:
+:CUSTOM_ID: storage-problem
+:END:
+Cloudflare Workers are stateless! We need to store: - Authorization
+codes (temporary, 10 minutes) - Access tokens (longer lived, 1 hour)
+
+Options: 1. *Cloudflare KV* (persistent, slight latency) 2. *Durable
+Objects* (consistent, more complex) 3. *In-memory Maps* (won't work
+across requests!)
+
+** Immediate Workaround
+:PROPERTIES:
+:CUSTOM_ID: immediate-workaround
+:END:
+For testing, we could: 1. Use fixed tokens (insecure but works for
+demo) 2. Store in KV with TTL 3. Use Durable Objects for consistency
+
+** Why This Matters
+:PROPERTIES:
+:CUSTOM_ID: why-this-matters
+:END:
+Claude.ai's OAuth flow is standard OAuth 2.0 with PKCE. We're breaking
+it by: 1. Forcing GitHub OAuth in the middle 2. Not storing
+authorization codes 3. Not validating PKCE challenges 4. Not storing
+access tokens for validation
+
+This explains the =step=end_error= - Claude.ai successfully completes
+OAuth but then can't use the token because we don't recognize it!
+
+--------------
+
+Generated: 2025-09-15 01:52 UTC

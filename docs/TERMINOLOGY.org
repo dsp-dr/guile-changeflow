@@ -1,0 +1,353 @@
+* ChangeFlow MCP Server - Terminology Reference
+:PROPERTIES:
+:CUSTOM_ID: changeflow-mcp-server---terminology-reference
+:END:
+We maintain this terminology file to process transcripts during
+deployment calls and ensure consistent communication across teams.
+
+** Core Project Terms
+:PROPERTIES:
+:CUSTOM_ID: core-project-terms
+:END:
+*** A
+:PROPERTIES:
+:CUSTOM_ID: a
+:END:
+- *API* - Application Programming Interface
+- *Asset* - Configuration item or resource managed in ITSM
+- *Audit Trail* - Record of all changes and actions for compliance
+- *Authentication* - Process of verifying identity (OAuth 2.0)
+- *Authorization* - Process of granting access permissions
+- *Auto-scaling* - Automatic resource scaling based on load
+
+*** B
+:PROPERTIES:
+:CUSTOM_ID: b
+:END:
+- *Base64* - Encoding scheme used for tokens and data
+- *Bearer Token* - Authentication token sent in HTTP headers
+- *Blue-Green Deployment* - Zero-downtime deployment strategy
+- *Branch* - Git repository branch for feature development
+
+*** C
+:PROPERTIES:
+:CUSTOM_ID: c
+:END:
+- *CAB* - Change Advisory Board
+- *Cache* - Temporary storage for improved performance
+- *Callback* - Return URL after OAuth authentication
+- *Canary Deployment* - Gradual rollout to subset of users
+- *CDN* - Content Delivery Network
+- *Change Request* - Formal ITIL change proposal (CHG-*)
+- *ChangeFlow* - Our MCP server for ITIL 4 change management
+- *CI/CD* - Continuous Integration/Continuous Deployment
+- *Claude* - Anthropic's AI assistant
+- *Claude.ai* - Web interface for Claude
+- *Cloudflare* - Edge computing and CDN provider
+- *Cloudflare Workers* - Serverless edge computing platform
+- *CMDB* - Configuration Management Database
+- *Compliance* - Adherence to regulatory requirements
+- *CORS* - Cross-Origin Resource Sharing
+- *CSRF* - Cross-Site Request Forgery
+
+*** D
+:PROPERTIES:
+:CUSTOM_ID: d
+:END:
+- *DCR* - Dynamic Client Registration
+- *Deployment* - Process of releasing code to production
+- *DNS* - Domain Name System
+- *Docker* - Container platform
+- *Durable Objects* - Cloudflare's stateful serverless primitives
+
+*** E
+:PROPERTIES:
+:CUSTOM_ID: e
+:END:
+- *ECAB* - Emergency Change Advisory Board
+- *Edge Computing* - Processing at network edge locations
+- *Endpoint* - API URL path
+- *Environment* - Deployment target (dev/staging/prod)
+- *Error Handling* - Managing and responding to failures
+- *Escalation* - Process of elevating issues
+- *Event* - System occurrence or notification
+
+*** F
+:PROPERTIES:
+:CUSTOM_ID: f
+:END:
+- *Failover* - Automatic switch to backup system
+- *Feature Flag* - Toggle for enabling/disabling features
+- *Freeze Period* - Time when we restrict changes
+
+*** G
+:PROPERTIES:
+:CUSTOM_ID: g
+:END:
+- *Git* - Version control system
+- *GitHub* - Git repository hosting service
+- *GitHub Actions* - CI/CD automation platform
+- *GraphQL* - Query language for APIs
+
+*** H
+:PROPERTIES:
+:CUSTOM_ID: h
+:END:
+- *Handler* - Function that processes requests
+- *Health Check* - Endpoint to verify service status
+- *HMAC* - Hash-based Message Authentication Code
+- *HTTP* - Hypertext Transfer Protocol
+- *HTTPS* - Secure HTTP
+
+*** I
+:PROPERTIES:
+:CUSTOM_ID: i
+:END:
+- *Incident* - Unplanned service interruption
+- *Integration* - Connection between systems
+- *ITIL* - Information Technology Infrastructure Library
+- *ITIL 4* - Latest ITIL framework version
+- *ITSM* - IT Service Management
+
+*** J
+:PROPERTIES:
+:CUSTOM_ID: j
+:END:
+- *JSON* - JavaScript Object Notation
+- *JSON-RPC* - Remote Procedure Call protocol using JSON
+- *JWT* - JSON Web Token
+- *JWK* - JSON Web Key
+- *JWS* - JSON Web Signature
+
+*** K
+:PROPERTIES:
+:CUSTOM_ID: k
+:END:
+- *Key* - Cryptographic key or identifier
+- *KPI* - Key Performance Indicator
+- *KV* - Key-Value storage (Cloudflare KV)
+- *Kubernetes* - Container orchestration platform
+
+*** L
+:PROPERTIES:
+:CUSTOM_ID: l
+:END:
+- *Landing Page* - Entry page at changeflow.us
+- *Latency* - Time delay in communication
+- *Load Balancer* - Distributes traffic across servers
+- *Logging* - Recording system events and errors
+
+*** M
+:PROPERTIES:
+:CUSTOM_ID: m
+:END:
+- *MCP* - Model Context Protocol
+- *Metrics* - Quantitative measurements
+- *Microservices* - Architecture of small, independent services
+- *Middleware* - Software layer between systems
+- *Migration* - Moving data or services
+- *Monitoring* - Continuous observation of systems
+
+*** N
+:PROPERTIES:
+:CUSTOM_ID: n
+:END:
+- *Node* - Server or point in network
+- *Notification* - Alert or message to users
+
+*** O
+:PROPERTIES:
+:CUSTOM_ID: o
+:END:
+- *OAuth* - Open Authorization protocol
+- *OAuth 2.0* - Current OAuth standard
+- *OAuth 2.1* - Draft update to OAuth 2.0
+- *Observability* - Ability to measure internal states
+- *OpenID Connect* - Identity layer on OAuth 2.0
+
+*** P
+:PROPERTIES:
+:CUSTOM_ID: p
+:END:
+- *Patch* - Software update or fix
+- *PKCE* - Proof Key for Code Exchange
+- *Pod* - Kubernetes container group
+- *POST* - HTTP method for sending data
+- *Problem* - Root cause of incidents
+- *Production* - Live environment serving users
+
+*** Q
+:PROPERTIES:
+:CUSTOM_ID: q
+:END:
+- *Query* - Database or API request
+- *Queue* - Message or task queue
+- *Quota* - Resource usage limit
+
+*** R
+:PROPERTIES:
+:CUSTOM_ID: r
+:END:
+- *Rate Limiting* - Restricting request frequency
+- *RBAC* - Role-Based Access Control
+- *Release* - Software version deployment
+- *Repository* - Code storage location
+- *Request* - Client communication to server
+- *REST* - Representational State Transfer
+- *RFC* - Request for Change
+- *Risk Assessment* - Evaluation of potential impacts
+- *Rollback* - Reverting to previous version
+- *Router* - Component directing requests
+
+*** S
+:PROPERTIES:
+:CUSTOM_ID: s
+:END:
+- *SAML* - Security Assertion Markup Language
+- *Schema* - Data structure definition
+- *Serverless* - Code without server management
+- *Service* - Application or system component
+- *Session* - User interaction period
+- *SHA256* - Cryptographic hash function
+- *SLA* - Service Level Agreement
+- *SSE* - Server-Sent Events
+- *SSL/TLS* - Secure communication protocols
+- *Staging* - Pre-production environment
+- *Stateless* - No session information retained
+
+*** T
+:PROPERTIES:
+:CUSTOM_ID: t
+:END:
+- *Telemetry* - Automated data collection
+- *Tenant* - Isolated customer environment
+- *Test Suite* - Collection of test cases
+- *Throughput* - Processing capacity
+- *Ticket* - Support or change request
+- *Token* - Authentication credential
+- *Tracing* - Following request through systems
+
+*** U
+:PROPERTIES:
+:CUSTOM_ID: u
+:END:
+- *UUID* - Universally Unique Identifier
+- *URL* - Uniform Resource Locator
+- *User Story* - Feature from user perspective
+
+*** V
+:PROPERTIES:
+:CUSTOM_ID: v
+:END:
+- *Validation* - Checking data correctness
+- *Version* - Software release number
+- *Virtual* - Software-defined resource
+- *Vulnerability* - Security weakness
+
+*** W
+:PROPERTIES:
+:CUSTOM_ID: w
+:END:
+- *WAF* - Web Application Firewall
+- *Webhook* - HTTP callback mechanism
+- *WebSocket* - Full-duplex communication protocol
+- *Worker* - Process or thread handling tasks
+- *Workflow* - Sequence of operations
+- *Wrangler* - Cloudflare Workers CLI tool
+
+*** X
+:PROPERTIES:
+:CUSTOM_ID: x
+:END:
+- *XML* - Extensible Markup Language
+- *XSS* - Cross-Site Scripting
+
+*** Y
+:PROPERTIES:
+:CUSTOM_ID: y
+:END:
+- *YAML* - YAML Ain't Markup Language
+
+*** Z
+:PROPERTIES:
+:CUSTOM_ID: z
+:END:
+- *Zero-downtime* - Deployment without service interruption
+- *Zone* - DNS or geographic region
+
+** Acronyms Quick Reference
+:PROPERTIES:
+:CUSTOM_ID: acronyms-quick-reference
+:END:
+| Acronym | Full Form                                     |
+|---------+-----------------------------------------------|
+| API     | Application Programming Interface             |
+| CAB     | Change Advisory Board                         |
+| CI/CD   | Continuous Integration/Continuous Deployment  |
+| CMDB    | Configuration Management Database             |
+| CORS    | Cross-Origin Resource Sharing                 |
+| CSRF    | Cross-Site Request Forgery                    |
+| DCR     | Dynamic Client Registration                   |
+| DNS     | Domain Name System                            |
+| ECAB    | Emergency Change Advisory Board               |
+| HTTP    | Hypertext Transfer Protocol                   |
+| HTTPS   | HTTP Secure                                   |
+| ITIL    | Information Technology Infrastructure Library |
+| ITSM    | IT Service Management                         |
+| JSON    | JavaScript Object Notation                    |
+| JWT     | JSON Web Token                                |
+| KPI     | Key Performance Indicator                     |
+| KV      | Key-Value                                     |
+| MCP     | Model Context Protocol                        |
+| OAuth   | Open Authorization                            |
+| PKCE    | Proof Key for Code Exchange                   |
+| RBAC    | Role-Based Access Control                     |
+| REST    | Representational State Transfer               |
+| RFC     | Request for Change                            |
+| SAML    | Security Assertion Markup Language            |
+| SHA     | Secure Hash Algorithm                         |
+| SLA     | Service Level Agreement                       |
+| SSE     | Server-Sent Events                            |
+| SSL     | Secure Sockets Layer                          |
+| TLS     | Transport Layer Security                      |
+| URL     | Uniform Resource Locator                      |
+| UUID    | Universally Unique Identifier                 |
+| WAF     | Web Application Firewall                      |
+| XML     | Extensible Markup Language                    |
+| XSS     | Cross-Site Scripting                          |
+| YAML    | YAML Ain't Markup Language                    |
+
+** Deployment Call Phrases
+:PROPERTIES:
+:CUSTOM_ID: deployment-call-phrases
+:END:
+Common phrases used during deployment calls:
+
+- "Rolling back to previous version"
+- "Pushing to production"
+- "Smoke test passed"
+- "Health check endpoint responding"
+- "CAB approval received"
+- "Freeze period in effect"
+- "Emergency change requested"
+- "Risk assessment completed"
+- "Deployment window open"
+- "Service degradation detected"
+- "Incident escalation required"
+- "Change request approved"
+- "Rollback procedure initiated"
+- "Production verification complete"
+- "All endpoints operational"
+
+** Version History
+:PROPERTIES:
+:CUSTOM_ID: version-history
+:END:
+- v1.0.0 - Initial terminology file
+- Generated: 2025-09-28
+- Last Updated: 2025-09-28
+
+--------------
+
+/This terminology file is used for transcript processing and team
+communication consistency./

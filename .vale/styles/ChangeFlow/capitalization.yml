@@ -1,0 +1,24 @@
+extends: substitution
+message: "Use '%s' instead of '%s'"
+level: warning
+ignorecase: false
+swap:
+  oauth: OAuth
+  Oauth: OAuth
+  oAuth: OAuth
+  json-rpc: JSON-RPC
+  Json-Rpc: JSON-RPC
+  mcp: MCP
+  Mcp: MCP
+  sse: SSE
+  Sse: SSE
+  api: API
+  Api: API
+  itil: ITIL
+  Itil: ITIL
+  cab: CAB
+  Cab: CAB
+  ecab: ECAB
+  Ecab: ECAB
+  pkce: PKCE
+  Pkce: PKCE

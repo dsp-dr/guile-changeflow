@@ -1,0 +1,77 @@
+* REORGANIZATION PLAN - From Chaos to Architecture
+:PROPERTIES:
+:CUSTOM_ID: reorganization-plan---from-chaos-to-architecture
+:END:
+** Current Chaos (Root Directory):
+:PROPERTIES:
+:CUSTOM_ID: current-chaos-root-directory
+:END:
+#+begin_example
+47 files in root including:
+- test-core-models.scm
+- demo-ready-check.sh  
+- test-endpoints.sh
+- Multiple STATUS files
+- Multiple ORCHESTRATION files
+- Random .org files everywhere
+#+end_example
+
+** Target Architecture:
+:PROPERTIES:
+:CUSTOM_ID: target-architecture
+:END:
+#+begin_example
+.
+├── src/                    # All Guile source code
+├── test/                   # ALL test files
+├── cloudflare/             # Cloudflare deployment only
+├── docs/                   # ALL documentation
+├── scripts/                # ALL shell scripts
+├── config/                 # Configuration files
+└── README.md               # Single entry point
+#+end_example
+
+** Files to Move:
+:PROPERTIES:
+:CUSTOM_ID: files-to-move
+:END:
+*** TO test/:
+:PROPERTIES:
+:CUSTOM_ID: to-test
+:END:
+- test-core-models.scm → test/
+- demo-ready-check.sh → test/
+- test-endpoints.sh → test/
+
+*** TO scripts/:
+:PROPERTIES:
+:CUSTOM_ID: to-scripts
+:END:
+- All .sh files in root
+- tools/*.sh → scripts/
+- tools/*.py → scripts/monitoring/
+
+*** TO docs/:
+:PROPERTIES:
+:CUSTOM_ID: to-docs
+:END:
+- All .org files from root
+- All STATUS*.md files
+- All ORCHESTRATION*.org files
+- instructions/* → docs/instructions/
+- presentations/* → docs/presentations/
+
+*** TO config/:
+:PROPERTIES:
+:CUSTOM_ID: to-config
+:END:
+- .env.example
+- Makefile
+
+*** DELETE:
+:PROPERTIES:
+:CUSTOM_ID: delete
+:END:
+- .tmp/ (or move to .gitignore)
+- Empty feat/* branches
+- integration branch

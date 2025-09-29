@@ -1,35 +1,61 @@
-#+TITLE: MCP Development Guide for Guile ChangeFlow
-#+AUTHOR: Guile ChangeFlow Development Team
-#+DATE: 2025-09-14
-#+STARTUP: overview
-#+OPTIONS: toc:2 num:t
+* MCP Development Guide for Guile ChangeFlow
+:PROPERTIES:
+:CUSTOM_ID: mcp-development-guide-for-guile-changeflow
+:END:
+/Complete guide for developing, testing, integrating, deploying, using,
+and debugging the MCP protocol implementation/
 
-* Overview
+** Table of Contents
+:PROPERTIES:
+:CUSTOM_ID: table-of-contents
+:END:
+1. [[#overview][Overview]]
+2. [[#development-setup][Development Setup]]
+3. [[#architecture][Architecture]]
+4. [[#testing-guide][Testing Guide]]
+5. [[#integration-guide][Integration Guide]]
+6. [[#deployment-guide][Deployment Guide]]
+7. [[#usage-guide][Usage Guide]]
+8. [[#debugging-guide][Debugging Guide]]
+9. [[#api-reference][API Reference]]
+10. [[#troubleshooting][Troubleshooting]]
 
-Complete guide for developing, testing, integrating, deploying, using, and debugging the MCP protocol implementation.
+** Overview
+:PROPERTIES:
+:CUSTOM_ID: overview
+:END:
+The Guile ChangeFlow MCP (Model Context Protocol) implementation
+provides a complete ITIL 4 change management system accessible to AI
+agents via standardized protocol endpoints.
 
-The Guile ChangeFlow MCP (Model Context Protocol) implementation provides a complete ITIL 4 change management system accessible to AI agents via standardized protocol endpoints.
-
-** Key Features
-
+*** Key Features
+:PROPERTIES:
+:CUSTOM_ID: key-features
+:END:
 - *8 ITIL Tools*: Complete change management workflow
 - *5 MCP Resources*: Configuration and documentation access
 - *3 MCP Prompts*: AI-assisted change operations
 - *JSON-RPC 2.0*: Standards-compliant protocol implementation
 - *Dual Runtime*: CloudFlare Worker + Local Node.js server
 
-** Protocol Compliance
-
+*** Protocol Compliance
+:PROPERTIES:
+:CUSTOM_ID: protocol-compliance
+:END:
 - MCP Protocol Version: =2024-11-05=
 - JSON-RPC 2.0 compliant
 - Full tools, resources, prompts support
 - Error handling per MCP specification
 
-* Development Setup
-
-** Prerequisites
-
-#+BEGIN_SRC bash
+** Development Setup
+:PROPERTIES:
+:CUSTOM_ID: development-setup
+:END:
+*** Prerequisites
+:PROPERTIES:
+:CUSTOM_ID: prerequisites
+:END:
+#+begin_src sh
 # System requirements
 node --version    # v18+ required
 guile --version   # v3.0+ required (for Guile implementation)
@@ -38,44 +64,51 @@ jq --version      # For JSON processing in tests
 # Project dependencies
 cd /path/to/guile-changeflow
 npm install       # If package.json exists
-#+END_SRC
+#+end_src
 
-** Local Development Environment
-
+*** Local Development Environment
+:PROPERTIES:
+:CUSTOM_ID: local-development-environment
+:END:
 1. *Clone and Setup*
-   #+BEGIN_SRC bash
-   git clone https://github.com/dsp-dr/guile-changeflow
-   cd guile-changeflow
-   git checkout feat/cloudflare-mcp-implementation
-   #+END_SRC
 
-2. *Start Local MCP Server*
-   #+BEGIN_SRC bash
-   # Method 1: Direct execution
-   node scripts/mcp-local-server.js
+#+begin_src sh
+git clone https://github.com/dsp-dr/guile-changeflow
+cd guile-changeflow
+git checkout feat/cloudflare-mcp-implementation
+#+end_src
 
-   # Method 2: Background with logs
-   node scripts/mcp-local-server.js > mcp-server.log 2>&1 &
+2. [@2] *Start Local MCP Server*
 
-   # Method 3: Development mode (with restart on changes)
-   # Install nodemon: npm install -g nodemon
-   nodemon scripts/mcp-local-server.js
-   #+END_SRC
+#+begin_src sh
+# Method 1: Direct execution
+node scripts/mcp-local-server.js
 
-3. *Verify Server*
-   #+BEGIN_SRC bash
-   # Health check
-   curl http://localhost:8080/
+# Method 2: Background with logs
+node scripts/mcp-local-server.js > mcp-server.log 2>&1 &
 
-   # MCP protocol test
-   curl -X POST http://localhost:8080/ \
-     -H "Content-Type: application/json" \
-     -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
-   #+END_SRC
+# Method 3: Development mode (with restart on changes)
+# Install nodemon: npm install -g nodemon
+nodemon scripts/mcp-local-server.js
+#+end_src
 
-** Development Workflow
+3. [@3] *Verify Server*
 
-#+BEGIN_SRC bash
+#+begin_src sh
+# Health check
+curl http://localhost:8080/
+
+# MCP protocol test
+curl -X POST http://localhost:8080/ \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
+#+end_src
+
+*** Development Workflow
+:PROPERTIES:
+:CUSTOM_ID: development-workflow
+:END:
+#+begin_src sh
 # 1. Make changes to worker implementation
 vim infra/cloudflare/worker-mcp-poc.js
 
@@ -91,13 +124,17 @@ curl -X POST http://localhost:8080/ -d '{"jsonrpc":"2.0","method":"tools/list","
 
 # 5. Deploy to CloudFlare (if needed)
 cd infra/cloudflare && wrangler deploy
-#+END_SRC
+#+end_src
 
-* Architecture
-
-** System Overview
-
-#+BEGIN_EXAMPLE
+** Architecture
+:PROPERTIES:
+:CUSTOM_ID: architecture
+:END:
+*** System Overview
+:PROPERTIES:
+:CUSTOM_ID: system-overview
+:END:
+#+begin_example
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   AI Clients    │    │   MCP Server    │    │  ITIL Backend   │
 │                 │────│                 │────│                 │
@@ -105,11 +142,13 @@ cd infra/cloudflare && wrangler deploy
 │ MCP Debugger    │    │ JSON-RPC 2.0    │    │ Change Models   │
 │ Custom Tools    │    │ Tools/Resources │    │ Approval Logic  │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
-#+END_EXAMPLE
+#+end_example
 
-** Component Structure
-
-#+BEGIN_EXAMPLE
+*** Component Structure
+:PROPERTIES:
+:CUSTOM_ID: component-structure
+:END:
+#+begin_example
 src/
 ├── mcp/                      # Guile MCP implementation
 │   ├── server.scm           # HTTP server and routing
@@ -132,46 +171,53 @@ scripts/
 
 test/
 └── mcp-comprehensive-test.js # Full test suite
-#+END_EXAMPLE
+#+end_example
 
-** MCP Protocol Implementation
-
-*** Capabilities
-
-#+BEGIN_SRC json
+*** MCP Protocol Implementation
+:PROPERTIES:
+:CUSTOM_ID: mcp-protocol-implementation
+:END:
+**** Capabilities
+:PROPERTIES:
+:CUSTOM_ID: capabilities
+:END:
+#+begin_src json
 {
   "tools": {},        // 8 ITIL change management tools
   "resources": {},    // 5 configuration and documentation resources
   "prompts": {},      // 3 AI-assisted operation prompts
   "notifications": {} // Future: Real-time change notifications
 }
-#+END_SRC
+#+end_src
 
-*** Tool Categories
-
+**** Tool Categories
+:PROPERTIES:
+:CUSTOM_ID: tool-categories
+:END:
 1. *Change Creation*
    - =create_change_request= - Standard change requests
    - =create_emergency_change= - Expedited emergency changes
-
 2. *Risk Management*
    - =assess_change_risk= - Multi-factor risk assessment
    - =check_freeze_period= - Deployment window validation
-
 3. *Workflow Management*
    - =get_cab_members= - Change Advisory Board routing
    - =schedule_change= - Change scheduling with notifications
-
 4. *Reporting & Compliance*
    - =get_change_metrics= - Performance and success metrics
    - =generate_audit_report= - ITIL compliance reporting
 
-* Testing Guide
-
-** Test Suite Overview
-
+** Testing Guide
+:PROPERTIES:
+:CUSTOM_ID: testing-guide
+:END:
+*** Test Suite Overview
+:PROPERTIES:
+:CUSTOM_ID: test-suite-overview
+:END:
 The comprehensive test suite covers all MCP protocol features:
 
-#+BEGIN_SRC bash
+#+begin_src sh
 # Run full test suite
 node test/mcp-comprehensive-test.js
 
@@ -197,13 +243,17 @@ node test/mcp-comprehensive-test.js
 ⏭️  Skipped: 0
 📈 Total: 10
 🎉 Test suite PASSED
-#+END_SRC
+#+end_src
 
-** Manual Testing
-
-*** Protocol-Level Tests
-
-#+BEGIN_SRC bash
+*** Manual Testing
+:PROPERTIES:
+:CUSTOM_ID: manual-testing
+:END:
+**** 1. Protocol-Level Tests
+:PROPERTIES:
+:CUSTOM_ID: protocol-level-tests
+:END:
+#+begin_src sh
 # Initialize handshake
 curl -X POST http://localhost:8080/ -H "Content-Type: application/json" -d '{
   "jsonrpc": "2.0",
@@ -222,11 +272,13 @@ curl -X POST http://localhost:8080/ -H "Content-Type: application/json" -d '{
   "params": {},
   "id": 2
 }'
-#+END_SRC
+#+end_src
 
-*** Tool Testing
-
-#+BEGIN_SRC bash
+**** 2. Tool Testing
+:PROPERTIES:
+:CUSTOM_ID: tool-testing
+:END:
+#+begin_src sh
 # Risk Assessment
 curl -X POST http://localhost:8080/ -H "Content-Type: application/json" -d '{
   "jsonrpc": "2.0",
@@ -243,11 +295,75 @@ curl -X POST http://localhost:8080/ -H "Content-Type: application/json" -d '{
   },
   "id": 3
 }'
-#+END_SRC
 
-** Performance Testing
+# Emergency Change
+curl -X POST http://localhost:8080/ -H "Content-Type: application/json" -d '{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "create_emergency_change",
+    "arguments": {
+      "title": "Security Patch CVE-2025-DEMO",
+      "description": "Critical authentication bypass fix",
+      "justification": "Active exploitation detected",
+      "impact": "2-minute service restart",
+      "environment": "production",
+      "requester": "security@company.com"
+    }
+  },
+  "id": 4
+}'
+#+end_src
 
-#+BEGIN_SRC bash
+**** 3. Resource Testing
+:PROPERTIES:
+:CUSTOM_ID: resource-testing
+:END:
+#+begin_src sh
+# List resources
+curl -X POST http://localhost:8080/ -H "Content-Type: application/json" -d '{
+  "jsonrpc": "2.0",
+  "method": "resources/list",
+  "params": {},
+  "id": 5
+}'
+
+# Read ITIL compliance guide
+curl -X POST http://localhost:8080/ -H "Content-Type: application/json" -d '{
+  "jsonrpc": "2.0",
+  "method": "resources/read",
+  "params": {
+    "uri": "changeflow://docs/itil-compliance"
+  },
+  "id": 6
+}'
+#+end_src
+
+**** 4. Prompt Testing
+:PROPERTIES:
+:CUSTOM_ID: prompt-testing
+:END:
+#+begin_src sh
+# Generate risk analysis prompt
+curl -X POST http://localhost:8080/ -H "Content-Type: application/json" -d '{
+  "jsonrpc": "2.0",
+  "method": "prompts/get",
+  "params": {
+    "name": "analyze-change-risk",
+    "arguments": {
+      "change_description": "Deploy new microservice to production",
+      "environment": "production"
+    }
+  },
+  "id": 7
+}'
+#+end_src
+
+*** Performance Testing
+:PROPERTIES:
+:CUSTOM_ID: performance-testing
+:END:
+#+begin_src sh
 # Load test with Apache Bench
 ab -n 1000 -c 10 -H "Content-Type: application/json" \
    -p <(echo '{"jsonrpc":"2.0","method":"tools/list","id":1}') \
@@ -257,17 +373,41 @@ ab -n 1000 -c 10 -H "Content-Type: application/json" \
 # - Requests per second: >500/s
 # - 99th percentile latency: <10ms
 # - No failed requests
-#+END_SRC
+#+end_src
 
-* Integration Guide
+*** Error Testing
+:PROPERTIES:
+:CUSTOM_ID: error-testing
+:END:
+#+begin_src sh
+# Invalid method
+curl -X POST http://localhost:8080/ -d '{"jsonrpc":"2.0","method":"invalid","id":1}'
+# Expected: {"error":{"code":-32601,"message":"Method not found: invalid"}}
 
-** Claude Code Integration
+# Invalid tool
+curl -X POST http://localhost:8080/ -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"invalid_tool"},"id":2}'
+# Expected: {"result":{"error":"Tool not implemented: invalid_tool"}}
 
-*** MCP Configuration
+# Invalid resource
+curl -X POST http://localhost:8080/ -d '{"jsonrpc":"2.0","method":"resources/read","params":{"uri":"invalid://resource"},"id":3}'
+# Expected: {"result":{"error":"Resource not found: invalid://resource"}}
+#+end_src
 
+** Integration Guide
+:PROPERTIES:
+:CUSTOM_ID: integration-guide
+:END:
+*** Claude Code Integration
+:PROPERTIES:
+:CUSTOM_ID: claude-code-integration
+:END:
+**** 1. MCP Configuration
+:PROPERTIES:
+:CUSTOM_ID: mcp-configuration
+:END:
 Create =.claude_code_mcp_config.json= in your project root:
 
-#+BEGIN_SRC json
+#+begin_src json
 {
   "mcpServers": {
     "guile-changeflow": {
@@ -280,13 +420,16 @@ Create =.claude_code_mcp_config.json= in your project root:
     }
   }
 }
-#+END_SRC
+#+end_src
 
-*** Usage in Claude Code
+**** 2. Usage in Claude Code
+:PROPERTIES:
+:CUSTOM_ID: usage-in-claude-code
+:END:
+Once configured, Claude Code will automatically discover and use the
+tools:
 
-Once configured, Claude Code will automatically discover and use the tools:
-
-#+BEGIN_EXAMPLE
+#+begin_example
 User: "Please assess the risk of deploying our authentication microservice to production"
 
 Claude: I'll assess the risk of your authentication microservice deployment using the ITIL change management tools.
@@ -307,35 +450,112 @@ Recommendations:
 - Ensure full rollback plan tested
 - Require C-level approval (critical risk)
 - Have incident response team on standby
-#+END_EXAMPLE
+#+end_example
 
-* Deployment Guide
+*** MCP Inspector Integration
+:PROPERTIES:
+:CUSTOM_ID: mcp-inspector-integration
+:END:
+#+begin_src sh
+# Install MCP Inspector
+npm install -g @anthropic/mcp-inspector
 
-** Local Development Deployment
+# Inspect our server
+mcp-inspector http://localhost:8080
 
-#+BEGIN_SRC bash
+# Or use the development server directly
+mcp-inspector --command "node" --args "scripts/mcp-local-server.js"
+#+end_src
+
+*** Custom Client Integration
+:PROPERTIES:
+:CUSTOM_ID: custom-client-integration
+:END:
+#+begin_src javascript
+// Example Node.js MCP client
+const axios = require('axios');
+
+class ChangeFlowMCPClient {
+  constructor(baseURL = 'http://localhost:8080') {
+    this.baseURL = baseURL;
+    this.id = 0;
+  }
+
+  async call(method, params = {}) {
+    const response = await axios.post(this.baseURL, {
+      jsonrpc: '2.0',
+      method,
+      params,
+      id: ++this.id
+    });
+    return response.data.result;
+  }
+
+  async assessRisk(changeType, environment, options = {}) {
+    return await this.call('tools/call', {
+      name: 'assess_change_risk',
+      arguments: {
+        change_type: changeType,
+        environment: environment,
+        ...options
+      }
+    });
+  }
+
+  async createEmergencyChange(title, description, justification, impact, environment, requester) {
+    return await this.call('tools/call', {
+      name: 'create_emergency_change',
+      arguments: { title, description, justification, impact, environment, requester }
+    });
+  }
+}
+
+// Usage
+const client = new ChangeFlowMCPClient();
+const risk = await client.assessRisk('microservice', 'production', {
+  components_affected: 5,
+  has_rollback: true,
+  tested_in_staging: false
+});
+#+end_src
+
+** Deployment Guide
+:PROPERTIES:
+:CUSTOM_ID: deployment-guide
+:END:
+*** Local Development Deployment
+:PROPERTIES:
+:CUSTOM_ID: local-development-deployment
+:END:
+#+begin_src sh
 # Start development server
 node scripts/mcp-local-server.js
 
 # Server will be available at http://localhost:8080
 # Logs show request handling in real-time
-#+END_SRC
+#+end_src
 
-** CloudFlare Worker Deployment
-
-*** Prerequisites
-
-#+BEGIN_SRC bash
+*** CloudFlare Worker Deployment
+:PROPERTIES:
+:CUSTOM_ID: cloudflare-worker-deployment
+:END:
+**** 1. Prerequisites
+:PROPERTIES:
+:CUSTOM_ID: prerequisites-1
+:END:
+#+begin_src sh
 # Install Wrangler CLI
 npm install -g wrangler
 
 # Authenticate with CloudFlare
 wrangler auth
-#+END_SRC
+#+end_src
 
-*** Configure Deployment
-
-#+BEGIN_SRC bash
+**** 2. Configure Deployment
+:PROPERTIES:
+:CUSTOM_ID: configure-deployment
+:END:
+#+begin_src sh
 cd infra/cloudflare
 
 # Review wrangler.toml configuration
@@ -343,11 +563,13 @@ cat wrangler.toml
 
 # Update worker.js with latest implementation
 cp worker-mcp-poc.js worker.js
-#+END_SRC
+#+end_src
 
-*** Deploy
-
-#+BEGIN_SRC bash
+**** 3. Deploy
+:PROPERTIES:
+:CUSTOM_ID: deploy
+:END:
+#+begin_src sh
 # Development deployment
 wrangler deploy --env dev
 
@@ -356,17 +578,110 @@ wrangler deploy --env production
 
 # View deployment
 wrangler tail  # Live logs
-#+END_SRC
+#+end_src
 
-* Usage Guide
+**** 4. Verify Deployment
+:PROPERTIES:
+:CUSTOM_ID: verify-deployment
+:END:
+#+begin_src sh
+# Test deployed endpoint
+curl https://your-worker.your-subdomain.workers.dev/
 
-** Available Tools
+# Run full test suite against deployed version
+CLOUDFLARE_WORKER_URL=https://your-worker.your-subdomain.workers.dev \
+  node test/mcp-comprehensive-test.js
+#+end_src
 
-*** create_change_request
+*** Production Configuration
+:PROPERTIES:
+:CUSTOM_ID: production-configuration
+:END:
+**** Environment Variables
+:PROPERTIES:
+:CUSTOM_ID: environment-variables
+:END:
+#+begin_src sh
+# Local development
+export MCP_PORT=8080
+export MCP_LOG_LEVEL=info
 
+# CloudFlare Worker (via wrangler.toml)
+[env.production.vars]
+MCP_LOG_LEVEL = "warn"
+RATE_LIMIT_REQUESTS = "1000"
+RATE_LIMIT_WINDOW = "3600"
+#+end_src
+
+**** Security Configuration
+:PROPERTIES:
+:CUSTOM_ID: security-configuration
+:END:
+#+begin_src javascript
+// Add to worker.js for production
+const SECURITY_CONFIG = {
+  rateLimiting: {
+    requestsPerHour: 1000,
+    burstLimit: 100
+  },
+  authentication: {
+    required: process.env.NODE_ENV === 'production',
+    apiKeyHeader: 'X-API-Key'
+  },
+  cors: {
+    allowOrigin: ['https://claude.ai', 'https://your-domain.com'],
+    allowMethods: ['GET', 'POST', 'OPTIONS']
+  }
+};
+#+end_src
+
+*** Monitoring and Observability
+:PROPERTIES:
+:CUSTOM_ID: monitoring-and-observability
+:END:
+**** CloudFlare Analytics
+:PROPERTIES:
+:CUSTOM_ID: cloudflare-analytics
+:END:
+#+begin_src sh
+# View worker analytics
+wrangler tail --format pretty
+
+# Worker metrics
+wrangler pages deployment list
+#+end_src
+
+**** Custom Logging
+:PROPERTIES:
+:CUSTOM_ID: custom-logging
+:END:
+#+begin_src javascript
+// Enhanced logging in worker
+console.log(JSON.stringify({
+  timestamp: new Date().toISOString(),
+  method: request.method,
+  path: request.url,
+  userAgent: request.headers.get('user-agent'),
+  duration: Date.now() - startTime,
+  status: response.status
+}));
+#+end_src
+
+** Usage Guide
+:PROPERTIES:
+:CUSTOM_ID: usage-guide
+:END:
+*** Available Tools
+:PROPERTIES:
+:CUSTOM_ID: available-tools
+:END:
+**** 1. create_change_request
+:PROPERTIES:
+:CUSTOM_ID: create_change_request
+:END:
 Create standard ITIL change requests.
 
-#+BEGIN_SRC json
+#+begin_src json
 {
   "name": "create_change_request",
   "arguments": {
@@ -376,23 +691,81 @@ Create standard ITIL change requests.
     "environment": "production"
   }
 }
-#+END_SRC
+#+end_src
 
 *Response:*
-#+BEGIN_SRC json
+
+#+begin_src json
 {
   "change_id": "CHG-1757819511107",
   "status": "pending",
   "risk_score": 45,
   "created_at": "2025-09-14T03:15:00.000Z"
 }
-#+END_SRC
+#+end_src
 
-** Available Resources
+**** 2. assess_change_risk
+:PROPERTIES:
+:CUSTOM_ID: assess_change_risk
+:END:
+Evaluate risk factors for proposed changes.
 
-*** Configuration Resources
+#+begin_src json
+{
+  "name": "assess_change_risk",
+  "arguments": {
+    "change_type": "database_migration",
+    "environment": "production",
+    "components_affected": 12,
+    "has_rollback": true,
+    "tested_in_staging": false
+  }
+}
+#+end_src
 
-#+BEGIN_SRC json
+*Response:*
+
+#+begin_src json
+{
+  "risk_score": 75,
+  "risk_level": "high",
+  "factors": [
+    "Production environment (+40 risk)",
+    "Not tested in staging (+20 risk)",
+    "High component count (+15 risk)"
+  ]
+}
+#+end_src
+
+**** 3. create_emergency_change
+:PROPERTIES:
+:CUSTOM_ID: create_emergency_change
+:END:
+Create expedited emergency changes.
+
+#+begin_src json
+{
+  "name": "create_emergency_change",
+  "arguments": {
+    "title": "Critical Log4j Vulnerability Patch",
+    "description": "Apply security patch for CVE-2021-44228",
+    "justification": "Critical vulnerability with active exploitation",
+    "impact": "Brief service restart required",
+    "environment": "production",
+    "requester": "security-team@company.com"
+  }
+}
+#+end_src
+
+*** Available Resources
+:PROPERTIES:
+:CUSTOM_ID: available-resources
+:END:
+**** 1. Configuration Resources
+:PROPERTIES:
+:CUSTOM_ID: configuration-resources
+:END:
+#+begin_src json
 // changeflow://config/change-types
 {
   "standard": {"risk_base": 10, "approval_required": false},
@@ -407,17 +780,95 @@ Create standard ITIL change requests.
   "high": ["tech-lead@company.com", "ops-manager@company.com", "cto@company.com"],
   "critical": ["tech-lead@company.com", "ops-manager@company.com", "cto@company.com", "ceo@company.com"]
 }
-#+END_SRC
+#+end_src
 
-* Debugging Guide
+**** 2. Documentation Resources
+:PROPERTIES:
+:CUSTOM_ID: documentation-resources
+:END:
+#+begin_src markdown
+// changeflow://docs/itil-compliance
+# ITIL 4 Compliance Guide
 
-** Common Issues and Solutions
+## Risk Assessment Requirements
+- All production changes require risk assessment
+- Risk factors: environment, complexity, dependencies, timing
+- Scores: 0-39 (low), 40-59 (medium), 60-79 (high), 80-100 (critical)
 
-*** Server Won't Start
+## Approval Workflows
+- Low risk: Tech lead approval
+- Medium risk: Tech lead + Ops manager
+- High risk: Tech lead + Ops manager + CTO
+- Critical risk: Full CAB approval including CEO
+#+end_src
 
+*** Available Prompts
+:PROPERTIES:
+:CUSTOM_ID: available-prompts
+:END:
+**** 1. analyze-change-risk
+:PROPERTIES:
+:CUSTOM_ID: analyze-change-risk
+:END:
+Generate comprehensive risk analysis prompts:
+
+#+begin_src json
+{
+  "name": "analyze-change-risk",
+  "arguments": {
+    "change_description": "Deploy machine learning model update to recommendation engine",
+    "environment": "production"
+  }
+}
+#+end_src
+
+**** 2. generate-rollback-plan
+:PROPERTIES:
+:CUSTOM_ID: generate-rollback-plan
+:END:
+Create detailed rollback procedures:
+
+#+begin_src json
+{
+  "name": "generate-rollback-plan",
+  "arguments": {
+    "change_details": "Kubernetes deployment of new payment service version",
+    "system_context": "High-availability payment processing cluster"
+  }
+}
+#+end_src
+
+**** 3. create-change-summary
+:PROPERTIES:
+:CUSTOM_ID: create-change-summary
+:END:
+Generate executive summaries for approval workflows:
+
+#+begin_src json
+{
+  "name": "create-change-summary",
+  "arguments": {
+    "change_request": "Full change request details...",
+    "audience": "executive"
+  }
+}
+#+end_src
+
+** Debugging Guide
+:PROPERTIES:
+:CUSTOM_ID: debugging-guide
+:END:
+*** Common Issues and Solutions
+:PROPERTIES:
+:CUSTOM_ID: common-issues-and-solutions
+:END:
+**** 1. Server Won't Start
+:PROPERTIES:
+:CUSTOM_ID: server-wont-start
+:END:
 *Problem:* =Error: Failed to load worker=
 
-#+BEGIN_SRC bash
+#+begin_src sh
 # Check Node.js version
 node --version  # Should be v18+
 
@@ -428,13 +879,15 @@ chmod +x scripts/mcp-local-server.js
 # Check syntax
 node --check scripts/mcp-local-server.js
 node --check infra/cloudflare/worker.js
-#+END_SRC
+#+end_src
 
-*** MCP Protocol Errors
-
+**** 2. MCP Protocol Errors
+:PROPERTIES:
+:CUSTOM_ID: mcp-protocol-errors
+:END:
 *Problem:* =Method not found= errors
 
-#+BEGIN_SRC bash
+#+begin_src sh
 # Verify JSON-RPC format
 curl -X POST http://localhost:8080/ -d '{
   "jsonrpc": "2.0",
@@ -445,83 +898,293 @@ curl -X POST http://localhost:8080/ -d '{
 
 # Check available methods
 grep -n "case.*:" infra/cloudflare/worker.js
-#+END_SRC
+#+end_src
 
-** Debugging Tools
+**** 3. Tool Execution Failures
+:PROPERTIES:
+:CUSTOM_ID: tool-execution-failures
+:END:
+*Problem:* Tools return errors or unexpected results
 
-*** Server Logs
+#+begin_src sh
+# Test individual tools
+curl -X POST http://localhost:8080/ -d '{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "assess_change_risk",
+    "arguments": {
+      "change_type": "test",
+      "environment": "test"
+    }
+  },
+  "id": 1
+}' | jq .result
 
-#+BEGIN_SRC bash
+# Validate tool schemas
+node -e "
+const fs = require('fs');
+const worker = fs.readFileSync('infra/cloudflare/worker.js', 'utf8');
+const toolsMatch = worker.match(/const TOOLS = \[(.*?)\];/s);
+console.log('Found tools:', toolsMatch ? 'yes' : 'no');
+"
+#+end_src
+
+*** Debugging Tools
+:PROPERTIES:
+:CUSTOM_ID: debugging-tools
+:END:
+**** 1. Server Logs
+:PROPERTIES:
+:CUSTOM_ID: server-logs
+:END:
+#+begin_src sh
 # Real-time logging
 node scripts/mcp-local-server.js | tee mcp-debug.log
 
 # Enhanced debug logging
 MCP_DEBUG=true node scripts/mcp-local-server.js
-#+END_SRC
+#+end_src
 
-*** Protocol Inspector
-
-#+BEGIN_SRC bash
+**** 2. Protocol Inspector
+:PROPERTIES:
+:CUSTOM_ID: protocol-inspector
+:END:
+#+begin_src sh
 # Install and use MCP Inspector
 npm install -g @anthropic/mcp-inspector
 mcp-inspector http://localhost:8080
 
 # Or inspect the command directly
 mcp-inspector --command node --args scripts/mcp-local-server.js
-#+END_SRC
+#+end_src
 
-* API Reference
+**** 3. Request Tracing
+:PROPERTIES:
+:CUSTOM_ID: request-tracing
+:END:
+#+begin_src javascript
+// Add to worker for detailed tracing
+function traceRequest(request, body) {
+  console.log('=== REQUEST TRACE ===');
+  console.log('Method:', request.method);
+  console.log('URL:', request.url);
+  console.log('Headers:', JSON.stringify(request.headers, null, 2));
+  console.log('Body:', JSON.stringify(body, null, 2));
+  console.log('===================');
+}
+#+end_src
 
-** MCP Protocol Methods
+*** Performance Debugging
+:PROPERTIES:
+:CUSTOM_ID: performance-debugging
+:END:
+**** 1. Response Time Analysis
+:PROPERTIES:
+:CUSTOM_ID: response-time-analysis
+:END:
+#+begin_src sh
+# Measure response times
+curl -w "@curl-format.txt" -X POST http://localhost:8080/ -d '{"jsonrpc":"2.0","method":"tools/list","id":1}' -o /dev/null -s
 
-| Method | Description | Parameters | Response |
-|--------|-------------|------------|----------|
-| =initialize= | Protocol handshake | =protocolVersion=, =capabilities= | Server info and capabilities |
-| =tools/list= | List available tools | None | Array of tool definitions |
-| =tools/call= | Execute a tool | =name=, =arguments= | Tool execution result |
-| =resources/list= | List available resources | None | Array of resource definitions |
-| =resources/read= | Read resource content | =uri= | Resource contents |
-| =prompts/list= | List available prompts | None | Array of prompt definitions |
-| =prompts/get= | Get prompt template | =name=, =arguments= | Formatted prompt |
+# curl-format.txt content:
+time_namelookup:  %{time_namelookup}\n
+time_connect:     %{time_connect}\n
+time_appconnect:  %{time_appconnect}\n
+time_pretransfer: %{time_pretransfer}\n
+time_redirect:    %{time_redirect}\n
+time_starttransfer: %{time_starttransfer}\n
+----------\n
+time_total:       %{time_total}\n
+#+end_src
 
-** Resource URIs
+**** 2. Memory Usage
+:PROPERTIES:
+:CUSTOM_ID: memory-usage
+:END:
+#+begin_src sh
+# Monitor Node.js memory
+node --inspect scripts/mcp-local-server.js
 
-| URI | Content Type | Description |
-|-----|-------------|-------------|
-| =changeflow://config/change-types= | JSON | Standard change type definitions |
-| =changeflow://config/approval-matrix= | JSON | CAB approval requirements by risk |
-| =changeflow://config/freeze-calendar= | JSON | Scheduled freeze periods |
-| =changeflow://templates/emergency-change= | JSON | Emergency change request template |
-| =changeflow://docs/itil-compliance= | Markdown | ITIL 4 compliance guidelines |
+# Or use basic monitoring
+node -e "
+setInterval(() => {
+  const mem = process.memoryUsage();
+  console.log('Memory:', {
+    rss: Math.round(mem.rss / 1024 / 1024) + 'MB',
+    heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB'
+  });
+}, 5000);
+require('./scripts/mcp-local-server.js');
+"
+#+end_src
 
-** Error Codes
+*** CloudFlare Debugging
+:PROPERTIES:
+:CUSTOM_ID: cloudflare-debugging
+:END:
+**** 1. Worker Logs
+:PROPERTIES:
+:CUSTOM_ID: worker-logs
+:END:
+#+begin_src sh
+# Real-time logs
+wrangler tail --format pretty
 
-| Code | Meaning | Description |
-|------|---------|-------------|
-| =-32601= | Method not found | Invalid MCP method |
-| =-32602= | Invalid params | Missing or invalid parameters |
-| =-32603= | Internal error | Server-side error |
-| =-32700= | Parse error | Invalid JSON-RPC format |
+# Filter by status
+wrangler tail --status error
 
-* Troubleshooting
+# Debug specific requests
+wrangler tail --grep "tools/call"
+#+end_src
 
-** FAQ
+**** 2. Local Development
+:PROPERTIES:
+:CUSTOM_ID: local-development
+:END:
+#+begin_src sh
+# Run worker locally with Wrangler
+cd infra/cloudflare
+wrangler dev --local
 
+# Test against local Wrangler
+curl http://localhost:8787/ -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
+#+end_src
+
+** API Reference
+:PROPERTIES:
+:CUSTOM_ID: api-reference
+:END:
+*** MCP Protocol Methods
+:PROPERTIES:
+:CUSTOM_ID: mcp-protocol-methods
+:END:
+| Method           | Description              | Parameters                        | Response                      |
+|------------------+--------------------------+-----------------------------------+-------------------------------|
+| =initialize=     | Protocol handshake       | =protocolVersion=, =capabilities= | Server info and capabilities  |
+| =tools/list=     | List available tools     | None                              | Array of tool definitions     |
+| =tools/call=     | Execute a tool           | =name=, =arguments=               | Tool execution result         |
+| =resources/list= | List available resources | None                              | Array of resource definitions |
+| =resources/read= | Read resource content    | =uri=                             | Resource contents             |
+| =prompts/list=   | List available prompts   | None                              | Array of prompt definitions   |
+| =prompts/get=    | Get prompt template      | =name=, =arguments=               | Formatted prompt              |
+
+*** Tool Reference
+:PROPERTIES:
+:CUSTOM_ID: tool-reference
+:END:
+**** Risk Assessment Tools
+:PROPERTIES:
+:CUSTOM_ID: risk-assessment-tools
+:END:
+#+begin_src typescript
+// assess_change_risk
+interface RiskAssessmentArgs {
+  change_type: string;
+  environment: "dev" | "test" | "staging" | "production";
+  components_affected?: number;
+  has_rollback?: boolean;
+  tested_in_staging?: boolean;
+}
+
+interface RiskAssessmentResult {
+  risk_score: number;        // 0-100
+  risk_level: "low" | "medium" | "high" | "critical";
+  factors: string[];         // Risk factor descriptions
+}
+#+end_src
+
+**** Change Management Tools
+:PROPERTIES:
+:CUSTOM_ID: change-management-tools
+:END:
+#+begin_src typescript
+// create_change_request
+interface ChangeRequestArgs {
+  title: string;
+  description: string;
+  risk_level: "low" | "medium" | "high" | "critical";
+  environment: "dev" | "test" | "staging" | "production";
+}
+
+interface ChangeRequestResult {
+  change_id: string;         // Format: CHG-{timestamp}
+  status: "pending" | "approved" | "rejected";
+  risk_score: number;
+  created_at: string;        // ISO timestamp
+}
+
+// create_emergency_change
+interface EmergencyChangeArgs {
+  title: string;
+  description: string;
+  justification: string;
+  impact: string;
+  environment: "dev" | "test" | "staging" | "production";
+  requester: string;         // Email address
+}
+
+interface EmergencyChangeResult {
+  change_id: string;         // Format: EMG-{timestamp}
+  type: "emergency";
+  status: "pending_emergency_approval";
+  risk_level: "high";        // Emergency changes are always high risk
+  approval_required: boolean;
+  emergency_contacts: string[];
+  sla_approval_minutes: number; // 30 for emergencies
+  auto_rollback_enabled: boolean;
+  created_at: string;
+}
+#+end_src
+
+*** Resource URIs
+:PROPERTIES:
+:CUSTOM_ID: resource-uris
+:END:
+| URI                                       | Content Type | Description                       |
+|-------------------------------------------+--------------+-----------------------------------|
+| =changeflow://config/change-types=        | JSON         | Standard change type definitions  |
+| =changeflow://config/approval-matrix=     | JSON         | CAB approval requirements by risk |
+| =changeflow://config/freeze-calendar=     | JSON         | Scheduled freeze periods          |
+| =changeflow://templates/emergency-change= | JSON         | Emergency change request template |
+| =changeflow://docs/itil-compliance=       | Markdown     | ITIL 4 compliance guidelines      |
+
+*** Error Codes
+:PROPERTIES:
+:CUSTOM_ID: error-codes
+:END:
+| Code     | Meaning          | Description                   |
+|----------+------------------+-------------------------------|
+| =-32601= | Method not found | Invalid MCP method            |
+| =-32602= | Invalid params   | Missing or invalid parameters |
+| =-32603= | Internal error   | Server-side error             |
+| =-32700= | Parse error      | Invalid JSON-RPC format       |
+
+** Troubleshooting
+:PROPERTIES:
+:CUSTOM_ID: troubleshooting
+:END:
+*** FAQ
+:PROPERTIES:
+:CUSTOM_ID: faq
+:END:
 *Q: Why is the server returning "Method not found" for valid methods?*
 
 A: Check the JSON-RPC format. Ensure you're sending:
-#+BEGIN_SRC json
+
+#+begin_src json
 {
   "jsonrpc": "2.0",
   "method": "tools/list",
   "params": {},
   "id": 1
 }
-#+END_SRC
+#+end_src
 
 *Q: Tools are listed but execution fails?*
 
-A: Verify the tool arguments match the expected schema. Use =tools/list= to see required parameters.
+A: Verify the tool arguments match the expected schema. Use =tools/list=
+to see required parameters.
 
 *Q: Resources return empty or error responses?*
 
@@ -529,18 +1192,45 @@ A: Check the exact URI format. Resources use the =changeflow://= scheme.
 
 *Q: Performance is slower than expected?*
 
-A: For production, ensure you're using the CloudFlare Worker deployment, not the local Node.js server.
+A: For production, ensure you're using the CloudFlare Worker deployment,
+not the local Node.js server.
 
-** Health Monitoring
+*** Logging Levels
+:PROPERTIES:
+:CUSTOM_ID: logging-levels
+:END:
+#+begin_src sh
+# Local development - verbose logging
+MCP_LOG_LEVEL=debug node scripts/mcp-local-server.js
 
-#+BEGIN_SRC bash
+# Production - minimal logging
+MCP_LOG_LEVEL=error node scripts/mcp-local-server.js
+#+end_src
+
+*** Health Monitoring
+:PROPERTIES:
+:CUSTOM_ID: health-monitoring
+:END:
+#+begin_src sh
 # Basic health check
 curl -f http://localhost:8080/ || echo "Server down"
 
 # Advanced health monitoring
 curl -s http://localhost:8080/ | jq -r '.status' | grep -q "healthy" && echo "OK" || echo "FAIL"
-#+END_SRC
+#+end_src
 
----
+*** Support
+:PROPERTIES:
+:CUSTOM_ID: support
+:END:
+For issues not covered in this guide:
 
-*Generated: 2025-09-14 | Version: 1.0.0 | Protocol: MCP 2024-11-05*
+1. Check the [[https://github.com/dsp-dr/guile-changeflow/issues][GitHub
+   Issues]]
+2. Review server logs for error details
+3. Test with the comprehensive test suite
+4. Verify MCP protocol compliance with inspector tools
+
+--------------
+
+/Generated: 2025-09-14 | Version: 1.0.0 | Protocol: MCP 2024-11-05/

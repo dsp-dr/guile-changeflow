@@ -1,0 +1,108 @@
+* Vale Linter Report for ChangeFlow Documentation
+:PROPERTIES:
+:CUSTOM_ID: vale-linter-report-for-changeflow-documentation
+:END:
+** Summary
+:PROPERTIES:
+:CUSTOM_ID: summary
+:END:
+- *Date*: 2025-09-28
+- *Total files scanned*: 118
+- *Total issues found*: 1,869
+  - Errors: 531 (mostly spelling/terminology)
+  - Warnings: 292 (wordiness, passive voice)
+  - Suggestions: 1,046 (style improvements)
+
+** Configuration
+:PROPERTIES:
+:CUSTOM_ID: configuration
+:END:
+- *Vale Version*: Configured with proselint and write-good styles
+- *Custom Vocabulary*: Created ChangeFlow vocabulary with 150+ technical
+  terms
+- *Configuration File*: =.vale.ini=
+
+** Key Findings
+:PROPERTIES:
+:CUSTOM_ID: key-findings
+:END:
+*** Most Common Issues
+:PROPERTIES:
+:CUSTOM_ID: most-common-issues
+:END:
+1. *Technical Terms*: Many technical terms flagged as spelling errors
+   (now whitelisted)
+2. *Passive Voice*: Numerous instances of passive voice that could be
+   rewritten
+3. *Wordiness*: Terms like "Implement", "Validate", "Additional" flagged
+   as too wordy
+4. *E-Prime*: Suggestions to avoid forms of "to be" for clearer writing
+
+*** Files with Most Issues
+:PROPERTIES:
+:CUSTOM_ID: files-with-most-issues
+:END:
+- Workshop documentation (02-itil-deep-dive/)
+- Architecture overviews
+- Implementation guides
+
+** Vocabulary Additions
+:PROPERTIES:
+:CUSTOM_ID: vocabulary-additions
+:END:
+Created custom vocabulary file at
+=.vale/styles/config/vocabularies/ChangeFlow/accept.txt= containing: -
+Technical acronyms (OAuth, MCP, SSE, ITIL, etc.) - Programming terms
+(api, middleware, serverless, etc.) - Project-specific terms
+(ChangeFlow, Cloudflare, Claude.ai) - Cloud/DevOps terminology -
+Company/Product names
+
+** Recommendations
+:PROPERTIES:
+:CUSTOM_ID: recommendations
+:END:
+*** High Priority
+:PROPERTIES:
+:CUSTOM_ID: high-priority
+:END:
+1. Review passive voice instances in user-facing documentation
+2. Consider simplifying wordy phrases in README files
+3. Ensure consistent capitalization of technical terms
+
+*** Medium Priority
+:PROPERTIES:
+:CUSTOM_ID: medium-priority
+:END:
+1. Review E-Prime suggestions for clarity improvements
+2. Standardize terminology usage across all docs
+3. Consider creating style guide for contributors
+
+*** Low Priority
+:PROPERTIES:
+:CUSTOM_ID: low-priority
+:END:
+1. Address minor wording suggestions
+2. Review and update vocabulary as new terms are introduced
+
+** Next Steps
+:PROPERTIES:
+:CUSTOM_ID: next-steps
+:END:
+1. ✅ Vale linter configured and running
+2. ✅ Custom vocabulary created for technical terms
+3. ✅ All documentation scanned for style issues
+4. Consider creating automated Vale checks in CI/CD pipeline
+5. Regular vocabulary updates as project evolves
+
+** Files Configured
+:PROPERTIES:
+:CUSTOM_ID: files-configured
+:END:
+- =.vale.ini= - Main Vale configuration
+- =.vale/styles/config/vocabularies/ChangeFlow/accept.txt= - Custom
+  vocabulary
+- =.vale/styles/= - Contains proselint and write-good packages
+
+--------------
+
+/Generated: 2025-09-28/

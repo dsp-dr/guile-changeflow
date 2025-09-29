@@ -1,494 +1,216 @@
-#+TITLE: Post Multi-Agent Experiment Cleanup Documentation
-#+DATE: 2025-09-14 01:00 EDT
-#+STARTUP: overview
+* Post Multi-Agent Experiment Cleanup Guide
+:PROPERTIES:
+:CUSTOM_ID: post-multi-agent-experiment-cleanup-guide
+:END:
+** Current Situation (1 AM, Sep 14, 2025)
+:PROPERTIES:
+:CUSTOM_ID: current-situation-1-am-sep-14-2025
+:END:
+- 5 AI agents (gcf-a1 through gcf-a5) are stuck on permission prompts
+- Coordinator and monitor sessions still running but inactive
+- Task agent successfully built the entire system (now v1.0.1 in
+  production)
+- Multiple worktrees and branches created but unused
 
-* Executive Summary
+** What Can Be Safely Removed
+:PROPERTIES:
+:CUSTOM_ID: what-can-be-safely-removed
+:END:
+*** 1. Tmux Sessions (7 total)
+:PROPERTIES:
+:CUSTOM_ID: tmux-sessions-7-total
+:END:
+All agent sessions are stuck and can be killed:
 
-The multi-agent experiment (Sep 13, 21:41 - Sep 14, 01:00) resulted in 5 AI agents getting stuck on filesystem permission prompts while a separate Task agent successfully built the entire system. This document provides comprehensive cleanup procedures for removing experimental artifacts.
+#+begin_src sh
+# Kill all agent sessions
+tmux kill-session -t gcf-a1
+tmux kill-session -t gcf-a2
+tmux kill-session -t gcf-a3
+tmux kill-session -t gcf-a4
+tmux kill-session -t gcf-a5
+tmux kill-session -t gcf-coordinator
+tmux kill-session -t gcf-monitor
 
-* Current State Analysis
+# Or kill all at once
+tmux kill-server
+#+end_src
 
-** Stuck Agent Sessions
-#+BEGIN_SRC bash :results output
-# Agent sessions created at 21:41, stuck on permission prompts
-gcf-a1: Core Models Agent - STUCK since 21:41:24
-gcf-a2: MCP/Cloudflare Agent - STUCK since 21:41:29
-gcf-a3: Risk Engine Agent - STUCK since 21:41:38
-gcf-a4: Web/Dashboard Agent - STUCK since 21:41:43
-gcf-a5: Integration Agent - STUCK since 21:41:48
-gcf-coordinator: Orchestrator - INACTIVE since 21:41:18
-gcf-monitor: Dashboard Monitor - RUNNING but useless
-#+END_SRC
+*** 2. Git Worktrees (5 feature worktrees)
+:PROPERTIES:
+:CUSTOM_ID: git-worktrees-5-feature-worktrees
+:END:
+These were created for parallel development but agents never used them:
 
-** Git Worktrees Created But Unused
-#+BEGIN_SRC bash :results table
-| Worktree Path | Branch | Last Commit | Status |
-|---------------+--------+-------------+--------|
-| /home/dsp-dr/ghq/github.com/dsp-dr/gcf-core-models | feat/core-models | 7a69ebf | UNUSED |
-| /home/dsp-dr/ghq/github.com/dsp-dr/gcf-integrations | feat/integrations | 4e96392 | UNUSED |
-| /home/dsp-dr/ghq/github.com/dsp-dr/gcf-mcp-server | feat/mcp-server | 1935743 | UNUSED |
-| /home/dsp-dr/ghq/github.com/dsp-dr/gcf-risk-engine | feat/risk-engine | a37d9d3 | UNUSED |
-| /home/dsp-dr/ghq/github.com/dsp-dr/gcf-web-interface | feat/web-interface | fe532ee | UNUSED |
-#+END_SRC
+#+begin_src sh
+# Remove all feature worktrees
+git worktree remove /home/dsp-dr/ghq/github.com/dsp-dr/gcf-core-models
+git worktree remove /home/dsp-dr/ghq/github.com/dsp-dr/gcf-integrations
+git worktree remove /home/dsp-dr/ghq/github.com/dsp-dr/gcf-mcp-server
+git worktree remove /home/dsp-dr/ghq/github.com/dsp-dr/gcf-risk-engine
+git worktree remove /home/dsp-dr/ghq/github.com/dsp-dr/gcf-web-interface
 
-** Background Processes
-#+BEGIN_SRC python
-# Three Python monitoring scripts still running
-PID 1f0149: python3 tools/agent-monitor-dashboard.py
-PID fba7da: python3 scripts/monitoring/agent-monitor-dashboard.py
-PID aac423: node scripts/mcp-local-server.js (port 8427)
-#+END_SRC
+# Clean up worktree references
+git worktree prune
+#+end_src
 
-* Detailed Cleanup Procedures
+*** 3. Feature Branches
+:PROPERTIES:
+:CUSTOM_ID: feature-branches
+:END:
+These branches have no meaningful work (agents got stuck):
 
-** Phase 1: Process Termination
+#+begin_src sh
+# Delete local branches
+git branch -D feat/core-models
+git branch -D feat/integrations
+git branch -D feat/mcp-server
+git branch -D feat/risk-engine
+git branch -D feat/web-interface
+git branch -D agent-1-core
+git branch -D feat/cloudflare-mcp-implementation
+git branch -D integration
 
-*** Kill Tmux Sessions
-#+BEGIN_SRC bash
+# Delete remote branches (if pushed)
+git push origin --delete feat/core-models
+git push origin --delete feat/integrations
+git push origin --delete feat/mcp-server
+git push origin --delete feat/risk-engine
+git push origin --delete feat/web-interface
+#+end_src
+
+*** 4. Background Processes
+:PROPERTIES:
+:CUSTOM_ID: background-processes
+:END:
+Check for stuck Python monitoring scripts:
+
+#+begin_src sh
+# Find and kill monitoring scripts
+ps aux | grep agent-monitor | grep -v grep
+ps aux | grep coordinator | grep -v grep
+
+# Kill any found processes
+pkill -f agent-monitor
+pkill -f coordinator
+#+end_src
+
+*** 5. Temporary Files
+:PROPERTIES:
+:CUSTOM_ID: temporary-files
+:END:
+#+begin_src sh
+# Clean up any agent artifacts
+rm -f /tmp/gcf-agent-*
+rm -f /tmp/claude-*
+rm -rf ~/.claude/projects/*guile-changeflow*/agent-*
+#+end_src
+
+** What to Keep
+:PROPERTIES:
+:CUSTOM_ID: what-to-keep
+:END:
+*** DO NOT DELETE
+:PROPERTIES:
+:CUSTOM_ID: do-not-delete
+:END:
+- =main= branch - has all the working code
+- =/home/dsp-dr/ghq/github.com/dsp-dr/guile-changeflow= - main
+  repository
+- Production deployment configuration
+- GitHub secrets (CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID)
+
+** Quick Cleanup Script
+:PROPERTIES:
+:CUSTOM_ID: quick-cleanup-script
+:END:
+Save as =cleanup-experiment.sh=:
+
+#+begin_src sh
 #!/usr/bin/env bash
-# Kill individual sessions with verification
+
+echo "🧹 Cleaning up multi-agent experiment artifacts..."
+
+# 1. Kill tmux sessions
+echo "Killing tmux sessions..."
 for session in gcf-a1 gcf-a2 gcf-a3 gcf-a4 gcf-a5 gcf-coordinator gcf-monitor; do
-    if tmux has-session -t $session 2>/dev/null; then
-        echo "Killing session: $session"
-        tmux kill-session -t $session
-        echo "  Status: TERMINATED"
-    else
-        echo "Session $session: NOT FOUND"
-    fi
+    tmux kill-session -t $session 2>/dev/null && echo "  Killed $session"
 done
 
-# Verify all killed
-tmux ls 2>/dev/null || echo "SUCCESS: No tmux sessions remaining"
-#+END_SRC
-
-*** Terminate Background Processes
-#+BEGIN_SRC bash
-# Find all related processes
-ps aux | grep -E "(agent-monitor|coordinator|mcp-local-server)" | grep -v grep
-
-# Kill Python monitors
-pkill -f "agent-monitor-dashboard.py"
-pkill -f "scripts/monitoring/agent-monitor"
-
-# Kill MCP server if not needed
-lsof -i :8427 | grep LISTEN | awk '{print $2}' | xargs kill 2>/dev/null
-
-# Verify termination
-sleep 2
-ps aux | grep -E "(agent-monitor|mcp-local)" | grep -v grep || echo "All processes terminated"
-#+END_SRC
-
-** Phase 2: Git Worktree Removal
-
-*** Safe Worktree Removal Process
-#+BEGIN_SRC bash
-#!/usr/bin/env bash
-
-# Set base path
-BASE_PATH="/home/dsp-dr/ghq/github.com/dsp-dr"
-
-# Define worktrees to remove
-declare -a WORKTREES=(
-    "gcf-core-models"
-    "gcf-integrations"
-    "gcf-mcp-server"
-    "gcf-risk-engine"
-    "gcf-web-interface"
-)
-
-# Check for uncommitted changes before removal
-for worktree in "${WORKTREES[@]}"; do
-    WORKTREE_PATH="$BASE_PATH/$worktree"
-
-    if [ -d "$WORKTREE_PATH" ]; then
-        echo "Checking $worktree for uncommitted changes..."
-
-        # Check git status in worktree
-        cd "$WORKTREE_PATH"
-        if [ -n "$(git status --porcelain)" ]; then
-            echo "  WARNING: Uncommitted changes found!"
-            git status --short
-            read -p "  Continue with removal? (y/n): " confirm
-            [ "$confirm" != "y" ] && continue
-        fi
-
-        # Return to main repo
-        cd "$BASE_PATH/guile-changeflow"
-
-        # Remove worktree
-        echo "  Removing worktree: $WORKTREE_PATH"
-        git worktree remove "$WORKTREE_PATH" --force
-
-        # Verify removal
-        [ ! -d "$WORKTREE_PATH" ] && echo "  SUCCESS: Removed"
-    else
-        echo "$worktree: NOT FOUND (already removed)"
-    fi
-done
-
-# Prune worktree references
-git worktree prune -v
-
-# Final verification
-echo ""
-echo "Remaining worktrees:"
-git worktree list
-#+END_SRC
-
-** Phase 3: Branch Cleanup
-
-*** Delete Local Feature Branches
-#+BEGIN_SRC bash
-#!/usr/bin/env bash
-
-# Define branches to delete
-declare -a LOCAL_BRANCHES=(
-    "feat/core-models"
-    "feat/integrations"
-    "feat/mcp-server"
-    "feat/risk-engine"
-    "feat/web-interface"
-    "agent-1-core"
-    "feat/cloudflare-mcp-implementation"
-    "integration"
-)
-
-# Current branch check
-CURRENT_BRANCH=$(git branch --show-current)
-echo "Current branch: $CURRENT_BRANCH"
-
-if [ "$CURRENT_BRANCH" != "main" ]; then
-    echo "Switching to main branch first..."
-    git checkout main
-fi
-
-# Delete each branch with verification
-for branch in "${LOCAL_BRANCHES[@]}"; do
-    if git branch --list | grep -q "$branch"; then
-        echo "Deleting branch: $branch"
-
-        # Check for unmerged commits
-        UNMERGED=$(git cherry -v main $branch 2>/dev/null | wc -l)
-        if [ "$UNMERGED" -gt 0 ]; then
-            echo "  WARNING: $UNMERGED unmerged commits"
-            git log main..$branch --oneline | head -5
-            read -p "  Force delete? (y/n): " confirm
-            if [ "$confirm" = "y" ]; then
-                git branch -D "$branch"
-                echo "  DELETED (forced)"
-            else
-                echo "  SKIPPED"
-            fi
-        else
-            git branch -d "$branch" 2>/dev/null || git branch -D "$branch"
-            echo "  DELETED"
-        fi
-    else
-        echo "Branch $branch: NOT FOUND"
-    fi
-done
-
-# Show remaining branches
-echo ""
-echo "Remaining branches:"
-git branch -a
-#+END_SRC
-
-*** Delete Remote Branches
-#+BEGIN_SRC bash
-#!/usr/bin/env bash
-
-# Check which remote branches exist
-echo "Checking remote branches..."
-for branch in feat/core-models feat/integrations feat/mcp-server feat/risk-engine feat/web-interface; do
-    if git ls-remote --heads origin | grep -q "refs/heads/$branch"; then
-        echo "Deleting remote branch: origin/$branch"
-        git push origin --delete "$branch"
-        echo "  DELETED from remote"
-    else
-        echo "Remote branch origin/$branch: NOT FOUND"
-    fi
-done
-
-# Prune remote tracking branches
-git remote prune origin
-
-# Update local tracking
-git fetch --prune
-#+END_SRC
-
-** Phase 4: Filesystem Cleanup
-
-*** Remove Temporary Files
-#+BEGIN_SRC bash
-#!/usr/bin/env bash
-
-# Clean agent artifacts
-echo "Removing temporary files..."
-
-# Tmux resurrect sessions
-rm -rf ~/.tmux/resurrect/*gcf-*
-
-# Claude temporary files
-find /tmp -name "claude-*" -mtime +1 -delete 2>/dev/null
-find /tmp -name "gcf-agent-*" -delete 2>/dev/null
-
-# Agent logs if any
-rm -f ~/gcf-agent-*.log
-rm -f ~/agent-monitor-*.log
-
-# Claude project artifacts
-CLAUDE_PROJECT_PATH="$HOME/.claude/projects/-home-dsp-dr-ghq-github-com-dsp-dr-guile-changeflow"
-if [ -d "$CLAUDE_PROJECT_PATH" ]; then
-    echo "Cleaning Claude project artifacts..."
-    find "$CLAUDE_PROJECT_PATH" -name "*agent*" -type f -delete
-fi
-
-echo "Temporary files cleaned"
-#+END_SRC
-
-* Comprehensive Cleanup Script
-
-** Complete Cleanup Script
-#+BEGIN_SRC bash :tangle cleanup-experiment.sh
-#!/usr/bin/env bash
-#
-# Complete Multi-Agent Experiment Cleanup Script
-# Run Time: ~2-3 minutes
-# Safe to run multiple times (idempotent)
-#
-
-set -euo pipefail
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-echo "=========================================="
-echo "Multi-Agent Experiment Cleanup"
-echo "=========================================="
-echo "Time: $(date)"
-echo ""
-
-# Function to confirm action
-confirm_action() {
-    read -p "$1 (y/n): " -n 1 -r
-    echo
-    [[ $REPLY =~ ^[Yy]$ ]]
-}
-
-# PHASE 1: Tmux Sessions
-echo -e "${YELLOW}PHASE 1: Cleaning Tmux Sessions${NC}"
-echo "----------------------------------------"
-SESSIONS=(gcf-a1 gcf-a2 gcf-a3 gcf-a4 gcf-a5 gcf-coordinator gcf-monitor)
-for session in "${SESSIONS[@]}"; do
-    if tmux has-session -t "$session" 2>/dev/null; then
-        tmux kill-session -t "$session"
-        echo -e "  ${GREEN}✓${NC} Killed session: $session"
-    else
-        echo "  ○ Session $session not found"
-    fi
-done
-echo ""
-
-# PHASE 2: Background Processes
-echo -e "${YELLOW}PHASE 2: Terminating Background Processes${NC}"
-echo "----------------------------------------"
-pkill -f "agent-monitor-dashboard" 2>/dev/null && echo -e "  ${GREEN}✓${NC} Killed agent-monitor" || echo "  ○ No agent-monitor found"
-pkill -f "coordinator.py" 2>/dev/null && echo -e "  ${GREEN}✓${NC} Killed coordinator" || echo "  ○ No coordinator found"
-
-# Check MCP server
-if lsof -i :8427 2>/dev/null | grep -q LISTEN; then
-    if confirm_action "Kill MCP server on port 8427?"; then
-        lsof -i :8427 | grep LISTEN | awk '{print $2}' | xargs kill 2>/dev/null
-        echo -e "  ${GREEN}✓${NC} Killed MCP server"
-    else
-        echo "  ○ Keeping MCP server running"
-    fi
-else
-    echo "  ○ No MCP server on port 8427"
-fi
-echo ""
-
-# PHASE 3: Git Worktrees
-echo -e "${YELLOW}PHASE 3: Removing Git Worktrees${NC}"
-echo "----------------------------------------"
-BASE_PATH="/home/dsp-dr/ghq/github.com/dsp-dr"
-cd "$BASE_PATH/guile-changeflow"
-
-WORKTREES=(gcf-core-models gcf-integrations gcf-mcp-server gcf-risk-engine gcf-web-interface)
-for worktree in "${WORKTREES[@]}"; do
-    WORKTREE_PATH="$BASE_PATH/$worktree"
-    if [ -d "$WORKTREE_PATH" ]; then
-        git worktree remove "$WORKTREE_PATH" --force 2>/dev/null
-        echo -e "  ${GREEN}✓${NC} Removed worktree: $worktree"
-    else
-        echo "  ○ Worktree $worktree not found"
+# 2. Remove worktrees
+echo "Removing git worktrees..."
+for worktree in gcf-core-models gcf-integrations gcf-mcp-server gcf-risk-engine gcf-web-interface; do
+    path="/home/dsp-dr/ghq/github.com/dsp-dr/$worktree"
+    if [ -d "$path" ]; then
+        git worktree remove "$path" && echo "  Removed $worktree"
     fi
 done
 git worktree prune
-echo ""
 
-# PHASE 4: Git Branches
-echo -e "${YELLOW}PHASE 4: Deleting Git Branches${NC}"
-echo "----------------------------------------"
-
-# Ensure we're on main
-git checkout main 2>/dev/null || true
-
-BRANCHES=(feat/core-models feat/integrations feat/mcp-server feat/risk-engine feat/web-interface agent-1-core feat/cloudflare-mcp-implementation integration)
-for branch in "${BRANCHES[@]}"; do
-    if git branch --list | grep -q "$branch"; then
-        git branch -D "$branch" 2>/dev/null
-        echo -e "  ${GREEN}✓${NC} Deleted branch: $branch"
-    else
-        echo "  ○ Branch $branch not found"
-    fi
+# 3. Delete local branches
+echo "Deleting local branches..."
+for branch in feat/core-models feat/integrations feat/mcp-server feat/risk-engine feat/web-interface agent-1-core feat/cloudflare-mcp-implementation integration; do
+    git branch -D $branch 2>/dev/null && echo "  Deleted $branch"
 done
 
-# Remote branches
-for branch in feat/core-models feat/integrations feat/mcp-server feat/risk-engine feat/web-interface; do
-    if git ls-remote --heads origin | grep -q "refs/heads/$branch"; then
-        git push origin --delete "$branch" 2>/dev/null
-        echo -e "  ${GREEN}✓${NC} Deleted remote: origin/$branch"
-    fi
-done
+# 4. Kill background processes
+echo "Killing background processes..."
+pkill -f agent-monitor 2>/dev/null && echo "  Killed agent-monitor"
+pkill -f coordinator 2>/dev/null && echo "  Killed coordinator"
+
+echo "✅ Cleanup complete!"
 echo ""
-
-# PHASE 5: Temporary Files
-echo -e "${YELLOW}PHASE 5: Cleaning Temporary Files${NC}"
-echo "----------------------------------------"
-find /tmp -name "claude-*" -mmin +60 -delete 2>/dev/null && echo -e "  ${GREEN}✓${NC} Removed old Claude temp files" || echo "  ○ No temp files found"
-find /tmp -name "gcf-agent-*" -delete 2>/dev/null && echo -e "  ${GREEN}✓${NC} Removed agent temp files" || echo "  ○ No agent files found"
+echo "Remaining:"
+git branch
 echo ""
+git worktree list
+#+end_src
 
-# VERIFICATION
-echo -e "${YELLOW}FINAL VERIFICATION${NC}"
-echo "----------------------------------------"
-echo "Tmux sessions: $(tmux ls 2>/dev/null | wc -l)"
-echo "Git branches: $(git branch | wc -l)"
-echo "Git worktrees: $(git worktree list | wc -l)"
-echo "Current branch: $(git branch --show-current)"
-echo ""
+** Verification After Cleanup
+:PROPERTIES:
+:CUSTOM_ID: verification-after-cleanup
+:END:
+Run these to confirm cleanup:
 
-echo -e "${GREEN}✅ CLEANUP COMPLETE${NC}"
-echo "=========================================="
-#+END_SRC
+#+begin_src sh
+# Should show no sessions
+tmux ls
 
-* Risk Assessment for Documentation Change
+# Should only show main branch
+git branch
 
-** ITIL Risk Assessment Request
-#+BEGIN_SRC bash
-curl -X POST https://api.changeflow.us/ \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "tools/call",
-    "params": {
-      "name": "assess_change_risk",
-      "arguments": {
-        "change_type": "documentation",
-        "environment": "production",
-        "components_affected": 1,
-        "has_rollback": true,
-        "tested_in_staging": false
-      }
-    },
-    "id": 1
-  }' | jq
-#+END_SRC
+# Should only show main repository
+git worktree list
 
-** Risk Assessment Result
-#+BEGIN_EXAMPLE
-{
-  "jsonrpc": "2.0",
-  "result": {
-    "risk_score": 15,
-    "risk_level": "low",
-    "factors": [
-      "Documentation change (+5 risk)",
-      "Production environment (+40 risk)",
-      "Single component (-30 risk)",
-      "Rollback available (-10 risk)"
-    ],
-    "recommendation": "Proceed with standard change process"
-  },
-  "id": 1
-}
-#+END_EXAMPLE
+# Should show clean working directory
+git status
+#+end_src
 
-** Risk Analysis
-| Factor | Impact | Risk Score |
-|--------+--------+------------|
-| Change Type | Documentation only | +5 |
-| Environment | Production | +40 |
-| Components | Single file | -30 |
-| Rollback | Git revert available | -10 |
-| Testing | Not required for docs | 0 |
-| **TOTAL** | **LOW RISK** | **15/100** |
+** Why This Cleanup is Safe
+:PROPERTIES:
+:CUSTOM_ID: why-this-cleanup-is-safe
+:END:
+1. *Agents Never Produced Code*: Stuck on permission prompts since 9:41
+   PM
+2. *Task Agent Built Everything*: The working system is already in
+   production
+3. *Branches Are Empty*: No meaningful commits on feature branches
+4. *Worktrees Unused*: Agents never navigated to their worktrees
+5. *Production is Live*: v1.0.1 deployed with all 8 ITIL tools
 
-* Release Preparation
+** Lessons Learned
+:PROPERTIES:
+:CUSTOM_ID: lessons-learned
+:END:
+The multi-agent experiment revealed: - Agents got stuck on filesystem
+permission prompts - Task agent (single focused agent) was more
+effective - Parallel development requires better agent coordination -
+Simple, focused approaches work better than complex orchestration
 
-** Version Increment
-- Current: v1.0.1
-- New: v1.0.2
-- Type: PATCH (documentation cleanup)
-
-** Changes for v1.0.2
-1. Removed unused CHANGELOG.md
-2. Created comprehensive cleanup documentation
-3. Added AI agent onboarding in .ai/
-4. Converted markdown to org-mode (user preference)
-
-** Release Command
-#+BEGIN_SRC bash
-git add docs/POST_EXPERIMENT_CLEANUP.org
-git commit -m "docs: add comprehensive experiment cleanup documentation
-
-- Document tmux session cleanup procedures
-- Detail git worktree removal process
-- Provide branch deletion instructions
-- Include risk assessment (score: 15/100 LOW)
-- Convert from markdown to org-mode per user preference
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
-
-git tag -a v1.0.2 -m "Release v1.0.2 - Documentation Update
-
-Type: PATCH
-Risk: LOW (15/100)
-Changes:
-- Comprehensive cleanup documentation
-- AI agent onboarding guide
-- Removed unused CHANGELOG.md
-- Format conversion to org-mode"
-
-git push origin main
-git push origin v1.0.2
-#+END_SRC
-
-* Summary
-
-** What We're Removing
-- 7 tmux sessions (all stuck/inactive)
-- 5 git worktrees (never used by agents)
-- 8 local branches (no meaningful commits)
-- 5 remote branches (if they exist)
-- Background monitoring processes
-- Temporary files
-
-** What We're Keeping
-- main branch with working code
-- Production deployment (v1.0.1)
-- GitHub secrets
-- MCP server configuration
-- All working code in infra/cloudflare/worker.js
-
-** Why This Is Safe
-1. Agents have been stuck since 21:41 (over 3 hours)
-2. No code was produced by the 5 agents
-3. Task agent already built everything needed
-4. Production is live and working
-5. All branches are empty or have trivial commits
+** Post-Cleanup State
+:PROPERTIES:
+:CUSTOM_ID: post-cleanup-state
+:END:
+After cleanup you'll have: - Clean main branch with working code -
+Single repository (no worktrees) - No background processes - No tmux
+sessions - Production running v1.0.1 at api.changeflow.us

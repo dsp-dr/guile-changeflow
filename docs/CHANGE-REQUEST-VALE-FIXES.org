@@ -1,0 +1,274 @@
+#+TITLE: Change Request: Documentation Quality Improvements via Vale Linting
+#+AUTHOR: Documentation Team
+#+DATE: [2025-09-28 Sat]
+#+PROPERTY: header-args :mkdirp yes
+#+TODO: TODO(t) INPROGRESS(i) | DONE(d) CANCELLED(c)
+#+OPTIONS: toc:3
+
+* Change Request Details
+:PROPERTIES:
+:CHANGE_ID: CHG-2025-0928-002
+:PRIORITY: Low
+:CATEGORY: Documentation
+:IMPACT: None (Documentation Only)
+:END:
+
+** Summary
+Systematic improvement of documentation quality based on Vale linter findings. This change request covers fixing 1,869 style issues across 118 documentation files.
+
+** Business Justification
+- Improved documentation clarity and consistency
+- Better readability for technical and non-technical audiences
+- Standardized terminology usage across all documentation
+- Enhanced professional appearance of project documentation
+- Easier onboarding for new contributors
+
+* Vale Configuration Status
+** DONE Configure Vale with custom vocabulary
+CLOSED: [2025-09-28 Sat 16:50]
+- [X] Install Vale styles (proselint, write-good)
+- [X] Create accept.txt with 150+ technical terms
+- [X] Create reject.txt with common misspellings
+- [X] Update .vale.ini configuration
+
+** Current Configuration Files
+| File | Purpose | Status |
+|------+---------+--------|
+| .vale.ini | Main configuration | ✓ Configured |
+| .vale/styles/config/vocabularies/ChangeFlow/accept.txt | Accepted terms | ✓ Created |
+| .vale/styles/config/vocabularies/ChangeFlow/reject.txt | Rejected terms | ✓ Created |
+
+* Issue Categories and Tasks
+
+** High Priority: Errors (531 total)
+*** TODO Fix capitalization inconsistencies [0/5]
+:PROPERTIES:
+:EFFORT: 2h
+:END:
+- [ ] Standardize OAuth (not oauth, Oauth, oAuth)
+- [ ] Standardize MCP (not mcp, Mcp)
+- [ ] Standardize ITIL (not itil, Itil)
+- [ ] Standardize API (not api when referring to Application Programming Interface)
+- [ ] Standardize other acronyms per accept.txt
+
+*** TODO Fix Vale.Terms violations [0/3]
+:PROPERTIES:
+:EFFORT: 1h
+:END:
+- [ ] Review and fix incorrect term usage in REFERENCE-GUIDE.md
+- [ ] Review and fix incorrect term usage in TERMINOLOGY.md
+- [ ] Ensure consistent usage across all docs
+
+*** TODO Address technical term spelling [0/4]
+:PROPERTIES:
+:EFFORT: 1h
+:END:
+- [ ] Add any missing technical terms to accept.txt
+- [ ] Fix genuine misspellings
+- [ ] Verify all project-specific terms
+- [ ] Update vocabulary as needed
+
+** Medium Priority: Warnings (292 total)
+*** TODO Fix passive voice instances [0/10]
+:PROPERTIES:
+:EFFORT: 3h
+:END:
+Priority files to fix:
+- [ ] docs/TERMINOLOGY.md - "is maintained" → "we maintain"
+- [ ] docs/AI-AGENT-CONTEXT-PRESERVATION.org - Multiple passive constructions
+- [ ] docs/AGENT-DIVISION-OF-WORK.org - "be implemented" → active voice
+- [ ] docs/PROJECT-PHILOSOPHY.org - Review all passive instances
+- [ ] docs/TECHNICAL-DECISIONS.org - Rewrite passive sentences
+- [ ] docs/workshops/02-itil-deep-dive/README.org - Multiple instances
+- [ ] docs/workshops/01-mcp-basics/README.org - Review and fix
+- [ ] docs/SERVICE-CATALOG.org - Passive voice in descriptions
+- [ ] docs/ARCHITECTURE-OVERVIEW.org - Technical descriptions
+- [ ] README.org - User-facing content priority
+
+*** TODO Fix wordiness issues [0/8]
+:PROPERTIES:
+:EFFORT: 2h
+:END:
+Common wordy terms to replace:
+- [ ] "Implement" → "Add", "Create", "Build"
+- [ ] "Validate" → "Check", "Test"
+- [ ] "Additional" → "Extra", "More"
+- [ ] "Utilize" → "Use"
+- [ ] "Facilitate" → "Help", "Enable"
+- [ ] "Objective" → "Goal", "Aim"
+- [ ] "Monitor" → "Track", "Watch"
+- [ ] "Authorize" → "Allow"
+
+** Low Priority: Suggestions (1,046 total)
+*** TODO Consider E-Prime improvements [0/5]
+:PROPERTIES:
+:EFFORT: 4h
+:OPTIONAL: yes
+:END:
+E-Prime avoids forms of "to be" for clearer writing:
+- [ ] Review critical user-facing documentation
+- [ ] Rewrite unclear "is/are" constructions
+- [ ] Focus on action-oriented language
+- [ ] Skip where technical accuracy requires "to be"
+- [ ] Document exceptions in style guide
+
+*** TODO Create style guide [0/6]
+:PROPERTIES:
+:EFFORT: 2h
+:END:
+- [ ] Document preferred terminology
+- [ ] Define voice and tone guidelines
+- [ ] Create examples of good/bad practices
+- [ ] Include Vale configuration notes
+- [ ] Add to contributing guidelines
+- [ ] Set up CI/CD Vale checks
+
+* Implementation Plan
+
+** Phase 1: Critical Fixes (Week 1)
+#+BEGIN_SRC mermaid :file vale-fixes-phase1.png :exports results
+gantt
+    title Phase 1: Critical Documentation Fixes
+    dateFormat YYYY-MM-DD
+    section Errors
+    Fix capitalizations     :2025-09-28, 1d
+    Fix Vale.Terms         :2025-09-29, 1d
+    Fix technical terms    :2025-09-30, 1d
+#+END_SRC
+
+** Phase 2: Quality Improvements (Week 2)
+#+BEGIN_SRC mermaid :file vale-fixes-phase2.png :exports results
+gantt
+    title Phase 2: Quality Improvements
+    dateFormat YYYY-MM-DD
+    section Warnings
+    Fix passive voice      :2025-10-01, 2d
+    Fix wordiness         :2025-10-03, 2d
+#+END_SRC
+
+** Phase 3: Style Enhancements (Week 3)
+#+BEGIN_SRC mermaid :file vale-fixes-phase3.png :exports results
+gantt
+    title Phase 3: Style Enhancements
+    dateFormat YYYY-MM-DD
+    section Suggestions
+    E-Prime improvements   :2025-10-05, 3d
+    Create style guide    :2025-10-08, 2d
+#+END_SRC
+
+* Files to Update (Priority Order)
+
+** Critical User-Facing Documentation
+1. [TODO] README.org - Main project documentation
+2. [TODO] docs/QUICKSTART.org - New user onboarding
+3. [TODO] docs/REFERENCE-GUIDE.md - Complete reference
+
+** Technical Documentation
+4. [TODO] docs/ARCHITECTURE-OVERVIEW.org - System design
+5. [TODO] docs/TECHNICAL-DECISIONS.org - Technical choices
+6. [TODO] docs/API-SPECIFICATION.org - API documentation
+
+** Workshop Materials
+7. [TODO] docs/workshops/01-mcp-basics/README.org
+8. [TODO] docs/workshops/02-itil-deep-dive/README.org
+
+** Process Documentation
+9. [TODO] docs/SERVICE-CATALOG.org - Service descriptions
+10. [TODO] docs/PROJECT-PHILOSOPHY.org - Project principles
+
+** Reference Materials
+11. [TODO] docs/TERMINOLOGY.md - Term definitions
+12. [TODO] docs/DEPLOYMENT-GUIDE.org - Deployment instructions
+
+* Automation and CI/CD Integration
+
+** TODO Set up automated Vale checks
+- [ ] Create .github/workflows/vale-lint.yml
+- [ ] Run Vale on pull requests
+- [ ] Fail on new errors
+- [ ] Allow warnings with justification
+- [ ] Generate reports for review
+
+** GitHub Action Configuration
+#+BEGIN_SRC yaml :tangle .github/workflows/vale-lint.yml :mkdirp t
+name: Vale Documentation Linting
+
+on:
+  pull_request:
+    paths:
+      - '**.md'
+      - '**.org'
+      - '.vale.ini'
+      - '.vale/**'
+
+jobs:
+  vale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vale Linting
+        uses: errata-ai/vale-action@v2
+        with:
+          files: '["README.org", "docs"]'
+          fail_on_error: true
+          vale_flags: '--no-exit'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#+END_SRC
+
+* Success Metrics
+- [ ] Zero Vale errors in critical documentation
+- [ ] <100 warnings across all documentation
+- [ ] Automated Vale checks in CI/CD pipeline
+- [ ] Published style guide for contributors
+- [ ] Consistent terminology usage verified
+
+* Risk Assessment
+| Risk | Probability | Impact | Mitigation |
+|------+-------------+--------+------------|
+| Over-editing reduces clarity | Low | Medium | Review changes carefully |
+| Technical accuracy compromised | Low | High | Technical review required |
+| Time investment exceeds value | Medium | Low | Focus on high-priority files |
+| Style conflicts with technical needs | Medium | Low | Document exceptions |
+
+* Progress Tracking
+
+** Statistics
+#+BEGIN_SRC python :results output
+total_issues = 1869
+errors = 531
+warnings = 292
+suggestions = 1046
+
+print(f"Total Issues: {total_issues}")
+print(f"Errors: {errors} ({errors/total_issues*100:.1f}%)")
+print(f"Warnings: {warnings} ({warnings/total_issues*100:.1f}%)")
+print(f"Suggestions: {suggestions} ({suggestions/total_issues*100:.1f}%)")
+#+END_SRC
+
+** Completion Status
+- Errors Fixed: 0/531 (0%)
+- Warnings Fixed: 0/292 (0%)
+- Suggestions Addressed: 0/1046 (0%)
+- Files Completed: 0/118 (0%)
+
+* Notes and Exceptions
+
+** Technical Documentation Exceptions
+Some technical documentation may require passive voice or specific terminology that Vale flags. These exceptions should be documented here:
+
+1. API specifications often require passive voice for clarity
+2. Technical terms may not follow standard capitalization rules
+3. Code comments and examples should be excluded from linting
+
+** Style Guide Decisions
+- Prefer active voice except where it obscures meaning
+- Use simple, clear language over complex terminology
+- Maintain consistency within each document
+- Prioritize clarity over strict style adherence
+
+---
+*Generated: 2025-09-28*
+*Change Request: CHG-2025-0928-002*
+*Status: Planning*

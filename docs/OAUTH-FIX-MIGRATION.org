@@ -1,0 +1,283 @@
+* OAuth Fix Migration Guide
+:PROPERTIES:
+:CUSTOM_ID: oauth-fix-migration-guide
+:END:
+** Current Problem
+:PROPERTIES:
+:CUSTOM_ID: current-problem
+:END:
+The existing implementation incorrectly chains GitHub OAuth when
+Claude.ai connects, breaking the flow.
+
+** Quick Fix for Current worker.js
+:PROPERTIES:
+:CUSTOM_ID: quick-fix-for-current-worker.js
+:END:
+Replace the =/authorize= POST handler section (around line 232-258)
+with:
+
+#+begin_src javascript
+// Handle form submission (POST)
+if (request.method === 'POST') {
+  const formData = await request.formData();
+  const action = formData.get('action');
+
+  if (action === 'approve') {
+    const redirectUri = formData.get('redirect_uri');
+    const state = formData.get('state');
+
+    // For Claude.ai - skip GitHub OAuth entirely
+    if (redirectUri && (redirectUri.includes('claude.ai') || redirectUri.includes('claude.com'))) {
+      // Generate our own authorization code
+      const authCode = crypto.randomUUID();
+
+      // Store auth code with PKCE (need KV in production)
+      // For now, encode data in the code itself
+      const codeData = {
+        client_id: formData.get('client_id'),
+        redirect_uri: redirectUri,
+        code_challenge: formData.get('code_challenge'),
+        code_challenge_method: formData.get('code_challenge_method'),
+        scope: formData.get('scope'),
+        exp: Date.now() + 600000 // 10 minutes
+      };
+
+      const encodedCode = btoa(JSON.stringify(codeData));
+
+      // Redirect directly back to Claude with our code
+      return Response.redirect(
+        `${redirectUri}?code=${encodedCode}&state=${state}`,
+        302
+      );
+    }
+
+    // For non-Claude requests, continue with GitHub OAuth
+    // (existing GitHub OAuth code here...)
+  }
+}
+#+end_src
+
+Then update the =/token= endpoint (around line 897) to handle the
+encoded codes:
+
+#+begin_src javascript
+case '/token':
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 });
+  }
+
+  try {
+    const body = await request.json();
+    const grantType = body.grant_type;
+    const code = body.code;
+
+    if (grantType === 'authorization_code' && code) {
+      // Try to decode as our encoded auth code
+      try {
+        const codeData = JSON.parse(atob(code));
+
+        // Validate expiration
+        if (Date.now() > codeData.exp) {
+          throw new Error('Code expired');
+        }
+
+        // Validate PKCE if present
+        if (codeData.code_challenge_method === 'S256' && body.code_verifier) {
+          const encoder = new TextEncoder();
+          const data = encoder.encode(body.code_verifier);
+          const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+          const hashArray = new Uint8Array(hashBuffer);
+
+          const computed = btoa(String.fromCharCode(...hashArray))
+            .replace(/=/g, '')
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_');
+
+          if (computed !== codeData.code_challenge) {
+            throw new Error('PKCE validation failed');
+          }
+        }
+
+        // Generate access token with embedded data
+        const tokenData = {
+          client_id: codeData.client_id,
+          scope: codeData.scope || 'mcp',
+          exp: Date.now() + 3600000 // 1 hour
+        };
+
+        const accessToken = btoa(JSON.stringify(tokenData));
+
+        return new Response(JSON.stringify({
+          access_token: accessToken,
+          token_type: 'Bearer',
+          expires_in: 3600,
+          scope: tokenData.scope
+        }), {
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        });
+      } catch (e) {
+        // Fall back to existing GitHub session handling
+      }
+
+      // Existing GitHub session code handling...
+    }
+  } catch (error) {
+    // Error handling...
+  }
+#+end_src
+
+Finally, update =/v1/sse= to validate the new tokens (around line 598):
+
+#+begin_src javascript
+case '/v1/sse':
+  const authHeader = request.headers.get('authorization');
+
+  // Check Bearer token
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+
+    try {
+      // Try to decode as our token
+      const tokenData = JSON.parse(atob(token));
+
+      // Validate expiration
+      if (Date.now() < tokenData.exp) {
+        // Valid token - return SSE stream or handle MCP protocol
+        if (request.method === 'GET') {
+          return new Response(`data: {"type":"ready","version":"${SERVER_VERSION}"}\n\n`, {
+            headers: {
+              'Content-Type': 'text/event-stream',
+              'Cache-Control': 'no-cache',
+              'Connection': 'keep-alive',
+              ...corsHeaders
+            }
+          });
+        }
+
+        // Handle POST for MCP protocol...
+      }
+    } catch (e) {
+      // Invalid token format
+    }
+  }
+
+  // No valid auth - return 401
+  return new Response(JSON.stringify({
+    error: 'invalid_token',
+    error_description: 'Authentication required'
+  }), {
+    status: 401,
+    headers: {
+      'Content-Type': 'application/json',
+      'WWW-Authenticate': 'Bearer realm="OAuth", error="invalid_token"',
+      ...corsHeaders
+    }
+  });
+#+end_src
+
+** Better Solution: Use the Standalone Version
+:PROPERTIES:
+:CUSTOM_ID: better-solution-use-the-standalone-version
+:END:
+Deploy =mcp-oauth-standalone.js= which properly implements: - Dynamic
+Client Registration (DCR) - PKCE validation - Token management - Both
+3/26 and 6/18 auth specs
+
+#+begin_src sh
+# Deploy standalone version
+cd infra/cloudflare
+cp mcp-oauth-standalone.js worker.js
+wrangler deploy
+#+end_src
+
+** Testing with Claude.ai
+:PROPERTIES:
+:CUSTOM_ID: testing-with-claude.ai
+:END:
+1. Clear any existing connections in Claude settings
+2. Add server: =https://mcp.changeflow.us=
+3. Claude will:
+   - Try =/v1/sse= → Get 401
+   - Check =/.well-known/oauth-authorization-server=
+   - Optionally register via =/register=
+   - Redirect to =/authorize=
+   - You approve
+   - Get redirected back to Claude
+   - Claude exchanges code at =/token=
+   - Claude connects to =/v1/sse= with Bearer token
+
+** Key Points
+:PROPERTIES:
+:CUSTOM_ID: key-points
+:END:
+1. *NO GitHub OAuth* for Claude.ai connections
+2. *Support both callback URLs*:
+   - =https://claude.ai/api/mcp/auth_callback=
+   - =https://claude.com/api/mcp/auth_callback=
+3. *Validate PKCE* (mandatory for 3/26 and 6/18 specs)
+4. *Return =invalid_client= error* to trigger DCR re-registration
+5. *Use stateless tokens* for Cloudflare Workers
+
+** Production Considerations
+:PROPERTIES:
+:CUSTOM_ID: production-considerations
+:END:
+*** Use Cloudflare KV for Storage
+:PROPERTIES:
+:CUSTOM_ID: use-cloudflare-kv-for-storage
+:END:
+#+begin_src javascript
+// Store tokens in KV
+await env.TOKENS.put(accessToken, JSON.stringify(tokenData), {
+  expirationTtl: 3600
+});
+
+// Retrieve tokens
+const tokenData = await env.TOKENS.get(accessToken, 'json');
+#+end_src
+
+*** Add Rate Limiting
+:PROPERTIES:
+:CUSTOM_ID: add-rate-limiting
+:END:
+#+begin_src javascript
+// Use Cloudflare Rate Limiting
+const rateLimitKey = `${clientIp}:${endpoint}`;
+// Implement rate limiting logic
+#+end_src
+
+*** Add Logging
+:PROPERTIES:
+:CUSTOM_ID: add-logging
+:END:
+#+begin_src javascript
+// Use Workers Analytics Engine
+env.ANALYTICS.writeDataPoint({
+  blobs: ['oauth', 'token_issued'],
+  doubles: [Date.now()],
+  indexes: [clientId]
+});
+#+end_src
+
+** Verification
+:PROPERTIES:
+:CUSTOM_ID: verification
+:END:
+After deployment, verify with:
+
+#+begin_src sh
+# Check discovery endpoint
+curl https://mcp.changeflow.us/.well-known/oauth-authorization-server
+
+# Test with MCP Inspector
+npx @modelcontextprotocol/inspector
+
+# Add to Claude.ai and test connection
+#+end_src
+
+--------------
+
+Generated: 2025-09-15 02:30 UTC

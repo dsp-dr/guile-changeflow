@@ -4,7 +4,7 @@
 # Find all org files (excluding .git and .tmp directories)
 ORG_FILES := $(shell find . -name "*.org" -not -path "./.git/*" -not -path "./.tmp/*")
 
-.PHONY: help status agenda agents monitor issues setup clean lint lint-org lint-scheme \
+.PHONY: help status agenda agents monitor issues setup clean lint lint-org lint-scheme lint-vale lint-docs-style lint-org-editorial lint-spelling lint-style \
         ci-status ci-check ci-logs ci-runs ci-branch-sync ci-fix \
         a1 a2 a3 a4 a5 test-integration quick-status reports \
         dev-setup test-mcp mcp-server mcp-stop mcp-status test-guile \
@@ -21,6 +21,9 @@ help:
 	@echo "  lint      - Lint all files (org + scheme)"
 	@echo "  lint-org  - Lint org documentation files"
 	@echo "  lint-scheme - Lint Scheme source files (when they exist)"
+	@echo "  lint-vale - Run Vale style checker on docs"
+	@echo "  lint-spelling - Check spelling with aspell"
+	@echo "  lint-style - Run both Vale and spelling checks"
 	@echo ""
 	@echo "Agent Management:"
 	@echo "  agents    - List all agent worktrees"
@@ -101,6 +104,43 @@ lint-scheme:
 		done; \
 	fi
 	@echo "=== Scheme Lint Complete ==="
+
+# Vale style checking
+lint-vale:
+	@echo "=== Vale Style Check ==="
+	@command -v vale > /dev/null 2>&1 || (echo "⚠️  Vale not installed. Install with: brew install vale" && exit 0)
+	@if command -v vale > /dev/null 2>&1; then \
+		echo "Checking style in org files..."; \
+		echo "Checking README.org..."; \
+		vale --config=.vale.ini --no-exit README.org 2>/dev/null || true; \
+		echo "Checking key docs..."; \
+		vale --config=.vale.ini --no-exit docs/REFERENCE-GUIDE.org docs/TERMINOLOGY.org 2>/dev/null || true; \
+		echo "=== Vale Check Complete ==="; \
+	fi
+
+# Editorial style check (alias)
+lint-docs-style: lint-vale
+
+# Editorial checks with Vale
+lint-org-editorial: lint-vale
+
+# Spell checking with aspell
+lint-spelling:
+	@echo "=== Spell Check ==="
+	@command -v aspell > /dev/null 2>&1 || (echo "⚠️  aspell not installed. Install with: brew install aspell" && exit 0)
+	@if command -v aspell > /dev/null 2>&1; then \
+		echo "Checking spelling in org files..."; \
+		for file in $(ORG_FILES); do \
+			echo "Checking: $$file"; \
+			aspell --mode=org --lang=en --personal=/dev/null list < $$file | \
+				sort | uniq | head -20 | \
+				(grep . && echo "  ⚠️  Potential misspellings found" || echo "  ✓ No obvious misspellings"); \
+		done; \
+		echo "=== Spell Check Complete ==="; \
+	fi
+
+# Combined style and spelling check
+lint-style: lint-vale lint-spelling
 
 # Agent management
 agents:

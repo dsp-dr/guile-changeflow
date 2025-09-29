@@ -1,0 +1,285 @@
+* ChangeFlow MCP Troubleshooting Guide
+:PROPERTIES:
+:CUSTOM_ID: changeflow-mcp-troubleshooting-guide
+:END:
+** Quick Diagnostics
+:PROPERTIES:
+:CUSTOM_ID: quick-diagnostics
+:END:
+*** 1. Check All Endpoints
+:PROPERTIES:
+:CUSTOM_ID: check-all-endpoints
+:END:
+#+begin_src sh
+gmake check-prod
+#+end_src
+
+*Expected Results:* - Landing Page: 200 ✅ - Health Check: 200 ✅ - MCP
+Legacy: 200 ✅ - MCP SSE (no auth): 401 ✅ (correct - requires auth) -
+Favicon: 200 ✅ - OAuth: 302 ✅ (redirect to GitHub)
+
+*** 2. Test MCP Protocol Sequence
+:PROPERTIES:
+:CUSTOM_ID: test-mcp-protocol-sequence
+:END:
+#+begin_src sh
+# 1. Initialize handshake
+curl -X POST -H "Authorization: Bearer test" \
+     -H "Content-Type: application/json" \
+     -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}}},"id":1}' \
+     https://mcp.changeflow.us/v1/sse
+
+# 2. List tools
+curl -X POST -H "Authorization: Bearer test" \
+     -H "Content-Type: application/json" \
+     -d '{"jsonrpc":"2.0","method":"tools/list","id":2}' \
+     https://mcp.changeflow.us/v1/sse
+#+end_src
+
+** Common Issues & Solutions
+:PROPERTIES:
+:CUSTOM_ID: common-issues-solutions
+:END:
+*** Issue 1: "OAuth not configured" (500 Error)
+:PROPERTIES:
+:CUSTOM_ID: issue-1-oauth-not-configured-500-error
+:END:
+*Symptoms:* - =/authorize= returns "OAuth not configured" - OAuth flow
+doesn't start
+
+*Cause:* Missing =GITHUB_CLIENT_ID= environment variable in Cloudflare
+Workers
+
+*Solutions:* 1. *Preferred*: Add to Cloudflare dashboard environment
+variables: - Key: =GITHUB_CLIENT_ID= - Value: =Ov23lir2JJgJffb51RPs=
+
+2. [@2] *Fallback*: Already in code as hardcoded fallback
+
+*Test Fix:*
+
+#+begin_src sh
+curl -I https://mcp.changeflow.us/authorize
+# Should return: HTTP/1.1 302 Found (redirect to GitHub)
+#+end_src
+
+*** Issue 2: Claude.ai Connection Fails After OAuth
+:PROPERTIES:
+:CUSTOM_ID: issue-2-claude.ai-connection-fails-after-oauth
+:END:
+*Symptoms:* - OAuth login successful - Claude.ai shows "Connection
+failed" or similar error
+
+*Cause:* Missing MCP =initialize= handshake handler
+
+*Solution:* Ensure server handles =initialize= method before
+=tools/list=
+
+*Test Fix:*
+
+#+begin_src sh
+curl -X POST -H "Authorization: Bearer test" \
+     -H "Content-Type: application/json" \
+     -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}}},"id":1}' \
+     https://mcp.changeflow.us/v1/sse
+#+end_src
+
+*Expected Response:*
+
+#+begin_example
+data: {"type":"connected"}
+
+data: {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05",...}}
+
+data: {"type":"done"}
+#+end_example
+
+*** Issue 3: Tools Not Discoverable
+:PROPERTIES:
+:CUSTOM_ID: issue-3-tools-not-discoverable
+:END:
+*Symptoms:* - Connection successful but no tools appear in Claude.ai -
+Empty tools list
+
+*Cause:* Incorrect =tools/list= response format or missing tools array
+
+*Test:*
+
+#+begin_src sh
+curl -X POST -H "Authorization: Bearer test" \
+     -H "Content-Type: application/json" \
+     -d '{"jsonrpc":"2.0","method":"tools/list","id":2}' \
+     https://mcp.changeflow.us/v1/sse | grep -o '"name":"[^"]*"'
+#+end_src
+
+*Expected*: 8 tool names including =create_change_request=,
+=assess_risk=, etc.
+
+*** Issue 4: SSE Format Errors
+:PROPERTIES:
+:CUSTOM_ID: issue-4-sse-format-errors
+:END:
+*Symptoms:* - Protocol errors in Claude.ai - Connection attempts but
+malformed responses
+
+*Cause:* Missing =data:= prefix or incorrect SSE formatting
+
+*Check:* All SSE responses must be:
+
+#+begin_example
+data: {"jsonrpc":"2.0",...}
+
+data: {"type":"done"}
+#+end_example
+
+Note the =data:= prefix and double newline endings.
+
+*** Issue 5: Authentication Failures
+:PROPERTIES:
+:CUSTOM_ID: issue-5-authentication-failures
+:END:
+*Symptoms:* - 401 Unauthorized on =/v1/sse= - "Bearer token required"
+messages
+
+*Expected Behavior:* - =/v1/sse= without auth: 401 ✅ (correct) -
+=/v1/sse= with =Authorization: Bearer <token>=: 200 ✅
+
+*Test:*
+
+#+begin_src sh
+# Should fail (correct)
+curl https://mcp.changeflow.us/v1/sse
+# Should work
+curl -H "Authorization: Bearer test" https://mcp.changeflow.us/v1/sse
+#+end_src
+
+*** Issue 6: Version Mismatches
+:PROPERTIES:
+:CUSTOM_ID: issue-6-version-mismatches
+:END:
+*Symptoms:* - Different versions reported by different endpoints -
+Deployment not updating
+
+*Check Version Consistency:*
+
+#+begin_src sh
+curl -s https://mcp.changeflow.us/health | jq -r '.version'
+curl -s https://mcp.changeflow.us/mcp | jq -r '.server_version'
+#+end_src
+
+*Both should return*: =1.3.1=
+
+*Fix*: Redeploy with production environment:
+
+#+begin_src sh
+gh workflow run "Deploy to Cloudflare Workers" --field environment=production
+#+end_src
+
+*** Issue 7: CORS Errors
+:PROPERTIES:
+:CUSTOM_ID: issue-7-cors-errors
+:END:
+*Symptoms:* - Browser console shows CORS errors - Preflight OPTIONS
+requests failing
+
+*Check CORS Headers:*
+
+#+begin_src sh
+curl -I -X OPTIONS https://mcp.changeflow.us/v1/sse -H "Origin: https://claude.ai"
+#+end_src
+
+*Expected Headers:*
+
+#+begin_example
+Access-Control-Allow-Origin: https://claude.ai
+Access-Control-Allow-Methods: GET, POST, OPTIONS
+Access-Control-Allow-Headers: Content-Type, Authorization, anthropic-version
+#+end_example
+
+** Environment Debugging
+:PROPERTIES:
+:CUSTOM_ID: environment-debugging
+:END:
+*** Check Deployment Environment
+:PROPERTIES:
+:CUSTOM_ID: check-deployment-environment
+:END:
+#+begin_src sh
+curl -s https://mcp.changeflow.us/health | jq '.environment'
+# Should return: "production"
+#+end_src
+
+*** Check GitHub Actions Status
+:PROPERTIES:
+:CUSTOM_ID: check-github-actions-status
+:END:
+#+begin_src sh
+gh run list --repo dsp-dr/guile-changeflow --limit 5
+#+end_src
+
+*** Check Cloudflare Workers Logs
+:PROPERTIES:
+:CUSTOM_ID: check-cloudflare-workers-logs
+:END:
+Access Cloudflare dashboard → Workers → guile-changeflow-prod → Logs
+
+** Sequence Validation
+:PROPERTIES:
+:CUSTOM_ID: sequence-validation
+:END:
+The complete flow should follow this order:
+
+1. *OAuth Phase* ✅
+   - =/authorize= → GitHub → =/callback= → Success
+2. *MCP Initialize Phase* ✅
+   - =POST /v1/sse= with =initialize= method
+   - Server responds with capabilities
+3. *Tools Discovery Phase* ✅
+   - =POST /v1/sse= with =tools/list= method
+   - Server responds with 8 tools
+4. *Tool Usage Phase* ✅
+   - =POST /v1/sse= with =tools/call= method
+   - Server executes and responds
+
+** Emergency Recovery
+:PROPERTIES:
+:CUSTOM_ID: emergency-recovery
+:END:
+*** Redeploy Latest Version
+:PROPERTIES:
+:CUSTOM_ID: redeploy-latest-version
+:END:
+#+begin_src sh
+gh workflow run "Deploy to Cloudflare Workers" --repo dsp-dr/guile-changeflow --field environment=production
+#+end_src
+
+*** Check Latest Release
+:PROPERTIES:
+:CUSTOM_ID: check-latest-release
+:END:
+#+begin_src sh
+gh release view --repo dsp-dr/guile-changeflow
+#+end_src
+
+*** Validate Production Endpoints
+:PROPERTIES:
+:CUSTOM_ID: validate-production-endpoints
+:END:
+#+begin_src sh
+gmake check-prod
+#+end_src
+
+** Support Information
+:PROPERTIES:
+:CUSTOM_ID: support-information
+:END:
+- *Repository*: https://github.com/dsp-dr/guile-changeflow
+- *Issues*: https://github.com/dsp-dr/guile-changeflow/issues
+- *Latest Release*:
+  https://github.com/dsp-dr/guile-changeflow/releases/latest
+- *Documentation*: =docs/CLAUDE-AI-MCP-INTEGRATION.md=
+- *Sequence Diagrams*: =docs/MCP-SEQUENCE-DIAGRAMS.md=
+
+--------------
+
+*Last Updated*: 2025-09-14 *Version*: 1.3.1 *Status*: Production Ready
+✅
