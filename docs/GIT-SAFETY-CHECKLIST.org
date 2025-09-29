@@ -1,0 +1,78 @@
+#+TITLE: Git Safety Checklist
+#+AUTHOR: Development Team
+#+DATE: [2025-09-28 Sat]
+
+* CRITICAL: Never Use git add -A or git add .
+
+** Why This is Dangerous
+- Stages ALL changes including:
+  - Unintended files
+  - Generated files
+  - Potentially sensitive data
+  - Large binary files
+  - Temporary files
+
+** Safe Git Workflow
+
+*** 1. ALWAYS Check Status First
+#+BEGIN_SRC bash
+git status
+#+END_SRC
+
+*** 2. Review What Would Be Staged
+#+BEGIN_SRC bash
+git diff                    # Unstaged changes
+git diff --cached          # Staged changes
+#+END_SRC
+
+*** 3. Add Files Selectively
+#+BEGIN_SRC bash
+# Add specific files only
+git add path/to/specific/file.org
+git add -p path/to/file    # Interactive staging
+
+# For multiple related files
+git add docs/*.org         # Still review first!
+#+END_SRC
+
+*** 4. Verify Before Committing
+#+BEGIN_SRC bash
+git status                 # Final check
+git diff --cached         # Review exactly what's staged
+#+END_SRC
+
+*** 5. Use Interactive Staging When Unsure
+#+BEGIN_SRC bash
+git add -i                # Interactive mode
+git add -p                # Patch mode for selective staging
+#+END_SRC
+
+** Red Flags to Watch For
+- [ ] .env files
+- [ ] API keys or secrets
+- [ ] Large binary files
+- [ ] Generated files (node_modules, .vale/styles, etc.)
+- [ ] Personal information
+- [ ] Temporary files
+
+** Recovery If You Stage Too Much
+#+BEGIN_SRC bash
+# Unstage everything
+git reset
+
+# Unstage specific file
+git reset HEAD path/to/file
+
+# If you already committed (but haven't pushed)
+git reset --soft HEAD~1
+#+END_SRC
+
+** Best Practices
+1. Stage related changes together
+2. Keep commits focused and atomic
+3. Review every file before staging
+4. Never rush git operations
+5. When in doubt, stage less rather than more
+
+---
+*Remember: It's easier to add more files than to remove sensitive data from history!*
