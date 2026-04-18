@@ -68,7 +68,7 @@ npx @modelcontextprotocol/inspector@latest
 2. *Add to Claude*: Settings → Custom Connectors → Add =https://mcp.changeflow.us/v1/sse=
 3. *Start Using*: Access ITIL 4 change management tools directly in Claude
 
-*Troubleshooting*: See [[docs/CLAUDE-AI-MCP-INTEGRATION.md][Claude.ai Integration Guide]] and [[docs/MCP-SEQUENCE-DIAGRAMS.md][Sequence Diagrams]]
+*Troubleshooting*: See [[file:docs/CLAUDE-AI-MCP-INTEGRATION.org][Claude.ai Integration Guide]] and [[file:docs/MCP-SEQUENCE-DIAGRAMS.org][Sequence Diagrams]]
 
 ** Production API
 #+BEGIN_SRC bash
@@ -253,18 +253,14 @@ node test/mcp-comprehensive-test.js
 
 * Contributing
 
-See [[file:CONTRIBUTING.org][CONTRIBUTING.org]] for:
-- Code style guidelines
-- Commit message format
-- Pull request process
-- Testing requirements
+Contributions welcome via pull requests. See the [[https://github.com/dsp-dr/guile-changeflow/issues][issue tracker]] for open work.
 
 * License
 
-MIT License - See [[file:LICENSE][LICENSE]] for details
+MIT License
 
 * Support
 
 - Issues: [[https://github.com/dsp-dr/guile-changeflow/issues][GitHub Issues]]
 - Documentation: [[file:docs/][docs/ directory]]
-- API Reference: [[https://api.changeflow.us/docs][Online Documentation]]
+- MCP Server: [[https://mcp.changeflow.us][mcp.changeflow.us]]

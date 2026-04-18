@@ -1,0 +1,139 @@
+#+TITLE: ChangeFlow Specification
+#+STARTUP: overview
+
+ITIL 4 compliant change management system with MCP integration, built in GNU Guile and deployed as a Cloudflare Worker.
+
+* Goals
+
+- Implement full ITIL 4 change lifecycle: RFC submission through implementation and closure
+- Automated risk assessment with scoring, freeze period enforcement, and deployment window calculation
+- Expose change management tools via Model Context Protocol (MCP) for AI agent integration
+- CAB (Change Advisory Board) approval workflows with audit trails
+- Chaos engineering simulation for testing change management resilience
+
+* Non-Goals
+
+- General-purpose project management or ticketing
+- Real-time monitoring or alerting (observability is external)
+- User authentication management (delegated to GitHub OAuth via Cloudflare)
+
+* Architecture
+
+** Dual Runtime
+
+The system has two runtimes that share the same ITIL domain model:
+
+| Runtime | Purpose | Location |
+|---------+---------+----------|
+| GNU Guile 3.x | Core domain logic, risk engine, simulator, web dashboard | =src/= |
+| Node.js | MCP server (local dev + npm package), Cloudflare Worker (production) | =bin/=, =infra/cloudflare/= |
+
+** Guile Modules (=src/=)
+
+| Module | Role |
+|--------+------|
+| =main.scm= | CLI entry point (=--web= for dashboard, =--risk= for assessment) |
+| =models/change-request.scm= | Change request record type with full CRUD |
+| =models/state-machine.scm= | ITIL state transitions (submitted -> completed/failed/cancelled) |
+| =models/approval.scm= | CAB approval workflow |
+| =models/audit.scm= | Audit trail recording |
+| =risk/calculator.scm= | Risk scoring engine (0-100 scale) |
+| =risk/factors.scm= | Risk factor weights and keywords |
+| =risk/freeze.scm= | Freeze period and deployment window logic |
+| =risk/categories.scm= | Risk categorization (low/medium/high/critical) |
+| =mcp/server.scm= | Guile-native MCP server |
+| =mcp/tools.scm= | MCP tool definitions and handlers |
+| =mcp/handlers.scm= | JSON-RPC request routing |
+| =simulator/= | Chaos engineering: change generation, failure injection, deployment pipeline |
+| =web/= | HTTP dashboard, executive view, REST API |
+| =storage/memory.scm= | In-memory change request store |
+| =integrations/= | GitHub, notifications, routing |
+| =db/connection.scm= | SQLite database connection |
+| =json.scm= | JSON serialization utilities |
+
+** Node.js / Cloudflare Components
+
+| Component | Role |
+|-----------+------|
+| =bin/mcp-server.js= | Local MCP server (Express + WebSocket, port 8427) |
+| =infra/cloudflare/worker.js= | Production MCP server on Cloudflare Workers with GitHub OAuth |
+| =scripts/mcp-local-server.js= | Lightweight local MCP server for development |
+
+** MCP Tools (Production - 8 tools)
+
+| Tool | Description |
+|------+-------------|
+| =create_change_request= | Submit new RFCs with auto risk assessment |
+| =get_change_request= | Query change information by ID |
+| =list_change_requests= | Dashboard views with filtering |
+| =assess_risk= | Automated risk scoring |
+| =check_freeze_period= | Verify if date falls in a change freeze |
+| =get_approval_status= | Check CAB approval progress |
+| =emergency_override= | Break-glass procedures with audit |
+| =audit_trail= | View change history and compliance logs |
+
+** State Machine
+
+#+BEGIN_SRC
+submitted -> assessing -> approved -> implementing -> completed
+                       -> rejected                 -> failed -> implementing
+                       -> needs-info -> assessing
+          -> cancelled (from any non-terminal state)
+#+END_SRC
+
+Terminal states: =completed=, =rejected=, =cancelled=.
+
+** Database
+
+SQLite with WAL mode. Schema in =migrations/001_initial_schema.sql=.
+
+Core tables: =change_requests=, =users=, =approvals=, =state_transitions=,
+=audit_log=, =risk_assessments=, =comments=, =dependencies=, =affected_systems=, =notifications=.
+
+* Key Design Decisions
+
+- *Dual runtime*: Guile for domain logic purity and Scheme expressiveness; Node.js/Cloudflare for production MCP hosting with OAuth
+- *ITIL 4 strict compliance*: State transitions are validated against a fixed map; no shortcut paths
+- *Risk scoring 0-100*: Composite of keyword analysis, system count, time-of-day, and freeze period factors
+- *MCP over JSON-RPC 2.0*: Standard protocol for AI agent tool discovery and invocation
+- *GitHub OAuth*: Production access gated through GitHub OAuth flow via Cloudflare Worker
+
+* Deployment
+
+| Environment | URL | Technology |
+|-------------+-----+------------|
+| Production | https://mcp.changeflow.us | Cloudflare Workers |
+| Staging | https://guile-changeflow-staging.jasonwalsh.workers.dev | Cloudflare Workers |
+| Local | http://localhost:8427 | Node.js (Express) |
+
+* Testing
+
+Test suites cover Guile modules (models, risk, state machine, freeze periods, simulator) and Node.js MCP protocol compliance.
+
+| Suite | Scope |
+|-------+-------|
+| =test/test-core-models.scm= | Change request CRUD, state machine, approvals |
+| =test/test-risk-engine.scm= | Risk scoring calculations |
+| =test/test-freeze.scm= | Freeze period enforcement |
+| =test/simulator-test.scm= | Chaos engineering simulator |
+| =test/mcp-comprehensive-test.js= | MCP JSON-RPC protocol |
+| =test/battle-test.scm= | Battle scenario simulations |
+| =test/integration-tests.scm= | End-to-end workflows |
+
+Run with: =make test= (runs both =test-guile= and =test-mcp= targets).
+
+* Current Status
+
+- Production MCP server deployed on Cloudflare Workers with GitHub OAuth
+- 8 ITIL-compliant tools exposed via MCP
+- Risk engine with freeze period, keyword, and system-count scoring
+- Full state machine with transition validation and audit logging
+- Chaos engineering simulator for deployment pipeline testing
+- npm package published as =@guile-changeflow/mcp-server= (v1.4.4)
+
+* Known Limitations
+
+- Guile web dashboard and Node.js MCP server have separate tool implementations that may drift
+- No LICENSE file committed to the repository
+- SQLite storage is local; no shared persistence across Cloudflare Worker invocations (uses KV when available)
+- Some documentation links in docs/ reference formats (.md) that have since been migrated to .org
